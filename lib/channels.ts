@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { getConfig } from './config'
 import { appendItem, lastSeq } from './items'
-import { keys } from './keys'
+import { channelKeyPattern, keys } from './keys'
 import { LIMITS, PRESENCE, TTL_CHOICES } from './limits'
 import { applyChannelTtl, forgetActiveChannel, registerActiveChannel, type WaveRedis } from './redis'
 import { epochSeconds, expiryFrom, toIso } from './time'
@@ -148,7 +148,7 @@ export async function closeChannel(redis: WaveRedis, channel: ChannelRecord): Pr
 /** Deletes every `ch:{id}*` key, idempotency keys included. SCAN, never KEYS: the server stays responsive. */
 export async function purgeChannelKeys(redis: WaveRedis, channelId: string): Promise<number> {
   let deleted = 0
-  for await (const batch of redis.scanIterator({ MATCH: `ch:${channelId}*`, COUNT: 100 })) {
+  for await (const batch of redis.scanIterator({ MATCH: channelKeyPattern(channelId), COUNT: 100 })) {
     if (batch.length > 0) deleted += await redis.del(batch)
   }
   return deleted

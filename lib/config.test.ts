@@ -18,12 +18,19 @@ describe('readConfig', () => {
       redisUrl: 'rediss://user:pass@redis.example.com:6379',
       cronSecret: 'x'.repeat(32),
       botCheck: 'off',
+      redisPrefix: 'wave',
     })
   })
 
   it('defaults the bot check to off and takes botid when asked', () => {
     expect(readConfig(withEnv({ BOT_CHECK: 'botid' })).botCheck).toBe('botid')
     expect(() => readConfig(withEnv({ BOT_CHECK: 'captcha' }))).toThrow(ConfigError)
+  })
+
+  it('takes a custom Redis namespace and rejects an unusable one', () => {
+    expect(readConfig(withEnv({ REDIS_PREFIX: 'wave-staging' })).redisPrefix).toBe('wave-staging')
+    expect(() => readConfig(withEnv({ REDIS_PREFIX: 'has:colon' }))).toThrow(ConfigError)
+    expect(() => readConfig(withEnv({ REDIS_PREFIX: 'x'.repeat(33) }))).toThrow(ConfigError)
   })
 
   it('normalises HOST to an origin', () => {

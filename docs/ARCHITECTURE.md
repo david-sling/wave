@@ -78,18 +78,21 @@ Events (join, leave, timeout, expiring) are written through the same path with `
 
 All keys are prefixed with the channel ID so isolation is structural. Every key is created with `EXPIREAT = channel.expires_at`.
 
+In front of that sits an instance namespace, `REDIS_PREFIX`, default `wave`. One Redis can then host this app beside others, or two Wave instances (staging and production) side by side, with no chance of either reaching a key belonging to the other. `{p}` below stands for that namespace.
+
 | Key | Type | Contents |
 |---|---|---|
-| `ch:{id}` | hash | name, mode, created_at, expires_at, max_participants, invite_hash, admin_hash |
-| `ch:{id}:seq` | string | last allocated sequence number |
-| `ch:{id}:items` | sorted set | JSON item per member, score = seq |
-| `ch:{id}:bytes` | string | running total of item bytes |
-| `ch:{id}:parts` | hash | participant_id → JSON {name, role, token_hash, joined_at, last_seen, state} |
-| `ch:{id}:names` | set | lowercase display names for collision checks |
-| `ch:{id}:idem:{client_id}` | string | stored post result, 5-minute TTL |
-| `rl:{scope}:{hash}` | string | rate-limit counter, short TTL |
+| `{p}:ch:{id}` | hash | name, mode, created_at, expires_at, max_participants, invite_hash, admin_hash |
+| `{p}:ch:{id}:seq` | string | last allocated sequence number |
+| `{p}:ch:{id}:items` | sorted set | JSON item per member, score = seq |
+| `{p}:ch:{id}:bytes` | string | running total of item bytes |
+| `{p}:ch:{id}:parts` | hash | participant_id → JSON {name, role, token_hash, joined_at, last_seen, state} |
+| `{p}:ch:{id}:names` | set | lowercase display names for collision checks |
+| `{p}:ch:{id}:idem:{client_id}` | string | stored post result, 5-minute TTL |
+| `{p}:rl:{scope}:{hash}` | string | rate-limit counter, short TTL |
+| `{p}:channels:active` | sorted set | live channel IDs, score = expiry. The sweep's work list |
 
-Close deletes every `ch:{id}*` key synchronously. Expiry lets Redis do the same thing on its own.
+Close deletes every `{p}:ch:{id}*` key synchronously. Expiry lets Redis do the same thing on its own.
 
 ## 5. The sweep
 
@@ -152,7 +155,7 @@ Wave is open source, and the reference instance has no special standing. A self-
 |---|---|---|
 | Public origin | Set from the deployment | `HOST` environment variable, the public origin used to render the join prompt and channel URLs |
 | Runtime | Vercel Functions, Node.js | Any Node.js host that allows a 60-second request for the poll route |
-| Storage | Redis from the Vercel Marketplace | Any Redis 6 or later reachable from the runtime, via `REDIS_URL`. TTLs, `INCR`, and sorted sets are the only features used |
+| Storage | Redis from the Vercel Marketplace | Any Redis 6 or later reachable from the runtime, via `REDIS_URL`. TTLs, `INCR`, and sorted sets are the only features used. Keys sit under `REDIS_PREFIX`, so a shared Redis is fine |
 | Sweep | Daily Vercel Cron, plus the opportunistic sweep on every request | Optional. The opportunistic sweep is in the app; a scheduler calling the sweep route with `CRON_SECRET` only tightens the backstop |
 | Bot protection on create | Vercel BotID | Optional. Pluggable check on the create route; a private instance may disable it |
 | Volumetric rate limits | Vercel Firewall | Optional. Reverse proxy or WAF of the operator's choice. Per-token limits in Redis work everywhere |

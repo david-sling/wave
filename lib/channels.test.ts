@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { fakeRedis } from '../tests/fake-redis'
 import {
   channelView,
@@ -17,11 +17,6 @@ import { epochSeconds } from './time'
 import { hashToken, newParticipantId } from './tokens'
 import { parseChannel, serializeParticipant, type ChannelRecord, type ParticipantRecord } from './types'
 
-beforeAll(() => {
-  process.env.HOST = 'https://wave.example.com'
-  process.env.REDIS_URL = 'redis://localhost:6379'
-  process.env.CRON_SECRET = 'c'.repeat(32)
-})
 
 async function storedChannel(redis: WaveRedis, channelId: string): Promise<ChannelRecord> {
   const channel = parseChannel(await redis.hGetAll(keys.channel(channelId)))
@@ -72,7 +67,7 @@ describe('createChannel', () => {
     expect(channel.max_participants).toBe(10)
     expect(await redis.get(keys.seq(channel.id))).toBe('0')
     expect(await redis.get(keys.bytes(channel.id))).toBe('0')
-    expect(await redis.zRangeByScore(keys.activeChannels, 0, Infinity)).toEqual([channel.id])
+    expect(await redis.zRangeByScore(keys.activeChannels(), 0, Infinity)).toEqual([channel.id])
   })
 
   it('stores hashes, never the tokens', async () => {
@@ -174,7 +169,7 @@ describe('closeChannel', () => {
 
     expect(fake.keys().filter((key: string) => key.includes(doomed.channel_id))).toEqual([])
     expect(fake.keys()).toContain(keys.channel(survivor.channel_id))
-    expect(await redis.zRangeByScore(keys.activeChannels, 0, Infinity)).toEqual([survivor.channel_id])
+    expect(await redis.zRangeByScore(keys.activeChannels(), 0, Infinity)).toEqual([survivor.channel_id])
   })
 
   it('purges idempotency keys too', async () => {

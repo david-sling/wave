@@ -73,10 +73,10 @@ export async function registerActiveChannel(
   channelId: string,
   expiresAt: number,
 ): Promise<void> {
-  await client.zAdd(keys.activeChannels, { score: expiresAt, value: channelId })
+  await client.zAdd(keys.activeChannels(), { score: expiresAt, value: channelId })
 }
 
 /** Removes a closed or expired channel from the sweep's work list. */
 export async function forgetActiveChannel(client: WaveRedis, channelId: string): Promise<void> {
-  await client.zRem(keys.activeChannels, channelId)
+  await client.zRem(keys.activeChannels(), channelId)
 }

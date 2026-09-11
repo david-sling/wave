@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeRedis, type FakeRedis } from './fake-redis'
 import type { WaveRedis } from '@/lib/redis'
 
@@ -6,10 +6,6 @@ import type { WaveRedis } from '@/lib/redis'
  * The create, read, and close endpoints end to end, over the real route
  * handlers with an in-memory Redis underneath.
  */
-
-process.env.HOST = 'https://wave.example.com'
-process.env.REDIS_URL = 'redis://localhost:6379'
-process.env.CRON_SECRET = 'c'.repeat(32)
 
 let fake: FakeRedis
 let redis: WaveRedis
@@ -45,10 +41,6 @@ async function create(body: unknown = { ttl: '1h', name: 'Release 4.2' }) {
   const response = await createRoute(post(body))
   return { response, body: await response.json() }
 }
-
-beforeAll(() => {
-  process.env.BOT_CHECK = 'off'
-})
 
 beforeEach(() => {
   ;({ fake, redis } = fakeRedis())

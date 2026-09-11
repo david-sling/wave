@@ -16,6 +16,8 @@ export type Config = {
   cronSecret: string
   /** Which bot check guards channel creation. Self-hosted instances may run without one. */
   botCheck: BotCheck
+  /** Namespace in front of every Redis key, so one Redis can host several apps. */
+  redisPrefix: string
 }
 
 /** `botid` uses Vercel BotID. `off` accepts every creation request. */
@@ -112,6 +114,17 @@ function readBotCheck(raw: string | undefined, problems: string[]): BotCheck {
   return raw as BotCheck
 }
 
+const PREFIX_PATTERN = /^[A-Za-z0-9_-]{1,32}$/
+
+function readRedisPrefix(raw: string | undefined, problems: string[]): string {
+  if (!raw) return 'wave'
+  if (!PREFIX_PATTERN.test(raw)) {
+    problems.push('REDIS_PREFIX must be 1 to 32 characters of letters, digits, underscore, or hyphen')
+    return 'wave'
+  }
+  return raw
+}
+
 function readCronSecret(raw: string | undefined, problems: string[]): string {
   if (!raw) {
     problems.push('CRON_SECRET is not set. Generate one with: openssl rand -base64 32')
@@ -132,6 +145,7 @@ export function readConfig(env: Record<string, string | undefined>): Config {
     redisUrl: readRedisUrl(findRedisUrl(env), problems),
     cronSecret: readCronSecret(env.CRON_SECRET, problems),
     botCheck: readBotCheck(env.BOT_CHECK, problems),
+    redisPrefix: readRedisPrefix(env.REDIS_PREFIX, problems),
   }
   if (problems.length > 0) throw new ConfigError(problems)
   return config
