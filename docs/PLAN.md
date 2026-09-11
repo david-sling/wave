@@ -9,8 +9,15 @@ Project status lives in GitHub Issues on the repository, not in this file.
 - Every unit of work up to v1 (M0 through M2) is an issue. Milestones group issues into the releases below.
 - Work beyond v1 (M3, M4, Backlog) is not in the tracker. It lives only in this document until it is scheduled, at which point it gets a milestone and issues.
 - The issue tracker is the source of truth for what is open, in progress, and done. This document is the source of truth for scope and ordering, and is updated when the plan changes, not when an issue closes.
-- Labels: `type:*` says what kind of work it is (`task`, `spike`, `decision`, `bug`). `area:*` says where it lands (`api`, `web`, `infra`, `security`, `testing`, `docs`).
+- Issues are two levels deep. A `type:feature` issue describes one user-facing or system capability and carries the milestone. Each task under it is a GitHub sub-issue, so the feature's progress bar shows how much is done. Work happens on task issues; the feature closes when its last task closes.
+- Labels: `type:*` says what kind of work it is (`feature`, `task`, `spike`, `decision`, `bug`). `area:*` says where it lands (`api`, `web`, `infra`, `security`, `testing`, `docs`).
 - Decisions that change the spec are made in a `type:decision` issue and then written back into PRODUCT.md or ARCHITECTURE.md. The issue links the commit.
+
+How to look at the tracker:
+
+- Start from features, never from the flat list. The default Issues page shows every issue at once; use the parent-only view instead: `https://github.com/david-sling/wave/issues?q=is%3Aopen+no%3Aparent-issue`. The Project board at `https://github.com/users/david-sling/projects/3` groups by parent issue and is the preferred view.
+- Drill into one feature to see its tasks. Open the feature issue; its sub-issues and progress bar are the task list for that feature.
+- This applies to AI agents too. An agent asked about status or next work lists the features first, then expands only the feature being worked on. It does not dump all task issues in one response.
 
 Working rules:
 
