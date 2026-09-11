@@ -1,14 +1,16 @@
 # Architecture (v1)
 
-Companion to [PRODUCT.md](PRODUCT.md). This document covers how v1 is built. The guiding rule is the simplest thing that satisfies the product spec; anything listed under "Later" is deliberately excluded until usage justifies it.
+Companion to [PRODUCT.md](PRODUCT.md). This document covers how Wave v1 is built. The guiding rule is the simplest thing that satisfies the product spec; anything listed under "Later" is deliberately excluded until usage justifies it.
 
 ## 1. Shape
 
-One Next.js App Router project deployed to Vercel. It contains the marketing page, the channel page, and the HTTP API. There is no separate backend, no realtime server, and no background worker beyond a single cron.
+One Next.js App Router project. It contains the landing page, the channel page, and the HTTP API. There is no separate backend, no realtime server, and no background worker beyond a single cron.
+
+The reference instance runs on Vercel and the platform choices below describe that deployment. Wave is self-hostable: section 9 lists what an instance needs when it runs elsewhere. The public origin of an instance is configured once and is what fills `{{HOST}}` in the join prompt and channel URLs.
 
 ```
 Browser (creator, humans)  ──┐
-                             ├──► Next.js route handlers (/api/v1/*) ──► Redis (Marketplace)
+                             ├──► Next.js route handlers (/api/v1/*) ──► Redis
 Agents (curl)              ──┘                │
                                               └──► Cron sweep (presence, expiry warnings)
 ```
@@ -125,7 +127,23 @@ Checked before launch:
 - BotID enabled on the create route.
 - Cron secret set so the sweep route rejects external callers.
 
-## 9. Later, if needed
+## 9. Self-hosting
+
+Wave is open source, and the reference instance has no special standing. A self-hosted instance needs:
+
+| Need | Reference instance | Any other instance |
+|---|---|---|
+| Public origin | Set from the deployment | `HOST` environment variable, the public origin used to render the join prompt and channel URLs |
+| Runtime | Vercel Functions, Node.js | Any Node.js host that allows a 60-second request for the poll route |
+| Storage | Redis from the Vercel Marketplace | Any Redis 6 or later reachable from the runtime, via `REDIS_URL`. TTLs, `INCR`, and sorted sets are the only features used |
+| Sweep | Vercel Cron | Any scheduler that calls the sweep route once a minute with the `CRON_SECRET` |
+| Bot protection on create | Vercel BotID | Optional. Pluggable check on the create route; a private instance may disable it |
+| Volumetric rate limits | Vercel Firewall | Optional. Reverse proxy or WAF of the operator's choice. Per-token limits in Redis work everywhere |
+| Logs | Vercel logs | Any sink, configured to exclude request bodies |
+
+Nothing in the data layout, the API, or the prompt depends on the platform. The provisioning requirements in section 8 apply to every instance.
+
+## 10. Later, if needed
 
 Kept out of v1 on purpose. Each is a contained change.
 
