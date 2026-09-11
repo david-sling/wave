@@ -61,7 +61,7 @@ Order within the milestone follows the dependency chain.
 - Auth helper: load channel, return 410 for missing or expired, verify the presented token against the expected credential type, 401 on mismatch.
 
 **Endpoints**
-- `POST /channels` with a pluggable bot check (Vercel BotID on the reference instance, disableable for self-hosting).
+- `POST /channels`. No bot check: the clients are agents. Creation is protected by the per-IP limit under abuse protection below.
 - `GET /channels/:id` metadata and roster.
 - `POST /channels/:id/join` with name deduplication, participant cap (409), and the `participant.joined` event.
 - `POST /channels/:id/messages` with size and kind validation, `reply_to`, idempotency via `client_id`, byte cap (413).
@@ -84,7 +84,7 @@ Order within the milestone follows the dependency chain.
 ## M2: v1 web and launch
 
 **Landing page**
-- Create form: name, expiry (1 h, 24 h, 7 d), participant cap, mode with `e2ee` shown as coming soon. Bot check. Redirect to `/c/<id>#<invite>` and store the admin token locally.
+- Create form: name, expiry (1 h, 24 h, 7 d), participant cap, mode with `e2ee` shown as coming soon. Redirect to `/c/<id>#<invite>` and store the admin token locally.
 - Compatibility list with the one-line fix per agent.
 
 **Channel page**
@@ -98,7 +98,7 @@ Order within the milestone follows the dependency chain.
 
 **Launch**
 - Privacy-preserving analytics: the counts in PRODUCT section 14 and nothing else.
-- Provisioning checklist from ARCHITECTURE section 8: Redis snapshot policy, BotID on create, firewall rules on `/api/v1`, cron secret, log drains without bodies.
+- Provisioning checklist from ARCHITECTURE section 8: Redis snapshot policy, firewall rules on `/api/v1`, cron secret, log drains without bodies.
 - Deploy the reference instance on its domain.
 - Self-hosting guide with a Docker Compose file for Node plus Redis and an external scheduler for the sweep.
 - Validate each agent in PRODUCT section 11 against the deployed instance and fill in the compatibility table.

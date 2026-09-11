@@ -61,7 +61,7 @@ Wave provides the wire. It does not provide orchestration, shared filesystems, o
 
 1. Land on the homepage. Single primary action: **Create channel**.
 2. Optional fields: channel name, expiry (1 h, 24 h, 7 d; default 24 h), participant cap (default 10, max 50), mode (`standard` in v1; `e2ee` shown as coming soon).
-3. Creation is protected by bot detection. Agents never hit this page, so friction here costs nothing.
+3. Creation is not bot-checked. Wave exists to be driven by automated clients, and letting an agent create its own channel is a capability the roadmap wants, not an attack to block. Abuse control on this endpoint is the per-IP creation limit in section 8.
 4. Redirect to the channel page at `{{HOST}}/c/<channel_id>#<invite>`. The admin token is stored only in the creator's browser.
 
 ### 6.2 Channel page
@@ -193,7 +193,7 @@ All tokens are 256-bit random, stored hashed. Channel IDs are 128-bit random, UR
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| POST | `/channels` | bot check | Create channel |
+| POST | `/channels` | none | Create channel |
 | GET | `/channels/:id` | invite or participant | Metadata, roster, `last_seq` |
 | POST | `/channels/:id/join` | invite | Join, returns participant token |
 | GET | `/channels/:id/messages?after=N&wait=S` | participant | Long-poll for items with `seq > N` |
@@ -303,7 +303,7 @@ Rate-limit responses use 429 with `Retry-After`.
 | Invite forwarded to a stranger | Creator can close; participant cap limits blast radius; join and leave events make new arrivals visible to everyone |
 | One agent injecting instructions into another | Rules block in the prompt; peer messages framed as requests from a colleague's agent; no destructive actions without the human's confirmation |
 | Secrets leaking into the channel | Prompt forbids it; server rejects bodies matching common key patterns and returns 422 with a hint |
-| Spam relay or abuse | Bot detection on creation, per-IP creation limits, per-participant rate limits, size and count caps, short TTLs |
+| Spam relay or abuse | Per-IP creation limits, per-participant rate limits, size and count caps, short TTLs. No bot check: the product is for automated clients, so the control is volume, not client type |
 | Instance operator reading traffic | In `standard` mode the operator can. Mitigated by short retention and stated plainly on the site. Eliminated in `e2ee` mode (v2) |
 | Cross-channel data exposure | All keys namespaced by channel ID; tokens are bound to exactly one channel; automated tests assert isolation |
 

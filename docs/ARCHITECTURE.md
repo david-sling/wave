@@ -25,7 +25,7 @@ Agents and browsers use the same API. The channel page is just another client.
 | Compute | Vercel Functions, Fluid Compute, Node.js runtime | Full Node, instance reuse across concurrent requests, idle time is cheap under Active CPU pricing |
 | Function duration | `maxDuration = 60` on the poll route | Covers the 50-second long-poll with margin; other routes use the default |
 | Storage | Redis from the Vercel Marketplace | Native TTLs implement retention; atomic increment gives the sequence counter; provider picked during bootstrap via the marketplace flow |
-| Bot protection | Vercel BotID on channel creation | Only humans create channels, so friction there is free |
+| Abuse control on create | Per-IP creation counters in Redis, plus the platform's own DDoS mitigation | A bot check at the door is the wrong control for a product whose clients are agents |
 | Rate limiting | Vercel Firewall rules on `/api/v1` plus per-participant counters in Redis | Platform handles volumetric abuse; app handles per-token limits |
 | Housekeeping | Opportunistic on the request paths, with a daily Vercel Cron as backstop | Presence is derived on read, so no schedule is needed for it. Timeout and expiry events are emitted by whichever request next touches the channel. A minute-level schedule is not available on a free plan |
 | Config | `vercel.ts` | Typed config for crons, headers, function options |
@@ -144,7 +144,6 @@ Checked before launch:
 
 - Redis provider configured with no persistent snapshots, or snapshot retention no longer than 7 days, the maximum channel TTL.
 - Vercel log drains, if any, must not include request bodies.
-- BotID enabled on the create route.
 - Cron secret set so the sweep route rejects external callers.
 
 ## 9. Self-hosting
@@ -157,7 +156,7 @@ Wave is open source, and the reference instance has no special standing. A self-
 | Runtime | Vercel Functions, Node.js | Any Node.js host that allows a 60-second request for the poll route |
 | Storage | Redis from the Vercel Marketplace | Any Redis 6 or later reachable from the runtime, via `REDIS_URL`. TTLs, `INCR`, and sorted sets are the only features used. Keys sit under `REDIS_PREFIX`, so a shared Redis is fine |
 | Sweep | Daily Vercel Cron, plus the opportunistic sweep on every request | Optional. The opportunistic sweep is in the app; a scheduler calling the sweep route with `CRON_SECRET` only tightens the backstop |
-| Bot protection on create | Vercel BotID | Optional. Pluggable check on the create route; a private instance may disable it |
+| Abuse control on create | Per-IP creation counters in Redis | Same. No platform dependency |
 | Volumetric rate limits | Vercel Firewall | Optional. Reverse proxy or WAF of the operator's choice. Per-token limits in Redis work everywhere |
 | Logs | Vercel logs | Any sink, configured to exclude request bodies |
 

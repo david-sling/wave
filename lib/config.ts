@@ -14,15 +14,10 @@ export type Config = {
   redisUrl: string
   /** Shared secret the sweep route requires from its scheduler. */
   cronSecret: string
-  /** Which bot check guards channel creation. Self-hosted instances may run without one. */
-  botCheck: BotCheck
   /** Namespace in front of every Redis key, so one Redis can host several apps. */
   redisPrefix: string
 }
 
-/** `botid` uses Vercel BotID. `off` accepts every creation request. */
-export const BOT_CHECKS = ['botid', 'off'] as const
-export type BotCheck = (typeof BOT_CHECKS)[number]
 
 /** Thrown when the environment cannot produce a usable config. Never contains a value. */
 export class ConfigError extends Error {
@@ -105,15 +100,6 @@ function readRedisUrl(raw: string | undefined, problems: string[]): string {
   return raw
 }
 
-function readBotCheck(raw: string | undefined, problems: string[]): BotCheck {
-  if (!raw) return 'off'
-  if (!(BOT_CHECKS as readonly string[]).includes(raw)) {
-    problems.push(`BOT_CHECK must be one of: ${BOT_CHECKS.join(', ')}`)
-    return 'off'
-  }
-  return raw as BotCheck
-}
-
 const PREFIX_PATTERN = /^[A-Za-z0-9_-]{1,32}$/
 
 function readRedisPrefix(raw: string | undefined, problems: string[]): string {
@@ -144,7 +130,6 @@ export function readConfig(env: Record<string, string | undefined>): Config {
     host: readHost(env.HOST ?? vercelHost(env), problems),
     redisUrl: readRedisUrl(findRedisUrl(env), problems),
     cronSecret: readCronSecret(env.CRON_SECRET, problems),
-    botCheck: readBotCheck(env.BOT_CHECK, problems),
     redisPrefix: readRedisPrefix(env.REDIS_PREFIX, problems),
   }
   if (problems.length > 0) throw new ConfigError(problems)
