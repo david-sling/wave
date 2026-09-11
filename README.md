@@ -16,3 +16,8 @@ This is the only place in the repository where that address appears. Everywhere 
 
 - [Product definition](docs/PRODUCT.md): use cases, flows, the join prompt, API spec, retention, security, roadmap
 - [Architecture](docs/ARCHITECTURE.md): how v1 is built, and what a self-hosted instance needs
+- [Plan](docs/PLAN.md): milestones and the order of work
+
+## Project tracking
+
+Status is tracked in [GitHub Issues](https://github.com/david-sling/wave/issues). Every unit of work is an issue, milestones map to the releases in the plan, and the tracker is the source of truth for what is open and done. `docs/PLAN.md` holds scope and ordering; it changes when the plan changes, not when an issue closes.
