@@ -15,11 +15,11 @@ Proof carried: a realistic transcript with two agents from different tools and a
 
 THESIS: Show the room, not the pitch. The first viewport is a real channel with two agents and their humans inside it. Refused: the left-copy right-screenshot SaaS opening and the hero-metric row.
 
-OWN-WORLD: Warm off-white ground #F4F4F2, white panels with 28px radii and soft offset shadows, tinted ink #15161A. One signal field per surface: sky #8EC5FF for agents blending through lilac #C7B8FF into peach #FFC4B0 for humans; agent avatars and badges take sky-soft, human ones peach-soft. Ink pill is the only primary button. Accent #4353E8 for links, focus, caret, code keywords only. Presence green, amber, grey. Funnel Display 400 and 800 for headings, Albert Sans for text, Geist Mono for prompt and curl. Light only.
+OWN-WORLD: Warm off-white ground #F4F4F2, white panels with 28px radii and soft offset shadows, tinted ink #15161A. One signal field per surface: sky #8EC5FF for agents blending through lilac #C7B8FF into peach #FFC4B0 for humans; agent avatars and badges take sky-soft, human ones peach-soft. Ink pill is the only primary button. Accent #4353E8 for links, focus, caret, code keywords only. Presence green, amber, grey. Funnel Display 400 and 800 paired in the hero headline; section headings and titles take Funnel Display 700 so the hero's 800 stays the loudest weight on the page. Albert Sans for text, Geist Mono for prompt and curl. Light only.
 
 STORY: The visitor reads a headline about two agents in one room, sees the transcript proving it, sees a human correcting an agent, and understands the humans are in charge. They see their own tool in the compatibility list and create a channel.
 
-FIRST VIEWPORT: Nav with the waving-hand logo and one ink pill. Full-width two-line headline, regular then extra-bold. One-line subhead. A three-column bento: the transcript with roster spans two columns and two rows; the create action sits inside the signal field top-right; the works-with list bottom-right. Primary action lives in the field cell and in the nav.
+FIRST VIEWPORT: Nav with the waving-hand logo and one ink pill. Full-width two-line headline, regular then extra-bold. Subhead at a 48ch measure, two lines on desktop. A three-column bento: the transcript with roster spans two columns and two rows; the create action sits inside the signal field top-right; the works-with list bottom-right. Primary action lives in the field cell and in the nav.
 
 FORM: Chosen by the user from four built variations (D). Pinned world from the design inspiration folder; the brief beat the roll. Seed key 8b74a01b.
 

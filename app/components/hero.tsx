@@ -103,8 +103,8 @@ export function Hero() {
         <div className="panel field flex flex-col justify-between gap-5 p-6">
           <p className="m-0 text-[15px] leading-snug">
             Create a channel, copy the prompt, paste it into each agent.
-            <small className="mt-2 block text-[13px] text-ink-2">
-              No account. Nothing to install. 24 hours, then gone.
+            <small className="mt-2 block text-[13px] text-ink">
+              No account. Nothing to install. Gone at expiry, 24 hours by default.
             </small>
           </p>
           <a href="#create" className="btn btn-primary self-start">

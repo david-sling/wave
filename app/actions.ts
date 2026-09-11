@@ -35,6 +35,6 @@ export async function createChannel(
 
   return {
     error:
-      "Creating channels is not switched on for this instance yet. The API is in progress.",
+      "Creating channels is not switched on for this instance yet. Follow the channel create issue on GitHub to see when it opens.",
   };
 }

@@ -7,7 +7,7 @@ colors:
   panel-2: "#fafaf8"
   ink: "#15161a"
   ink-2: "#4a4c55"
-  ink-3: "#6f727e"
+  ink-3: "#666977"
   line: "#e4e4e9"
   line-2: "#efeff2"
   line-strong: "#cfcfd6"
@@ -203,7 +203,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 | panel-2 | #fafaf8 | Recessed surfaces: input and segmented-control track, inline code background. |
 | ink | #15161a | Body text, headings, primary button fill, mono keywords in the join prompt. |
 | ink-2 | #4a4c55 | Secondary copy: section intros, body paragraphs, nav links, table notes, unselected segment labels. |
-| ink-3 | #6f727e | Tertiary: labels, timestamps, hints, placeholders, system events, prompt comments. |
+| ink-3 | #666977 | Tertiary: labels, timestamps, hints, placeholders, system events, prompt comments. Clears 4.5:1 on ground, panel, and panel-2. |
 | line | #e4e4e9 | Hairlines: input borders, footer rule, use-case dividers, system-event rules. |
 | line-2 | #efeff2 | Softer hairlines inside panels: table rows, roster divider, prompt header, inline code border. |
 | line-strong | #cfcfd6 | Hover border on the secondary button. |
@@ -327,7 +327,7 @@ Two radial pools over a diagonal wash: sky at top-left (20% 15%), peach at botto
 
 ### Inputs / Fields (`.input`)
 - **Style:** 44px tall, 12px radius, 1px `line` border, `panel-2` fill, 15px text, `0 14px` padding, placeholder in ink-3.
-- **Focus:** border turns accent; outline offset collapses to 0 so ring and border read as one.
+- **Focus:** border turns accent; outline offset collapses to 0 so ring and border read as one. The caret is accent.
 - **Label:** 14px 600 above, 8px gap; optional marker in 400 ink-3 inline; hint below in 13px ink-3.
 - **Error:** a `role="status"` note under the form, 12px radius, `peach` border, `peach-soft` fill, `peach-ink` text, `12px 16px` padding.
 
@@ -348,7 +348,10 @@ The signature component. Rendering conventions:
 - **Roster:** 13px rows, 6px vertical padding: presence dot, name in 500, client name right-aligned in 12px ink-3. Roster heading is the 12.5px uppercase label.
 - **Presence dot:** 8px circle; `ok` active, `idle` idle, `gone` gone.
 - **Channel header:** 13px ink-2 line above the transcript: channel name in 600 ink, then mode and tag separated by middle dots; expiry countdown right-aligned.
-- **Motion:** when `animate` is set, every item takes `.arrive` with `--delay: 120ms + index * 140ms`.
+- **Motion:** when `animate` is set, every item takes `.arrive` with `--delay: 60ms + index * 70ms`, so a six-item room is fully on screen within about a second. Reduced motion zeroes both duration and delay.
+
+### Logo provenance
+`app/icon.png` and `app/apple-icon.png` are a 512px raster of the waving-hand emoji, committed with the scaffold as the placeholder logo. They are not authored assets and carry no design prompt. Replace with an authored mark, or confirm the artwork's licence, before launch.
 
 ### Join prompt (`how-it-works.tsx`)
 A `.panel` with a hairline header (14px 600 title left, 13px ink-3 note right) and a 12.5px mono `pre` in ink-2. Inside the prompt: comments in ink-3, step labels and shell variables in ink, the editable name highlighted with `lilac-soft` and a 5px radius, and the `<invite>` placeholder in accent.

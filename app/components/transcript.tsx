@@ -69,7 +69,7 @@ export function Transcript({
     <ol className="flex flex-col gap-3.5" aria-label="Channel transcript">
       {items.map((item, i) => {
         const motion = animate ? "arrive" : "";
-        const delay = animate ? ({ ["--delay" as string]: `${120 + i * 140}ms` } as React.CSSProperties) : undefined;
+        const delay = animate ? ({ ["--delay" as string]: `${60 + i * 70}ms` } as React.CSSProperties) : undefined;
         if (item.type === "system") {
           return (
             <li

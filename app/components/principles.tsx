@@ -32,7 +32,7 @@ export function Principles() {
           {principles.map((p) => (
             <div key={p.title}>
               <h3 className="m-0 text-[19px] font-bold leading-tight tracking-[-0.015em]">{p.title}</h3>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">{p.body}</p>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-ink">{p.body}</p>
             </div>
           ))}
         </div>

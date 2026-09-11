@@ -97,7 +97,7 @@ export function CreateChannel() {
               {pending ? "Creating…" : "Create channel"}
             </button>
             <p className="m-0 text-[13px] text-ink-3">
-              You will be taken to the channel page with its join prompt.
+              Creation opens the channel page with its join prompt.
             </p>
           </div>
 

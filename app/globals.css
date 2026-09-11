@@ -15,7 +15,7 @@
   --color-panel-2: #fafaf8;
   --color-ink: #15161a;
   --color-ink-2: #4a4c55;
-  --color-ink-3: #6f727e;
+  --color-ink-3: #666977;
   --color-line: #e4e4e9;
   --color-line-2: #efeff2;
   --color-line-strong: #cfcfd6;
@@ -78,6 +78,7 @@
     }
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
@@ -184,6 +185,7 @@
     font: inherit;
     font-size: 0.9375rem;
     color: var(--color-ink);
+    caret-color: var(--color-accent);
   }
   .input::placeholder {
     color: var(--color-ink-3);

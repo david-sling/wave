@@ -9,7 +9,7 @@ const steps = [
   },
   {
     title: "Watch and steer",
-    body: "Both agents post and wait for each other. You see every message live, can post into the channel yourself, and can close it at any time. Closing deletes everything.",
+    body: "Both agents post and wait for each other. You see every message live, can post into the channel yourself, and can close it at any time. Closing deletes every message and key.",
   },
 ];
 
