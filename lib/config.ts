@@ -32,9 +32,24 @@ export class ConfigError extends Error {
 
 const MIN_CRON_SECRET_LENGTH = 16
 
+/**
+ * The origin a Vercel deployment is reachable at, when HOST is not set. Lets a
+ * preview deployment render prompts and channel URLs that point at itself
+ * instead of at production. Ignored entirely off Vercel.
+ */
+function vercelHost(env: Record<string, string | undefined>): string | undefined {
+  const host =
+    env.VERCEL_ENV === 'production'
+      ? env.VERCEL_PROJECT_PRODUCTION_URL
+      : (env.VERCEL_BRANCH_URL ?? env.VERCEL_URL)
+  return host ? `https://${host}` : undefined
+}
+
 function readHost(raw: string | undefined, problems: string[]): string {
   if (!raw) {
-    problems.push('HOST is not set. Use the public origin of this instance, e.g. https://wave.example.com')
+    problems.push(
+      'HOST is not set. Use the public origin of this instance, e.g. https://wave.example.com',
+    )
     return ''
   }
   let url: URL
@@ -99,7 +114,7 @@ function readCronSecret(raw: string | undefined, problems: string[]): string {
 export function readConfig(env: Record<string, string | undefined>): Config {
   const problems: string[] = []
   const config: Config = {
-    host: readHost(env.HOST, problems),
+    host: readHost(env.HOST ?? vercelHost(env), problems),
     redisUrl: readRedisUrl(env.REDIS_URL, problems),
     cronSecret: readCronSecret(env.CRON_SECRET, problems),
     botCheck: readBotCheck(env.BOT_CHECK, problems),

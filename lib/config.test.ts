@@ -30,6 +30,26 @@ describe('readConfig', () => {
     expect(readConfig(withEnv({ HOST: 'https://wave.example.com/' })).host).toBe('https://wave.example.com')
   })
 
+  it('falls back to the Vercel deployment origin when HOST is not set', () => {
+    const onVercel = { ...valid, HOST: undefined, VERCEL_ENV: 'production', VERCEL_PROJECT_PRODUCTION_URL: 'wave.example.com' }
+    expect(readConfig(onVercel).host).toBe('https://wave.example.com')
+
+    const preview = {
+      ...valid,
+      HOST: undefined,
+      VERCEL_ENV: 'preview',
+      VERCEL_BRANCH_URL: 'wave-git-main.vercel.app',
+      VERCEL_URL: 'wave-abc123.vercel.app',
+      VERCEL_PROJECT_PRODUCTION_URL: 'wave.example.com',
+    }
+    expect(readConfig(preview).host).toBe('https://wave-git-main.vercel.app')
+  })
+
+  it('prefers an explicit HOST over the deployment origin', () => {
+    const both = { ...valid, VERCEL_ENV: 'production', VERCEL_PROJECT_PRODUCTION_URL: 'wrong.example.com' }
+    expect(readConfig(both).host).toBe('https://wave.example.com')
+  })
+
   it('reports every missing variable at once', () => {
     const problems = () => readConfig({})
     expect(problems).toThrow(ConfigError)
