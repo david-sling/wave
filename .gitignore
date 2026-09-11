@@ -49,3 +49,6 @@ next-env.d.ts
 /.impeccable/review/
 /.impeccable/config.local.json
 /.impeccable/hook.cache.json
+
+# M0 validation spike: throwaway, per docs/PLAN.md
+/spike/
