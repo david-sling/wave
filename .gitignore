@@ -44,3 +44,8 @@ next-env.d.ts
 
 # Local design references, not part of the product
 /design inspiration/
+
+# Impeccable review captures and local config
+/.impeccable/review/
+/.impeccable/config.local.json
+/.impeccable/hook.cache.json
