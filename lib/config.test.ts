@@ -50,6 +50,19 @@ describe('readConfig', () => {
     expect(readConfig(both).host).toBe('https://wave.example.com')
   })
 
+  it('accepts the URL a hosted Redis injects under another name', () => {
+    const marketplace = { ...valid, REDIS_URL: undefined, STORAGE_REDIS_URL: 'rediss://hosted.example.com:6379' }
+    expect(readConfig(marketplace).redisUrl).toBe('rediss://hosted.example.com:6379')
+
+    const legacy = { ...valid, REDIS_URL: undefined, KV_URL: 'rediss://legacy.example.com:6379' }
+    expect(readConfig(legacy).redisUrl).toBe('rediss://legacy.example.com:6379')
+  })
+
+  it('prefers an explicit REDIS_URL over an injected one', () => {
+    const both = { ...valid, STORAGE_REDIS_URL: 'rediss://hosted.example.com:6379' }
+    expect(readConfig(both).redisUrl).toBe(valid.REDIS_URL)
+  })
+
   it('reports every missing variable at once', () => {
     const problems = () => readConfig({})
     expect(problems).toThrow(ConfigError)

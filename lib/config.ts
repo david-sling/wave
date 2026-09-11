@@ -70,9 +70,23 @@ function readHost(raw: string | undefined, problems: string[]): string {
   return url.origin
 }
 
+/**
+ * Names a hosted Redis may arrive under. REDIS_URL is the documented one; the
+ * rest are what the Vercel marketplace injects, optionally behind a prefix the
+ * operator chose when connecting the store. Checked in order, first one wins.
+ */
+const REDIS_URL_ALIASES = ['REDIS_URL', 'STORAGE_REDIS_URL', 'KV_URL', 'REDIS_TLS_URL'] as const
+
+function findRedisUrl(env: Record<string, string | undefined>): string | undefined {
+  for (const name of REDIS_URL_ALIASES) {
+    if (env[name]) return env[name]
+  }
+  return undefined
+}
+
 function readRedisUrl(raw: string | undefined, problems: string[]): string {
   if (!raw) {
-    problems.push('REDIS_URL is not set')
+    problems.push(`REDIS_URL is not set (nor any of: ${REDIS_URL_ALIASES.slice(1).join(', ')})`)
     return ''
   }
   let url: URL
@@ -115,7 +129,7 @@ export function readConfig(env: Record<string, string | undefined>): Config {
   const problems: string[] = []
   const config: Config = {
     host: readHost(env.HOST ?? vercelHost(env), problems),
-    redisUrl: readRedisUrl(env.REDIS_URL, problems),
+    redisUrl: readRedisUrl(findRedisUrl(env), problems),
     cronSecret: readCronSecret(env.CRON_SECRET, problems),
     botCheck: readBotCheck(env.BOT_CHECK, problems),
   }
