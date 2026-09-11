@@ -58,31 +58,29 @@ async function findParticipantByToken(
  * Resolves the channel and verifies the presented credential.
  *
  * Throws 410 when the channel is gone, 401 when the token is missing or does
- * not match the expected credential for that channel. A token from another
- * channel fails here, because every hash checked is read from this channel's
- * own keys.
+ * not match one of the expected credentials for that channel. A token from
+ * another channel fails here, because every hash checked is read from this
+ * channel's own keys.
  */
 export async function authenticate(
   redis: WaveRedis,
   channelId: string,
-  expected: CredentialType,
+  expected: CredentialType | readonly CredentialType[],
   request: Request,
 ): Promise<AuthContext> {
   const channel = await loadChannel(redis, channelId)
   const token = bearerToken(request)
   if (!token) throw unauthorized('Missing Authorization: Bearer <token> header.')
 
-  if (expected === 'invite') {
-    if (!tokenMatches(token, channel.invite_hash)) throw unauthorized('Invalid invite token for this channel.')
-    return { channel }
+  const accepted = typeof expected === 'string' ? [expected] : expected
+  for (const credential of accepted) {
+    if (credential === 'invite' && tokenMatches(token, channel.invite_hash)) return { channel }
+    if (credential === 'admin' && tokenMatches(token, channel.admin_hash)) return { channel }
+    if (credential === 'participant') {
+      const participant = await findParticipantByToken(redis, channel.id, token)
+      if (participant) return { channel, participant }
+    }
   }
 
-  if (expected === 'admin') {
-    if (!tokenMatches(token, channel.admin_hash)) throw unauthorized('Invalid admin token for this channel.')
-    return { channel }
-  }
-
-  const participant = await findParticipantByToken(redis, channel.id, token)
-  if (!participant) throw unauthorized('Invalid participant token for this channel.')
-  return { channel, participant }
+  throw unauthorized(`Invalid ${accepted.join(' or ')} token for this channel.`)
 }

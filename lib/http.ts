@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 /**
  * The error vocabulary of the API. Agents read these bodies straight out of
  * curl, so the code is stable and machine-readable and the message is one
@@ -8,6 +10,7 @@ export type ApiErrorCode =
   | 'unauthorized'
   | 'gone'
   | 'not_found'
+  | 'forbidden'
   | 'invalid_request'
   | 'channel_full'
   | 'too_large'
@@ -40,6 +43,8 @@ export class ApiError extends Error {
 export const unauthorized = (message = 'Invalid or missing token for this channel.') =>
   new ApiError(401, 'unauthorized', message)
 
+export const forbidden = (message: string) => new ApiError(403, 'forbidden', message)
+
 export const gone = (message = 'This channel has expired or been closed.') => new ApiError(410, 'gone', message)
 
 /** JSON body for an error. The only shape the API ever returns for a failure. */
@@ -59,4 +64,26 @@ export function toErrorResponse(error: unknown): Response {
     console.error(`unhandled: ${error instanceof Error ? `${error.name}: ${error.message}` : 'non-error thrown'}`)
   }
   return Response.json(errorBody(apiError), { status: apiError.status, headers: apiError.headers })
+}
+
+/**
+ * Parses a JSON body against a schema. A malformed body or a field the schema
+ * rejects becomes a 400 whose hint names the fields, so an agent can correct
+ * the call without a human reading server logs.
+ */
+export async function readJson<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    throw new ApiError(400, 'invalid_request', 'Body must be JSON.')
+  }
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    const fields = parsed.error.issues
+      .map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`)
+      .join('; ')
+    throw new ApiError(400, 'invalid_request', 'The request body is not valid.', { hint: fields })
+  }
+  return parsed.data
 }

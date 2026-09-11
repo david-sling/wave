@@ -75,7 +75,7 @@ export type Item = z.infer<typeof itemSchema>
  */
 export const channelRecordSchema = z.object({
   id: z.string().min(1),
-  name: z.string().max(LIMITS.maxNameLength).default(''),
+  name: z.string().max(LIMITS.maxChannelNameLength).default(''),
   mode: modeSchema,
   created_at: z.coerce.number().int().positive(),
   expires_at: z.coerce.number().int().positive(),

@@ -17,7 +17,13 @@ describe('readConfig', () => {
       host: 'https://wave.example.com',
       redisUrl: 'rediss://user:pass@redis.example.com:6379',
       cronSecret: 'x'.repeat(32),
+      botCheck: 'off',
     })
+  })
+
+  it('defaults the bot check to off and takes botid when asked', () => {
+    expect(readConfig(withEnv({ BOT_CHECK: 'botid' })).botCheck).toBe('botid')
+    expect(() => readConfig(withEnv({ BOT_CHECK: 'captcha' }))).toThrow(ConfigError)
   })
 
   it('normalises HOST to an origin', () => {

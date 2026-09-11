@@ -14,7 +14,13 @@ export type Config = {
   redisUrl: string
   /** Shared secret the sweep route requires from its scheduler. */
   cronSecret: string
+  /** Which bot check guards channel creation. Self-hosted instances may run without one. */
+  botCheck: BotCheck
 }
+
+/** `botid` uses Vercel BotID. `off` accepts every creation request. */
+export const BOT_CHECKS = ['botid', 'off'] as const
+export type BotCheck = (typeof BOT_CHECKS)[number]
 
 /** Thrown when the environment cannot produce a usable config. Never contains a value. */
 export class ConfigError extends Error {
@@ -68,6 +74,15 @@ function readRedisUrl(raw: string | undefined, problems: string[]): string {
   return raw
 }
 
+function readBotCheck(raw: string | undefined, problems: string[]): BotCheck {
+  if (!raw) return 'off'
+  if (!(BOT_CHECKS as readonly string[]).includes(raw)) {
+    problems.push(`BOT_CHECK must be one of: ${BOT_CHECKS.join(', ')}`)
+    return 'off'
+  }
+  return raw as BotCheck
+}
+
 function readCronSecret(raw: string | undefined, problems: string[]): string {
   if (!raw) {
     problems.push('CRON_SECRET is not set. Generate one with: openssl rand -base64 32')
@@ -87,6 +102,7 @@ export function readConfig(env: Record<string, string | undefined>): Config {
     host: readHost(env.HOST, problems),
     redisUrl: readRedisUrl(env.REDIS_URL, problems),
     cronSecret: readCronSecret(env.CRON_SECRET, problems),
+    botCheck: readBotCheck(env.BOT_CHECK, problems),
   }
   if (problems.length > 0) throw new ConfigError(problems)
   return config

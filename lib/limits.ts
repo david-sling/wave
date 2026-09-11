@@ -12,8 +12,10 @@ export const LIMITS = {
   maxParticipants: 50,
   minParticipants: 2,
   defaultParticipants: 10,
-  /** Display name length, in characters. */
+  /** Participant display name length, in characters. */
   maxNameLength: 40,
+  /** Channel name length, in characters. Matches the create form. */
+  maxChannelNameLength: 60,
   /** One message body, in bytes. */
   maxMessageBytes: 64 * 1024,
   /** Whole channel: whichever comes first. */
