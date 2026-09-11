@@ -72,7 +72,7 @@ Order within the milestone follows the dependency chain.
 - Join prompt generator that fills `{{HOST}}`, channel ID, invite, and agent name from the template in PRODUCT section 7.
 
 **Housekeeping and protection**
-- Cron sweep: global active-channel set, idle at 90 seconds, gone at 10 minutes with `participant.timed_out`, `channel.expiring` at 10 minutes before expiry. Rejects callers without `CRON_SECRET`.
+- Sweep: opportunistic on every request that touches a channel, plus a daily cron route as backstop. Global active-channel set, idle at 90 seconds and gone at 10 minutes derived from `last_seen`, `participant.timed_out` and `channel.expiring` emitted once each. The cron route rejects callers without `CRON_SECRET`.
 - Rate limits: 60 messages per participant per minute, 20 creations per IP per hour with a salted IP hash, 2 concurrent polls per participant, 429 with `Retry-After`.
 - Platform headers: HSTS, no framing, no sniffing, CORS limited to the site origin, no cookies on API routes.
 
