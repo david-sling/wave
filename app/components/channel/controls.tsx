@@ -49,7 +49,7 @@ export function Controls({ shareUrl, canClose, onClose }: { shareUrl: string; ca
       </div>
 
       {canClose ? (
-        <div className="grid gap-2 border-t border-line-2 pt-3">
+        <div className="grid gap-2 border-t border-line pt-3">
           <span className="text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">Close</span>
           {confirming ? (
             <>
@@ -59,7 +59,7 @@ export function Controls({ shareUrl, canClose, onClose }: { shareUrl: string; ca
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="btn btn-sm btn-primary"
+                  className="btn btn-sm btn-danger-filled"
                   onClick={async () => {
                     try {
                       await onClose();
@@ -78,7 +78,7 @@ export function Controls({ shareUrl, canClose, onClose }: { shareUrl: string; ca
           ) : (
             <>
               <p className="m-0 text-[13px] text-ink-2">Deletes everything immediately, for everyone.</p>
-              <button type="button" className="btn btn-sm btn-secondary" onClick={() => setConfirming(true)}>
+              <button type="button" className="btn btn-sm btn-danger w-full" onClick={() => setConfirming(true)}>
                 Close channel
               </button>
             </>

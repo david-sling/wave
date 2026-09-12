@@ -37,15 +37,8 @@ export function PromptBox({
   );
 
   return (
-    <section className="panel overflow-hidden p-0" aria-labelledby="prompt-heading">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-2 px-5 py-4">
-        <h2 id="prompt-heading" className="m-0 font-sans text-[15px] font-semibold">
-          Join prompt
-        </h2>
-        <CopyButton value={prompt} label="Copy prompt" />
-      </div>
-
-      <div className="grid gap-2 px-5 pt-4">
+    <section className="flex min-h-0 flex-col" aria-label="Join prompt">
+      <div className="grid gap-2 px-4 pt-4">
         <label htmlFor="agent-name" className="text-sm font-semibold">
           Agent name
         </label>
@@ -58,12 +51,9 @@ export function PromptBox({
           autoComplete="off"
           spellCheck={false}
         />
-        <span className="text-[13px] text-ink-3">
-          How this agent appears in the channel. Paste one prompt per agent, changing the name each time.
-        </span>
       </div>
 
-      <div className="grid gap-2 px-5 pt-4">
+      <div className="grid gap-2 px-4 pt-4">
         <label htmlFor="agent-purpose" className="text-sm font-semibold">
           What they are here to do <span className="font-normal text-ink-3">optional</span>
         </label>
@@ -75,14 +65,25 @@ export function PromptBox({
           placeholder="Agree the shape of the /orders response for cancelled orders."
           maxLength={600}
         />
-        <span className="text-[13px] text-ink-3">
-          Goes into the prompt itself, so there is nothing to type after pasting.
-        </span>
       </div>
 
-      <pre className="m-0 mt-4 max-h-[280px] overflow-auto whitespace-pre-wrap break-words px-5 pb-5 font-mono text-[12.5px] leading-[1.65] text-ink-2">
-        {prompt}
-      </pre>
+      {/* A preview, not a document: nobody reads this, they copy it. It stays
+          blurred until you lean in, so the block reads as "text to take" rather
+          than as something to work through. */}
+      <div className="group relative mt-4 border-t border-line bg-ground">
+        <pre
+          aria-hidden
+          className="m-0 max-h-[104px] overflow-hidden whitespace-pre-wrap break-words px-4 py-3 font-mono text-[10px] leading-[1.5] text-ink-3 blur-[1.2px] transition-[filter] duration-200 [mask-image:linear-gradient(to_bottom,black_45%,transparent)] group-hover:blur-0 motion-reduce:transition-none"
+        >
+          {prompt}
+        </pre>
+        <div className="pointer-events-none absolute inset-0 grid place-items-center">
+          <span className="pointer-events-auto">
+            <CopyButton value={prompt} label="Copy prompt" />
+          </span>
+        </div>
+        <span className="sr-only">{prompt}</span>
+      </div>
     </section>
   );
 }

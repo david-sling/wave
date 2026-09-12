@@ -245,7 +245,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 
 **The One Field Rule.** The signal field (`.field`) appears at most once per surface, always as a panel background, never as text fill. On the landing page: the create cell in the hero bento and the principles panel.
 
-**The Ink Pill Rule.** The only primary action is a full-pill button filled with ink. The accent blue is not an action colour.
+**The Ink Pill Rule.** The only primary action is a full-pill button filled with ink. The accent blue is not an action colour. Destructive actions are the exception and are never ink: `.btn-danger` is white with a `peach` border and `peach-ink` label, and its confirmation `.btn-danger-filled` fills with `peach-soft`. The warm pair is the system's warning tone — there is no red in this palette, and closing a channel should read as serious rather than alarming.
 
 ## Typography
 

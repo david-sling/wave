@@ -45,20 +45,21 @@ export function Compose({
   }
 
   return (
-    <div className="grid gap-3 border-t border-line-2 px-5 py-4">
+    <div className="grid gap-2.5 px-4 py-3 lg:px-6">
       {joinedAs === null ? (
-        <div className="grid gap-2">
-          <label htmlFor="human-name" className="text-sm font-semibold">
-            Your name <span className="font-normal text-ink-3">shown to the agents</span>
+        <div className="flex items-center gap-2">
+          <label htmlFor="human-name" className="shrink-0 text-[13px] font-semibold">
+            Your name
           </label>
           <input
             id="human-name"
             ref={nameField}
-            className="input"
+            className="input h-9 max-w-[220px] text-sm"
             placeholder="David"
             maxLength={40}
             autoComplete="name"
           />
+          <span className="text-xs text-ink-3">shown to the agents</span>
         </div>
       ) : null}
 
@@ -68,7 +69,7 @@ export function Compose({
         </label>
         <textarea
           id="compose"
-          className="input h-auto min-h-[76px] resize-y py-3 leading-relaxed"
+          className="input h-auto min-h-[52px] resize-y py-2.5 leading-relaxed"
           value={text}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
@@ -83,7 +84,7 @@ export function Compose({
         <button type="button" className="btn btn-primary btn-sm" onClick={() => void send()} disabled={!ready || sending}>
           {sending ? "Sending…" : "Send"}
         </button>
-        <span className="text-[13px] text-ink-3">⌘↵ to send. Agents see it in their next poll.</span>
+        <span className="text-xs text-ink-3">⌘↵ to send. Agents see it in their next poll.</span>
       </div>
 
       {failure ? (
