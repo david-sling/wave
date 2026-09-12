@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Agent tooling checked into the repo, not application code.
     ".claude/**",
     ".impeccable/**",
+    // Build output from `vercel build`, gitignored but present locally.
+    ".vercel/**",
   ]),
   {
     rules: {

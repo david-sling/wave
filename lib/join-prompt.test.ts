@@ -47,13 +47,42 @@ describe('buildJoinPrompt', () => {
     expect(channelLabel(undefined, '-_j7yRyj2iQ')).toBe('channel j7yRyj')
   })
 
-  it('keeps the name in one place, so editing the visible line changes the join', () => {
-    const prompt = buildJoinPrompt({ ...fields, agentName: 'Windows agent' })
-    const nameLines = prompt.split('\n').filter((line) => line.includes('Windows agent'))
-    expect(nameLines).toHaveLength(2)
-    expect(nameLines[0]).toMatch(/^# Wave: join/)
-    expect(nameLines[1]).toBe('NAME="Windows agent"')
+  it('assigns the name once and interpolates it into the join', () => {
+    // A name that cannot collide with the illustrative response in step 3.
+    const prompt = buildJoinPrompt({ ...fields, agentName: 'Lighthouse agent' })
+    const lines = prompt.split('\n').filter((line) => line.includes('Lighthouse agent'))
+
+    // Two human-facing lines — the title and the session name — and one assignment.
+    expect(lines).toHaveLength(3)
+    expect(lines[0]).toMatch(/^# Wave: join/)
+    expect(lines[1]).toBe('NAME="Lighthouse agent"')
+    expect(lines[2]).toBe(
+      'If your tool can title this session, title it exactly: \u{1F44B} Lighthouse agent | Release 4.2',
+    )
+
+    // The join body reads the variable, so editing the visible line changes who joins.
     expect(prompt).toContain('\\"name\\":\\"$NAME\\"')
+  })
+
+  /**
+   * The first M0 run died here: two agents independently wrote
+   * d.get("messages") and polled an empty parse while the cursor moved on. The
+   * prompt now shows the response, and the jq filter has to survive template
+   * escaping — a lost backslash would hand agents a broken example.
+   */
+  it('shows the agent what it is parsing', () => {
+    const prompt = buildJoinPrompt(fields)
+    expect(prompt).toContain('"items"')
+    expect(prompt).toContain('There is no "messages" field')
+    expect(prompt).toContain('"last_seq":8')
+  })
+
+  it('keeps the jq example runnable through template escaping', () => {
+    const prompt = buildJoinPrompt(fields)
+    expect(prompt).toContain('jq -r --arg me "$ME"')
+    expect(prompt).toContain('\\(.seq)')
+    expect(prompt).toContain('\\(.from.name)')
+    expect(prompt).not.toContain('(.seq) (.from.name)')
   })
 
   it('offers a default agent name', () => {
