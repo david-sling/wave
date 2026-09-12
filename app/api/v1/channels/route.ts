@@ -1,5 +1,6 @@
 import { createChannel, createChannelRequestSchema } from '@/lib/channels'
 import { readJson, toErrorResponse } from '@/lib/http'
+import { limitChannelCreation } from '@/lib/rate-limit'
 import { getRedis } from '@/lib/redis'
 
 /**
@@ -13,7 +14,9 @@ import { getRedis } from '@/lib/redis'
 export async function POST(request: Request): Promise<Response> {
   try {
     const body = await readJson(request, createChannelRequestSchema)
-    const created = await createChannel(await getRedis(), body)
+    const redis = await getRedis()
+    await limitChannelCreation(redis, request)
+    const created = await createChannel(redis, body)
     return Response.json(created, { status: 201 })
   } catch (error) {
     return toErrorResponse(error)

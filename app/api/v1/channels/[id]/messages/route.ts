@@ -2,8 +2,10 @@ import { authenticate, authenticateParticipant } from '@/lib/auth'
 import { listParticipants, roster } from '@/lib/channels'
 import { readJson, toErrorResponse } from '@/lib/http'
 import { lastSeq } from '@/lib/items'
+import { LIMITS } from '@/lib/limits'
 import { itemsAfter, parsePollQuery, postMessage, postMessageRequestSchema } from '@/lib/messages'
 import { touchParticipant } from '@/lib/participants'
+import { limitPosting, withConcurrencyLimit } from '@/lib/rate-limit'
 import { getRedis } from '@/lib/redis'
 import { sweepChannel } from '@/lib/sweep'
 
@@ -53,21 +55,28 @@ export async function GET(
     if (participant) await touchParticipant(redis, channel, participant)
     await sweepChannel(redis, channel)
 
-    const deadline = Date.now() + wait * 1_000
-    for (;;) {
-      const seq = await lastSeq(redis, channel.id)
-      const remaining = deadline - Date.now()
-      if (seq > after || remaining <= 0 || request.signal.aborted) {
-        return Response.json({
-          items: seq > after ? await itemsAfter(redis, channel.id, after) : [],
-          last_seq: seq,
-          participants: roster(await listParticipants(redis, channel.id)),
-        })
+    const poll = async (): Promise<Response> => {
+      const deadline = Date.now() + wait * 1_000
+      for (;;) {
+        const seq = await lastSeq(redis, channel.id)
+        const remaining = deadline - Date.now()
+        if (seq > after || remaining <= 0 || request.signal.aborted) {
+          return Response.json({
+            items: seq > after ? await itemsAfter(redis, channel.id, after) : [],
+            last_seq: seq,
+            participants: roster(await listParticipants(redis, channel.id)),
+          })
+        }
+        // Never sleep past the deadline: the caller asked for at most `wait`
+        // seconds, and the function has only ten more than that before it is cut off.
+        await sleep(Math.min(POLL_INTERVAL_MS, remaining), request.signal)
       }
-      // Never sleep past the deadline: the caller asked for at most `wait`
-      // seconds, and the function has only ten more than that before it is cut off.
-      await sleep(Math.min(POLL_INTERVAL_MS, remaining), request.signal)
     }
+
+    // Only a held request needs a slot: an immediate read costs nothing to allow.
+    return participant && wait > 0
+      ? await withConcurrencyLimit(redis, participant.id, LIMITS.maxConcurrentPolls, poll)
+      : await poll()
   } catch (error) {
     return toErrorResponse(error)
   }
@@ -84,6 +93,7 @@ export async function POST(
     const { channel, participant } = await authenticateParticipant(redis, id, request)
     const body = await readJson(request, postMessageRequestSchema)
 
+    await limitPosting(redis, participant.id)
     const alive = await touchParticipant(redis, channel, participant)
     await sweepChannel(redis, channel)
     return Response.json(await postMessage(redis, channel, alive, body), { status: 201 })

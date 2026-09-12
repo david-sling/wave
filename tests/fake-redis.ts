@@ -73,6 +73,20 @@ export class FakeRedis {
     return this.incrBy(key, 1)
   }
 
+  async decr(key: string): Promise<number> {
+    return this.incrBy(key, -1)
+  }
+
+  async expire(key: string, seconds: number): Promise<boolean> {
+    return this.expireAt(key, Math.floor(Date.now() / 1000) + seconds)
+  }
+
+  async ttl(key: string): Promise<number> {
+    const expireAt = this.store.get(key)?.expireAt
+    if (expireAt === undefined) return this.store.has(key) ? -1 : -2
+    return Math.max(0, expireAt - Math.floor(Date.now() / 1000))
+  }
+
   async incrBy(key: string, by: number): Promise<number> {
     const current = Number((await this.get(key)) ?? 0)
     const next = current + by
