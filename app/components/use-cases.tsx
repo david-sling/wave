@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "./icons";
 import { Roster, Transcript, type Participant, type TranscriptItem } from "./transcript";
 
@@ -232,30 +232,72 @@ export function UseCaseCarousel() {
   const current = cases[active];
   const step = (by: number) => setActive((i) => (i + by + cases.length) % cases.length);
 
+  // Below `sm` the picker is one scrolling row, so a case chosen by swipe or
+  // arrow has to bring its own label back into view.
+  const rail = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const track = rail.current;
+    if (!track) return;
+    const centre = () => {
+      if (track.scrollWidth <= track.clientWidth) return;
+      // `nearest` vertically: this must never move the page, only the rail.
+      track.children[active]?.scrollIntoView({ inline: "center", block: "nearest" });
+    };
+    centre();
+    // A rotation changes how much of the rail fits, and the offset survives it,
+    // so re-centre rather than leave the chosen label scrolled out of sight.
+    const observer = new ResizeObserver(centre);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [active]);
+
+  // On a touch screen a carousel is something you swipe. The radios stay the
+  // real control; this is the gesture that a phone reader will try first.
+  const touch = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const { clientX, clientY } = e.touches[0];
+    touch.current = { x: clientX, y: clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touch.current;
+    touch.current = null;
+    if (!start) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
+    // Deliberate and horizontal, or it was the page being scrolled.
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    step(dx < 0 ? 1 : -1);
+  };
+
   return (
     <div>
       {/* A radio group rather than invented tabs: picking one of six is what a
           radio is, and the arrow keys come with it. */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3.5">
-        <fieldset className="m-0 min-w-[17rem] flex-1 border-0 p-0">
+        <fieldset className="m-0 min-w-0 flex-1 border-0 p-0 sm:min-w-[17rem]">
           <legend className="sr-only">Choose a use case</legend>
-          <div className="segmented grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-            {cases.map((useCase, i) => (
-              <label key={useCase.label}>
-                <input
-                  type="radio"
-                  name="use-case"
-                  value={useCase.label}
-                  checked={active === i}
-                  onChange={() => setActive(i)}
-                />
-                <span>{useCase.label}</span>
-              </label>
-            ))}
+          <div className="segmented sm:grid-cols-3 lg:grid-cols-6">
+            <div ref={rail} className="segmented-rail">
+              {cases.map((useCase, i) => (
+                <label key={useCase.label} className="shrink-0 px-3.5 sm:px-0">
+                  <input
+                    type="radio"
+                    name="use-case"
+                    value={useCase.label}
+                    checked={active === i}
+                    onChange={() => setActive(i)}
+                  />
+                  <span>{useCase.label}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </fieldset>
 
-        <div className="ml-auto flex items-center gap-3">
+        {/* All of this is pointer chrome. On a phone it would take a third of
+            the row, and the rail's own half-visible next label already says
+            there is more; the swipe and the rail do the stepping there. */}
+        <div className="ml-auto hidden items-center gap-3 sm:flex">
           <span className="text-[13px] tabular-nums text-ink-3">
             {active + 1} of {cases.length}
           </span>
@@ -281,6 +323,8 @@ export function UseCaseCarousel() {
       <div
         className="panel mt-3.5 grid gap-6 p-5 md:p-6 lg:min-h-[25rem] lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_212px]"
         aria-labelledby="use-case-title"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
       >
         <div>
           <h2

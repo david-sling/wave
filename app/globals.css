@@ -332,6 +332,41 @@
     color: var(--color-ink-3);
     cursor: not-allowed;
   }
+
+  /* Below `sm` six labels only fit as a three-row block, which is taller than
+     the panel deserves. The track becomes one scrolling row instead, and the
+     scrollbar is the browser's, not part of the control. The ends fade the way
+     the agent wall's ends do, so a row that continues past the track looks like
+     one; the fade is narrower than a label's padding, so it lands on the gap
+     rather than on a word. */
+  .segmented-rail {
+    display: flex;
+    gap: 0.375rem;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 0.5rem,
+      #000 calc(100% - 0.5rem),
+      transparent 100%
+    );
+  }
+  .segmented-rail::-webkit-scrollbar {
+    display: none;
+  }
+  /* From `sm` the labels are the track's own grid items again. */
+  @media (width >= 40rem) {
+    .segmented-rail {
+      display: contents;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .segmented-rail {
+      scroll-behavior: auto;
+    }
+  }
 }
 
 @keyframes marquee {
