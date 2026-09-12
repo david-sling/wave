@@ -90,10 +90,16 @@ In front of that sits an instance namespace, `REDIS_PREFIX`, default `wave`. One
 | `{p}:ch:{id}:names` | set | lowercase display names for collision checks |
 | `{p}:ch:{id}:emitted` | set | markers for once-only events, e.g. `timed_out:{participant_id}`, `expiring` |
 | `{p}:ch:{id}:idem:{client_id}` | string | stored post result, 5-minute TTL |
+| `{p}:ch:{id}:m:first` | string | the first participant to speak, so an exchange is counted once |
+| `{p}:m:{YYYY-MM-DD}:{name}` | string | one product counter for one UTC day (PRODUCT section 14), 90-day TTL |
 | `{p}:rl:{scope}:{hash}` | string | rate-limit counter, short TTL |
 | `{p}:channels:active` | sorted set | live channel IDs, score = expiry. The sweep's work list |
 
 Close deletes every `{p}:ch:{id}*` key synchronously. Expiry lets Redis do the same thing on its own.
+
+Product counters sit under `{p}:m:` rather than `{p}:ch:`, and that placement is the whole design. They must outlive the channels that incremented them — a weekly count is useless if it dies with the week — so they are outside the space close and expiry sweep. Nothing in a counter's key or value names a channel, a participant, or a person: the name is one of the fixed metrics in PRODUCT section 14, the value is an integer, and the only free text that reaches a key is the self-reported `client`, which is folded onto a known list so a stranger cannot mint keys. Durations are bucketed rather than recorded, so no counter is a timestamp in disguise.
+
+The markers that stop one channel being counted twice do identify a channel, so they stay inside it — `{p}:ch:{id}:emitted` and `{p}:ch:{id}:m:first` — and die at expiry with everything else. A counter write that fails is swallowed: a number on a dashboard is never worth failing a message between two agents.
 
 ## 5. The sweep
 

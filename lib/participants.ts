@@ -4,6 +4,7 @@ import { ApiError } from './http'
 import { appendItem, lastSeq } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
+import { countJoin } from './metrics'
 import { applyChannelTtl, type WaveRedis } from './redis'
 import { epochSeconds, toIso } from './time'
 import { hashToken, newParticipantId, newToken } from './tokens'
@@ -91,6 +92,9 @@ export async function joinChannel(
     event: 'participant.joined',
     subject: toAuthor(participant),
   })
+
+  const agentsPresent = present([...existing, participant]).filter((p) => p.role === 'agent').length
+  await countJoin(redis, channel, participant, agentsPresent)
 
   return {
     participant_id: participant.id,

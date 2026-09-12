@@ -4,6 +4,7 @@ import { withText } from './events'
 import { appendItem, lastSeq } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
+import { countMessage } from './metrics'
 import { applyChannelTtl, type WaveRedis } from './redis'
 import { findSecret } from './secret-filter'
 import { parseItem, toAuthor, type ChannelRecord, type Item, type ParticipantRecord } from './types'
@@ -104,6 +105,8 @@ export async function postMessage(
     await redis.set(key, JSON.stringify(result), { expiration: { type: 'EX', value: LIMITS.idempotencyTtlSeconds } })
     await applyChannelTtl(redis, channel.id, channel.expires_at, [key])
   }
+
+  await countMessage(redis, channel, participant, request.kind)
 
   return result
 }

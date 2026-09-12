@@ -31,6 +31,16 @@ export const keys = {
   emitted: (channelId: string) => `${ns()}:ch:${channelId}:emitted`,
   /** string: stored post result, short TTL */
   idem: (channelId: string, clientId: string) => `${ns()}:ch:${channelId}:idem:${clientId}`,
+  /** string: the first participant to speak, so an exchange can be recognised once */
+  firstPoster: (channelId: string) => `${ns()}:ch:${channelId}:m:first`,
+  /**
+   * string: one product counter for one UTC day (PRODUCT section 14).
+   *
+   * Outside the `ch:` space on purpose. These outlive the channels that
+   * incremented them and must not be swept with one, and nothing in the key
+   * or the value names a channel.
+   */
+  metric: (day: string, name: string) => `${ns()}:m:${day}:${name}`,
   /** string: rate-limit counter, short TTL. The hash is salted; no raw IP is a key. */
   rateLimit: (scope: string, hash: string) => `${ns()}:rl:${scope}:${hash}`,
   /** sorted set of live channel IDs, score = expiry. The sweep's work list. */

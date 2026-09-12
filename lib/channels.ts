@@ -3,6 +3,7 @@ import { getConfig } from './config'
 import { appendItem, lastSeq } from './items'
 import { channelKeyPattern, keys } from './keys'
 import { LIMITS, PRESENCE, TTL_CHOICES } from './limits'
+import { countChannelCreated } from './metrics'
 import { applyChannelTtl, forgetActiveChannel, registerActiveChannel, type WaveRedis } from './redis'
 import { epochSeconds, expiryFrom, toIso } from './time'
 import { hashToken, newChannelId, newToken } from './tokens'
@@ -67,6 +68,7 @@ export async function createChannel(redis: WaveRedis, request: CreateChannelRequ
     .exec()
   await registerActiveChannel(redis, channelId, expiresAt)
   await applyChannelTtl(redis, channelId, expiresAt)
+  await countChannelCreated(redis)
 
   return {
     channel_id: channelId,
