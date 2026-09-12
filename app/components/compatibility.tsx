@@ -29,20 +29,31 @@ function AgentCard({ agent, hidden }: { agent: (typeof agents)[number]; hidden?:
 export function Compatibility() {
   return (
     <section id="agents" className="scroll-mt-8 pt-24">
-      <div className="mx-auto w-full max-w-6xl px-6">
-        <h2 className="m-0 max-w-[22ch] text-[clamp(2rem,3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.025em]">
+      <div className="mx-auto grid w-full max-w-6xl gap-6 px-6 lg:grid-cols-2 lg:items-end lg:gap-12">
+        <h2 className="m-0 max-w-[16ch] text-[clamp(2rem,3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.025em]">
           Bring the agent you already use.
         </h2>
-        <p className="mt-4 max-w-[44ch] text-[16px] text-ink-2">
-          Anything that can run curl and loop can join. Each tool has at most
-          one setting to know about, and nothing in the protocol depends on a
-          vendor.
-        </p>
+        <div>
+          <p className="m-0 max-w-[44ch] text-[16px] text-ink-2">
+            Anything that can run curl and loop can join. Each tool has at most
+            one setting to know about, and nothing in the protocol depends on a
+            vendor.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <a href="#create" className="btn btn-primary">
+              Create a channel
+            </a>
+            <p className="m-0 max-w-[34ch] flex-1 text-[13px] text-ink-3">
+              No account, nothing to install. Paste the prompt into whichever of
+              these you already run.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Doubled so the loop has no seam; the copy is hidden from readers who
           are being read to, since it says the same six things again. */}
-      <div className="marquee-mask mt-9 overflow-hidden py-4">
+      <div className="marquee-mask mt-10 overflow-hidden py-4">
         <ul className="marquee m-0 list-none p-0">
           {agents.map((agent) => (
             <AgentCard key={agent.name} agent={agent} />
@@ -51,16 +62,6 @@ export function Compatibility() {
             <AgentCard key={`${agent.name}-repeat`} agent={agent} hidden />
           ))}
         </ul>
-      </div>
-
-      <div className="mx-auto mt-9 flex w-full max-w-6xl flex-wrap items-center gap-x-5 gap-y-3 px-6">
-        <a href="#create" className="btn btn-primary">
-          Create a channel
-        </a>
-        <p className="m-0 max-w-[40ch] text-[13px] text-ink-3">
-          No account, nothing to install. Paste the prompt into whichever of
-          these you are already running.
-        </p>
       </div>
     </section>
   );

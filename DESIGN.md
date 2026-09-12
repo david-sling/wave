@@ -231,7 +231,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 
 ### Tertiary
 - **Accent** (`{colors.accent}`): focus, focused input border, code keyword. Never a fill, never a heading colour, never a button.
-- **Ok / Idle / Gone**: presence. These are semantic and stand apart from the role hues. The compatibility table carries no status colour; it lists each agent and the one setting to know.
+- **Ok / Idle / Gone**: presence. These are semantic and stand apart from the role hues. The agent wall carries no status colour; it names each tool and the one setting to know.
 
 ### Neutral
 - **Ground, Panel, Panel-2**: three surface levels, warm to white to warm-white recessed.
@@ -264,7 +264,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 - **Section intro** (400, 16px): the paragraph under a section h2, max 40-42ch, ink-2.
 - **Body** (400, 14.5px, line-height 1.625): card and list body copy, table cells, ink-2. Transcript messages use 14px.
 - **Meta** (400, 13-13.5px): timestamps, hints, footer copy, channel header, roster rows, ink-2 or ink-3.
-- **Label** (600, 12.5px, uppercase, tracking 0.02em, ink-3): roster heading and table column headers. This is a label for a list or table, not a kicker above a headline.
+- **Label** (600, 12.5px, uppercase, tracking 0.02em, ink-3): the roster heading. This is a label for a list, not a kicker above a headline.
 - **Badge** (600, 12px, line-height 1.4, tracking 0.02em): role badge text.
 - **Mono** (400, 12.5px, line-height 1.65): the join prompt `pre` and inline `code`.
 
@@ -283,7 +283,7 @@ The **channel page** is a two-column split at `lg` (`1.35fr / 0.85fr`): the chan
 
 Rhythm inside panels: panel padding 20px on small screens, 24px from `md` (the form uses 24/32px; the principles field panel 28/40px). Bento and list gaps are 14px; grid gaps inside sections are 24-40px; form field groups sit 24px apart with 8px between label and control. Roster rows are 6px tall padding; transcript items 14px apart.
 
-Breakpoints are Tailwind defaults: `sm` 640px (table rows become a table, the case picker goes three-up), `md` 768px (how-it-works goes three-up, nav links appear), `lg` 1024px (split sections, the carousel panel's three columns, the picker six-up).
+Breakpoints are Tailwind defaults: `sm` 640px (the case picker goes three-up), `md` 768px (how-it-works goes three-up, nav links appear), `lg` 1024px (split sections, the carousel panel's three columns, the picker six-up).
 
 **The Proof-Wide Rule.** Where copy and proof share a section, the proof gets the wider column. Copy never exceeds 48ch.
 
@@ -301,7 +301,7 @@ Depth is tonal first, shadow second. Three surface tones (ground, panel, panel-2
 
 ## Shapes
 
-Radii step from tight to generous with role: 5px inline code and the prompt's name highlight, 6px focus ring, 9px avatar tile and selected segment, 12px controls (inputs, segmented track, numeral tile, error note), 20px card (token exists, unused on this page), 28px panel, 36px frame (token exists, unused on this page), full pill for buttons, chips, and badges.
+Radii step from tight to generous with role: 5px inline code and the prompt's name highlight, 6px focus ring, 9px avatar tile and selected segment, 12px controls (inputs, segmented track, numeral tile, error note), 20px card (the agent wall's cards and the dialogs), 28px panel, 36px frame (token exists, unused on this page), full pill for buttons, chips, and badges.
 
 Borders are hairlines: 1px `line` on inputs and dividers, 1px `line-2` inside panels, 1px at 6% ink on panels and chips. System events in the transcript are a centred label with a hairline on each side (`.hairline-between`). Panels that hold a table or a `pre` clip their content (`overflow: hidden`) so rows meet the 28px corner cleanly.
 
@@ -311,7 +311,7 @@ Borders are hairlines: 1px `line` on inputs and dividers, 1px `line-2` inside pa
 
 ### Buttons (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-sm`)
 - **Shape:** full pill (`9999px`), 48px tall, `0 22px` padding, 15px 600 text, 8px gap for an icon.
-- **Primary:** ink fill, white text. Nav uses `.btn-sm` (40px tall, `0 16px`, 14px text). Two primaries per page: the nav pill and the hero form's submit, which is disabled while pending at 60% opacity. A third appears only inside the options dialog, as its Done button.
+- **Primary:** ink fill, white text. Nav uses `.btn-sm` (40px tall, `0 16px`, 14px text). Three on the landing page, each at a point where the reader might decide: the nav pill, the hero form's submit (disabled while pending at 60% opacity), and the agent wall's closing CTA, which is a link back to `#create` rather than a second form — the page asks for the channel name once. A fourth appears only inside the options dialog, as its Done button.
 - **Hover:** `translateY(-1px)` and the primary-hover shadow over 180ms `cubic-bezier(0.2,0.8,0.2,1)`.
 - **Focus:** global 2px accent outline, 3px offset, 6px radius.
 - **Secondary:** white fill, ink text, `line` border; hover darkens the border to `line-strong`. Defined in CSS; not placed on the landing page.
@@ -362,6 +362,9 @@ The signature component. Rendering conventions:
 ### Use-case carousel (`use-cases.tsx`)
 The landing page's product surface, in the hero under the create form. Six scenarios, each with the channel it would happen in. The picker row is a `.segmented` control holding a real radio group (two columns, three from `sm`, six from `lg`) — choosing one of six is a radio's own job, so the arrow keys come free and the `<legend>` is `sr-only` — with a `1 of 6` counter in 13px ink-3 and two 44px round `.btn-secondary` arrows pushed right, wrapping at either end. The panel under it is three columns at `lg` (`0.8fr / 1.2fr / 212px`): the scenario's title (19px display 700) and body, the example transcript, and the room. Each column is divided by a `line-2` hairline that is a top border when stacked and a left border at `lg`. The transcript carries the 13px channel header (`name · standard · example`) and the panel holds a `25rem` minimum, so flipping through the six barely moves the page. Each example channel names real clients in its roster — Claude Code, Codex CLI, Cursor, Gemini CLI — and the handoff case is the one that uses `idle` and `gone` presence, because that is what a handoff looks like.
 
+### Agent wall (`compatibility.tsx`)
+The page's closing section, and the only full-bleed element in the system: the header row is the usual centred 72rem column — headline left at 16ch, the 44ch intro and the closing CTA right, bottom-aligned at `lg` — and the wall itself runs edge to edge beneath it. Cards are 17.5rem wide, 20px radius, white with the panel's 6% ink border and `shadow-soft`, carrying the tool's name at 15px 600 and its one setting at 13px ink-3. The set is rendered twice, the second copy `aria-hidden`, and the track is masked to transparent in its first and last 4% so cards fade into the ground rather than being cut off. There are no vendor logos: the marks are not ours to draw, so the wall is set in the wordmark's place.
+
 ### Logo provenance
 `app/icon.png` and `app/apple-icon.png` are a 512px raster of the waving-hand emoji, committed with the scaffold as the placeholder logo. They are not authored assets and carry no design prompt. Replace with an authored mark, or confirm the artwork's licence, before launch.
 
@@ -370,11 +373,12 @@ A hairline header (14px 600 title left, 13px ink-3 note right) over a 12.5px mon
 
 ### Motion
 - **Arrive** (`@keyframes arrive`, 640ms `cubic-bezier(0.16,1,0.3,1)`, `both`): opacity 0 to 1, `translateY(8px)` to none, `blur(2px)` to none. The one authored animation; used only on transcript items, staggered. The use-case carousel re-runs it by keying the `Transcript` on the selected case, so a new example arrives rather than swapping in place.
+- **Marquee** (`@keyframes marquee`, 48s linear infinite): the agent wall drifts from `translateX(0)` to `translateX(calc(-50% - 0.4375rem))` — half the doubled track plus half a gap, so the seam lands where the first card started and the loop has no jump. Pauses on hover. Under reduced motion the global rule lands it on its end state, which on a doubled track is the same picture as the start, so it simply stands still.
 - **Button transition:** 180ms on transform, box-shadow, border-color, background-color.
 - **Scroll:** `scroll-behavior: smooth`, anchors offset by `scroll-margin-top: 32px`.
 - **Reduced motion:** `prefers-reduced-motion: reduce` collapses all animation and transition durations to 0.01ms and disables smooth scroll.
 
-**The One Arrival Rule.** Entrance motion belongs to the conversation. New surfaces reuse `.arrive` for transcript items and add no other entrance animation.
+**The One Arrival Rule.** Entrance motion belongs to the conversation. New surfaces reuse `.arrive` for transcript items and add no other entrance animation. The agent wall's drift is the one exception and is not an entrance: it is ambient, it never moves anything the reader is trying to read, and it stops on hover and under reduced motion.
 
 ## Do's and Don'ts
 
