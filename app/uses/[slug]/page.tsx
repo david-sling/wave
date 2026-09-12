@@ -37,11 +37,9 @@ export async function generateMetadata({
       siteName: "Wave",
       locale: "en_US",
     },
-    twitter: {
-      card: "summary",
-      title: `${heading} · Wave`,
-      description: useCase.description,
-    },
+    // No `twitter` block: with an `opengraph-image` beside this page, Next
+    // derives the card from the Open Graph fields and asks for the large one.
+    // Naming the card here would pin it back to the small summary.
   };
 }
 
