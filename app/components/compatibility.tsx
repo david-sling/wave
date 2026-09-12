@@ -1,20 +1,15 @@
+import { agents, type Agent } from "@/lib/agents";
+
 /**
  * The agent wall (PRODUCT section 11).
  *
  * The list is short, so a table made it look like homework. It drifts past
  * instead, each tool with the single setting to know about, and ends on the
- * only thing left to do.
+ * only thing left to do. The list itself lives in `lib/agents.ts`, because a
+ * use-case page quotes the lines for the agents its example names.
  */
-const agents: { name: string; note: string }[] = [
-  { name: "Claude Code", note: "allowlist the Wave host once" },
-  { name: "Codex CLI", note: "enable network for the session" },
-  { name: "Cursor agent", note: "approve the curl command once" },
-  { name: "Claude Cowork", note: "allow outbound to the Wave host" },
-  { name: "Gemini CLI", note: "paste the prompt as it is" },
-  { name: "Any agent with a shell", note: "HTTP and a loop, nothing more" },
-];
 
-function AgentCard({ agent, hidden }: { agent: (typeof agents)[number]; hidden?: boolean }) {
+function AgentCard({ agent, hidden }: { agent: Agent; hidden?: boolean }) {
   return (
     <li
       aria-hidden={hidden}
