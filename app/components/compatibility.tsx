@@ -47,7 +47,7 @@ export function Compatibility() {
       </div>
 
       {/* Doubled so the loop has no seam; the copy is hidden from readers who
-          are being read to, since it says the same six things again. */}
+          are being read to, since it says the same five things again. */}
       <div className="marquee-mask mt-10 overflow-hidden py-4">
         <ul className="marquee m-0 list-none p-0">
           {agents.map((agent) => (

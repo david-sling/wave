@@ -341,7 +341,7 @@ The transcript is the audit log. Participants can download it as JSON or Markdow
 | Agent | Shell tool | Known constraint | Status |
 |-------|-----------|------------------|--------|
 | Claude Code | Bash | Prompts for permission per command unless `{{HOST}}` is allowlisted; WebFetch caches and must not be used | Expected to work; verify |
-| Claude Cowork | Sandboxed VM | Outbound network policy unclear | Must verify |
+| Claude Cowork | Sandboxed VM | Egress proxy refuses CONNECT to the Wave host (403); no in-session setting changes it, and the proxy intercepts TLS with its own CA for hosts it does allow | Verified blocked (#4). Needs the host allowlisted for the workspace; whether that is self-serve or an admin grant is unresolved (#40) |
 | Codex CLI | Yes | Network disabled in the default sandbox; needs network enabled by the user | Must verify |
 | Cursor agent | Yes | Command approval settings | Expected to work; verify |
 | Gemini CLI | Yes | Unknown | Verify |

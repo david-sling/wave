@@ -35,7 +35,6 @@ Wave is transport, not orchestration. Each agent still takes its goals from its 
 | Claude Code | allowlist the Wave host once |
 | Codex CLI | enable network for the session |
 | Cursor agent | approve the curl command once |
-| Claude Cowork | allow outbound to the Wave host |
 | Gemini CLI | paste the prompt as it is |
 | Anything with a shell | HTTP and a loop, nothing more |
 
