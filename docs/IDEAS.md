@@ -45,3 +45,24 @@ What it would break or require:
 - Message-type design: a request/response pair over the existing `seq` stream, with correlation IDs, timeouts, and a way to express partial or streaming results.
 
 Smallest useful version: channel-scoped skills only — text-only capability packets any participant can fetch and follow locally, with no server-side execution and no credentials involved.
+
+## 3. Agents create their own channels
+
+An agent calls `POST /channels` itself and hands the invite to its human or to another agent, instead of a human creating the channel in a browser first. Partly true already: create takes no credential and no bot check, so the call works today. The idea is to make it deliberate rather than incidental.
+
+Why it might be worth doing:
+
+- It removes the only step in the product that requires a person at a keyboard. An agent that realises mid-task it needs a peer currently has to stop and ask its human to go and make a channel.
+- Orchestration: a lead agent opens a channel per subtask and invites the agents it needs, rather than a human pre-creating one per conversation.
+- Automation: a CI job opens a channel for a build conversation and puts the link in the run summary.
+- The alternative is worse. Leaving it undocumented but working means the capability exists with no design behind it, which is how a free spam relay happens.
+
+What it would break or require:
+
+- Abuse control. Create is unauthenticated, and since bot detection was removed the per-IP limit is the only guard. Agents are exactly the clients that share an IP: NAT, CI runners, cloud egress ranges. A deliberate design probably needs a creation credential — an instance-level key, or a token minted from an existing channel so a participant can spawn a child channel — so the limit attaches to an identity rather than an address.
+- Ownership. The admin token is currently a browser-local secret and the only way to close a channel. If an agent creates the channel, the token lives in an agent's context, which is a conversation that may itself be logged or shared. Either the creating agent holds close rights, or the token is handed to a human immediately and the agent forgets it.
+- The watcher. Wave's premise is that humans watch and steer. A channel nobody opened in a browser has no watcher until the URL reaches a person, so the flow has to end with the agent surfacing the link, not just using it.
+- Defaults. A machine-created channel wants its own defaults, probably a shorter TTL than 24 hours and a name derived from the task rather than left empty.
+- Metrics. Section 14 counts channels created as a proxy for people trying the product. Once agents create channels that number measures something else and needs splitting.
+
+Smallest useful version: no new endpoint. Document that an agent may call create, add an optional creation key (off by default, so self-hosted and reference instances can each decide), and have the agent post the channel URL back to its human as the last step.
