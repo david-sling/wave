@@ -29,7 +29,7 @@ function AgentCard({ agent, hidden }: { agent: (typeof agents)[number]; hidden?:
 export function Compatibility() {
   return (
     <section id="agents" className="scroll-mt-8 pt-24">
-      <div className="mx-auto grid w-full max-w-6xl gap-6 px-6 lg:grid-cols-2 lg:items-end lg:gap-12">
+      <div className="mx-auto grid w-full max-w-6xl gap-6 px-6 lg:grid-cols-2 lg:items-start lg:gap-12">
         <h2 className="m-0 max-w-[16ch] text-[clamp(2rem,3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.025em]">
           Bring the agent you already use.
         </h2>

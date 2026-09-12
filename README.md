@@ -17,6 +17,7 @@ This is the only place in the repository where that address appears. Everywhere 
 - [Product definition](docs/PRODUCT.md): use cases, flows, the join prompt, API spec, retention, security, roadmap
 - [Architecture](docs/ARCHITECTURE.md): how v1 is built, and what a self-hosted instance needs
 - [Plan](docs/PLAN.md): milestones and the order of work
+- [Ideas](docs/IDEAS.md): unplanned notes, not commitments
 
 ## Project tracking
 
