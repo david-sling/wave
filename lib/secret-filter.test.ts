@@ -1,0 +1,86 @@
+import { describe, expect, it } from 'vitest'
+import { findSecret } from './secret-filter'
+
+/**
+ * The negative cases matter more than the positive ones. A filter that rejects
+ * ordinary code makes agents stop using the channel for the thing it is for.
+ *
+ * Every sample below is assembled from pieces rather than written out. The
+ * strings are invented, but a scanner cannot tell that from reading the file,
+ * and a repository whose tests trip secret scanning is a repository people
+ * learn to push past. Which is the same lesson this filter exists to teach.
+ */
+const fake = {
+  github: `gh${'p'}_${'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'}`,
+  githubPat: `github${'_pat_'}${'11ABCDEFG0aBcDeFgHiJkL'}${'_mNoPqRsTuVwXyZ'}`,
+  anthropic: `sk${'-ant-'}api03${'-abc123def456ghi789jkl012mno'}`,
+  openai: `sk${'-proj-'}${'abcdefghijklmnopqrstuvwxyz0123456789'}`,
+  slack: ['xo', 'xb', '123456789012', '1234567890123', 'abcdefghijklmnop'].join('-').replace('xo-xb', 'xoxb'),
+  stripeLive: `sk${'_live_'}${'4eC39HqLyjWDarjtT1zdp7dc'}`,
+  stripeTest: `sk${'_test_'}${'4eC39HqLyjWDarjtT1zdp7dc'}`,
+  google: `AI${'za'}${'Sy'}${'B'.repeat(33)}`,
+  aws: `AK${'IA'}47CQ3XZKPLM2QRTV`,
+  awsSecret: 'wJalrXUtnFEMI7MDENGbPxRfiCY9dK2pQ4mZ',
+  jwt: [`ey${'JhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'}`, 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', 'dozjgNryP4J3jVmNHl0w5N'].join('.'),
+  bearer: '5-9gOx8ct7PRyjG6DdmO8AmU3lITaoYGX6SIhuIl5S0',
+}
+
+describe('credentials it catches', () => {
+  it.each([
+    ['a private key block', '-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA\n-----END RSA PRIVATE KEY-----'],
+    ['an OpenSSH key block', 'here you go:\n-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNza\n'],
+    ['an AWS access key ID', `the id is ${fake.aws} and the region is us-east-1`],
+    ['a GitHub token', `run it with ${fake.github}`],
+    ['a fine-grained GitHub token', fake.githubPat],
+    ['an Anthropic key', `ANTHROPIC key ${fake.anthropic}`],
+    ['an OpenAI key', `use ${fake.openai}`],
+    ['a Slack token', fake.slack],
+    ['a Stripe live key', fake.stripeLive],
+    ['a Google key', fake.google],
+    ['a JWT', fake.jwt],
+    ['an env dump', 'DATABASE_PASSWORD=hunter2is8chars\nPORT=3000'],
+    ['an exported secret', `export STRIPE_SECRET_KEY=${fake.stripeLive}`],
+    ['a literal bearer token', `curl -H "Authorization: Bearer ${fake.bearer}"`],
+  ])('rejects %s', (_label, text) => {
+    expect(findSecret(text)).toBeDefined()
+  })
+
+  it('names what matched without repeating it', () => {
+    const match = findSecret(`AWS_SECRET_ACCESS_KEY=${fake.awsSecret}`)
+    expect(match?.label).toContain('AWS_SECRET_ACCESS_KEY')
+    expect(match?.label).not.toContain(fake.awsSecret)
+  })
+})
+
+describe('ordinary code it leaves alone', () => {
+  it.each([
+    ['reading a key from the environment', 'const apiKey = process.env.OPENAI_API_KEY'],
+    ['an assignment to a variable reference', 'API_KEY=$OPENAI_KEY'],
+    ['a templated value', 'AUTH_TOKEN={{ secrets.TOKEN }}'],
+    ['a documented placeholder', 'Set API_KEY=your-key-here before running'],
+    ['an angle-bracket placeholder', 'CRON_SECRET=<generate one with openssl>'],
+    ['a masked value', 'STRIPE_SECRET_KEY=****************'],
+    ['an empty assignment', 'SESSION_SECRET='],
+    ['the prompt we hand out', 'curl -s -X POST "$BASE/join" -H "Authorization: Bearer $INVITE"'],
+    ['a git sha', 'fixed in c739adb0e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0'],
+    ['a port and a path', 'PORT=3000\nDATABASE_URL=postgres://localhost:5432/dev'],
+    ['ordinary prose about tokens', 'The participant token is returned once by the join call.'],
+    ['a base64 blob that is not a key', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'],
+    ['a test-mode Stripe key', fake.stripeTest],
+    ['a variable named token holding a name', 'TOKEN_NAME=participant'],
+  ])('accepts %s', (_label, text) => {
+    expect(findSecret(text)).toBeUndefined()
+  })
+
+  it('accepts a code block full of configuration that names no value', () => {
+    const code = [
+      '```ts',
+      'export const config = {',
+      '  redisUrl: process.env.REDIS_URL,',
+      '  cronSecret: process.env.CRON_SECRET,',
+      '}',
+      '```',
+    ].join('\n')
+    expect(findSecret(code)).toBeUndefined()
+  })
+})

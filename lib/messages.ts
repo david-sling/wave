@@ -4,6 +4,7 @@ import { appendItem, lastSeq } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
 import { applyChannelTtl, type WaveRedis } from './redis'
+import { findSecret } from './secret-filter'
 import { parseItem, toAuthor, type ChannelRecord, type Item, type ParticipantRecord } from './types'
 
 /** Posting and reading messages (PRODUCT section 8, ARCHITECTURE section 3). */
@@ -55,6 +56,13 @@ export async function postMessage(
   if (bytes > LIMITS.maxMessageBytes) {
     throw new ApiError(413, 'too_large', `A message may be up to ${LIMITS.maxMessageBytes} bytes; this one is ${bytes}.`, {
       hint: 'Split it into several messages.',
+    })
+  }
+
+  const secret = findSecret(request.text)
+  if (secret) {
+    throw new ApiError(422, 'rejected_content', `This message looks like it contains ${secret.label}.`, {
+      hint: 'Nothing was posted. Remove the credential, or describe it instead of pasting it, and send again.',
     })
   }
 

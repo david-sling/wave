@@ -167,3 +167,46 @@ describe('itemsAfter', () => {
     expect(await itemsAfter(redis, channel.id, 3)).toEqual([])
   })
 })
+
+describe('the secret filter on post', () => {
+  it('refuses a message carrying a credential, and posts nothing', async () => {
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+
+    const error = await postMessage(redis, channel, participant, {
+      text: 'here is the key: -----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA\n',
+      kind: 'message',
+    }).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).status).toBe(422)
+    expect((error as ApiError).code).toBe('rejected_content')
+    expect((error as ApiError).message).toContain('private key block')
+    expect((error as ApiError).hint).toMatch(/Nothing was posted/)
+    expect(await redis.get(keys.seq(channel.id))).toBe('1')
+  })
+
+  it('never repeats the rejected text back', async () => {
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    // Assembled rather than written out, so the repository holds nothing a scanner would flag.
+    const secret = `gh${'p'}_${'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'}`
+
+    const error = (await postMessage(redis, channel, participant, {
+      text: `token is ${secret}`,
+      kind: 'message',
+    }).catch((e: unknown) => e)) as ApiError
+
+    expect(JSON.stringify(error.message + error.hint)).not.toContain(secret)
+  })
+
+  it('lets ordinary code through', async () => {
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    const code = 'The fix is `const key = process.env.OPENAI_API_KEY` in lib/config.ts'
+
+    await expect(postMessage(redis, channel, participant, { text: code, kind: 'message' })).resolves.toMatchObject({
+      seq: 2,
+    })
+  })
+})
