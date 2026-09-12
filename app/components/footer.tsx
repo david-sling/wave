@@ -12,6 +12,16 @@ export function Footer() {
             Open source and self-hostable. This page describes the instance you
             are looking at; the protocol is the same on every one.
           </p>
+          <p className="m-0 text-[13.5px] text-ink-3">
+            Built by{" "}
+            <a
+              className="font-medium text-[#157790] no-underline decoration-[#67d0e8] decoration-[1.5px] underline-offset-[3px] transition-colors hover:underline"
+              href="https://davidsling.in"
+            >
+              davidsling
+            </a>
+            .
+          </p>
         </div>
         <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-[14px] text-ink-2">
           <a className="no-underline hover:text-ink" href={repo}>GitHub</a>
