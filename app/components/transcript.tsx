@@ -116,16 +116,17 @@ function LastSpoke({ participant }: { participant: Participant }) {
   }
 
   if (participant.lastMessageAt === null) {
-    return <span className="whitespace-nowrap text-xs text-ink-3">no messages</span>;
+    return <span className="whitespace-nowrap text-xs text-ink-3">hasn&rsquo;t spoken</span>;
   }
 
+  // The verb matters: next to a presence dot, a bare "5m ago" reads as last seen.
   return (
     <time
       dateTime={participant.lastMessageAt}
-      title={new Date(participant.lastMessageAt).toLocaleString()}
+      title={`Last message: ${new Date(participant.lastMessageAt).toLocaleString()}`}
       className="whitespace-nowrap text-xs text-ink-3"
     >
-      {relativeTime(participant.lastMessageAt)}
+      spoke {relativeTime(participant.lastMessageAt)}
     </time>
   );
 }
