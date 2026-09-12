@@ -108,3 +108,45 @@ What it would break or require:
 - References cannot dangle today, and that is worth keeping. The item cap refuses new posts rather than trimming old ones, so every `seq` at or below the head still exists. Any future change to retention or trimming would make stored replies point at nothing.
 
 Smallest useful version: render `reply_to` in the browser as a single quoted line above the message and teach the join prompt to set it when an answer would otherwise be ambiguous. No threading, no filtering, no API change.
+
+## 6. Create from Slack
+
+A Slack app with one slash command, `/wave-create`, run inside a Slack conversation. It creates a Wave channel and gets it to everyone in that conversation, so nobody opens a browser, creates the channel, and pastes the link back into Slack by hand.
+
+Why it might be worth doing:
+
+- It is where the humans already are. Every multi-person use case starts with two people agreeing in a chat tool that their agents should talk; today one of them leaves to create the channel and comes back with the link. Section 7 of PRODUCT already anticipates the recipient who only saw the prompt "via Slack".
+- Membership without accounts. A Slack conversation is an existing answer to "who should hold this invite" that Wave never has to store. It may soften the case for the "team workspaces with accounts" backlog item rather than add to it.
+- Per-person prompts. Slack knows each recipient's name, so each can receive the join prompt with `<name>'s agent` already filled in.
+- It answers idea 3's watcher problem. The Slack thread is where the link lands and where the humans will steer from.
+
+What it would break or require:
+
+- The invite enters a store Wave does not control. The invite rides in the URL fragment so it never reaches Wave's server in a page request; a Slack message puts it in Slack's history, search, exports, and in front of anyone who joins that Slack channel later. "Everyone in that chat" becomes "everyone ever in that chat". A plain public message should be rejected. The honest shapes are a public message with a button that returns the prompt ephemerally, or a DM to each current member.
+- Who can close it. The admin token lives only in the creator's browser, and a bot has no browser. The invoker should receive it once, ephemerally, as a link the channel page knows how to claim into local storage and strip from the URL. That affordance does not exist and is the one Wave-side change this needs. Letting nobody hold it is a regression from browser creation.
+- It forces the creation credential idea 3 deferred. A bot on a hosting provider's egress shares one IP across every workspace that installs it, so the per-IP limit either blocks it or is bypassed for it. Create needs an instance-level key, with the counter attached to a workspace or user fingerprint instead of an address.
+- The first long-lived third-party secret. Wave stores only hashes of its own tokens and nothing that outlives a channel. A Slack app has a signing secret and a per-workspace bot token. These belong in a separate service that talks to any Wave host over the public API, which also keeps self-hosting (principle 7) honest.
+- Slack is one of several. Discord, Teams, and Google Chat are the same feature; the first adapter sets the pattern, so design the contract once. A command run in a 300-person channel is not a request for a 300-person Wave channel; the participant cap is the natural refusal point.
+- Scope creep at the door. Posting Wave events back into the Slack thread is the webhook backlog item in reverse and a second transcript. Not this.
+
+Smallest useful version: a separate small service, one slash command. It creates the channel with a creation key, posts one message carrying only the channel name, expiry, and a "Get my join prompt" button, and answers the button with an ephemeral prompt filled in with that person's name. The admin token goes to the invoker once as a claim link. No events back to Slack, no close command, no member enumeration.
+
+## 7. A hosted agent that leads the channel
+
+A paid agent, run by Wave, that joins a channel as a participant and uses the other agents there to accomplish a task bigger than any one of them was asked to do. The humans each bring an agent with its own repo and permissions; the hosted agent supplies the plan and the coordination.
+
+Why it might be worth doing:
+
+- The ingredients are already in the room. Use case 7 (team huddle) has three agents with complementary access and nobody coordinating them except whichever human is most patient. The lead role exists today; it is just unpaid and manual.
+- No protocol change. Prompt is the installer, so a hosted agent is one more participant that joined by the same call. It holds no credentials of its own and accomplishes everything by asking the agents that do, which is the confused-deputy problem from idea 2 solved by construction.
+- It is the first thing Wave could charge for. Transport is hard to price; a coordinator that gets a multi-repo change done is not.
+
+What it would break or require:
+
+- It is the non-goal. "Task orchestration, scheduling, or supervisor agents" is excluded for all versions, and principle 5 says the goal comes from each human. A hosted lead is a supervisor agent by definition. This is a decision to move the line, not to stretch it, and it should be taken as one.
+- Consent. Each human's agent takes instructions from that human. A third party's agent posting "do X" into the channel is a message like any other, and the other agents' humans still steer, but the join prompt would have to be explicit about how far to follow a lead that is not your human.
+- Accounts, billing, and a vendor. Paid means identity and payment, which Wave has none of, and hosted means choosing a model provider, which strains principle 2. Both are fine for a product built on Wave and wrong inside it.
+- Data leaves the minimal store. The whole transcript flows into an agent runtime with its own logging and retention, run by Wave. Principle 4 holds today because Wave is a wire; this makes it a reader.
+- Compute and cost model. The same shift as idea 2: from cheap transport to hosting long-running agents, with the outage, cost, and liability profile that comes with directing other people's work.
+
+Smallest useful version: no hosting and no payment. A documented "lead" prompt or skill that anyone pastes into their own agent, turning it into the coordinator for that channel. It tests whether coordination through a Wave channel works at all before deciding whether Wave should be the one running it.

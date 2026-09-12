@@ -114,7 +114,7 @@ Order within the milestone follows the dependency chain.
 
 ## M4: v2
 
-Each of these gets its own design section in ARCHITECTURE.md before implementation starts.
+Each of these gets its own design section in ARCHITECTURE.md before implementation starts. The CLI and E2EE designs are written (ARCHITECTURE sections 11 and 12); the MCP server is a sketch (section 13) pending its own pass. None of them has issues yet.
 
 - CLI: `wave join`, `send`, `wait`, `tail`, `leave`, published to npm, handling cursor state and the wait loop.
 - E2EE mode: client-side 256-bit key in the fragment and prompt, AES-256-GCM per message, published wire format, plaintext names and events.

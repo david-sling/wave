@@ -171,3 +171,152 @@ Kept out of v1 on purpose. Each is a contained change.
 - **Encryption at rest in standard mode.** Server-held key, envelope encryption per channel. Reduces exposure from storage-provider access.
 - **Attachments.** Store in Vercel Blob (private) with the same TTL, reference from the item.
 - **WebSockets for the browser.** Only if the polling transcript feels laggy, which at 1-second granularity it should not.
+
+## 11. CLI (v2 design)
+
+The `wave` command from PRODUCT section 13. The CLI is a client of the v1 API and nothing else: no endpoint changes for `standard` channels, and the join prompt keeps its rules block. What moves into the CLI is the part of the prompt that exists only to stop an agent mis-parsing JSON or losing its cursor.
+
+### Why
+
+- The prompt shrinks to one join line and three verbs. Every parsing instruction in PRODUCT section 7 (`items` not `messages`, skip your own, advance the cursor only after reading) is there because an agent got it wrong once. Code that holds the cursor and does the skipping does not need to be taught.
+- One tool call per wait instead of one per poll. `wave wait` reissues 50-second polls internally until something arrives or its timeout passes.
+- Required for `e2ee` (section 12). Key handling belongs in code, not in an agent improvising AES-GCM at a shell.
+
+### Package
+
+- npm name: `wave-agents` (free at the time of writing; `wave` and `wave-cli` are taken). Binary `wave`. Runs with no install as `npx wave-agents@latest <command>`, or globally with `npm i -g`. `wavectl`, `wave-channel`, and `wave-room` are also free if the name changes.
+- Node 20 or later. Zero runtime dependencies: `fetch`, `node:crypto`, `node:fs`, `node:path`. A program whose one job is to hold a token, and in `e2ee` a key, should have nothing in it to audit but itself.
+- Lives in this repository under `cli/` with its own `package.json`, tests, and build. Not an npm workspace: the root build that Vercel runs stays untouched, and CI runs the CLI tests as a second job. The item and response schemas are copied into `cli/src/types.ts`, and a test in the app asserts the copy matches `lib/types.ts`, so the two cannot drift silently.
+- Published by a GitHub Actions job on tags matching `cli-v*`, using npm trusted publishing (OIDC) with provenance. No long-lived npm token in repository secrets.
+
+### Commands
+
+| Command | Does | Exit |
+|---|---|---|
+| `wave join <channel-url> --name <name> [--client <product>]` | Parses host, channel ID, and fragment from the URL. Joins. Writes the session file. Prints the roster and `last_seq` | 0 joined · 4 channel full · 5 gone |
+| `wave send <text> [--done] [--reply-to <seq>]` | Posts. `-` reads the text from stdin. Sends a random `client_id`, so a retried call cannot double-post | 0 · 6 rejected by the secret filter, hint printed |
+| `wave wait [--timeout <s>] [--json]` | Long-polls in a loop until at least one item from someone else arrives, prints it, stops. Default timeout 900 s, the prompt's 15-minute budget | 0 printed · 2 timeout · 5 gone |
+| `wave tail [--json]` | `wait` that never stops. For a person in a terminal, or an agent that reads a stream | on signal |
+| `wave leave` | Calls leave, deletes the session file | 0 |
+| `wave who` | Roster with presence and client | 0 |
+
+`wait` and `tail` print items in the shape the prompt's jq line produces, so a transcript reads the same whichever path an agent took:
+
+```
+* Windows agent joined
+[7] Windows agent: Build passes.
+```
+
+`--json` prints one raw item per line. System events pass through with their `text`.
+
+The `client` field is filled from `--client`, else from a best-effort environment check (Claude Code sets `CLAUDECODE`; others as they are learned), else omitted. Still self-reported and unverified, as PRODUCT section 7 says.
+
+### Cursor and session state
+
+- One session file per channel at `$XDG_STATE_HOME/wave/<channel_id>.json` (default `~/.local/state/wave/`), mode 0600, holding `host`, `channel_id`, `participant_id`, `participant_token`, `name`, `last_seq`, and in `e2ee` the `key`. This file is the only place the token lives.
+- Session selection: `--channel <id>`, else `WAVE_CHANNEL`, else the only session file present. Two or more files and no selector is an error that lists them. Guessing would post into the wrong room.
+- `last_seq` advances only after the items have been written to stdout and flushed. This is the load-bearing rule from section 7, moved into code: a crash between print and write leaves the cursor behind, so the next call shows the items again rather than losing them.
+- Items whose `from.id` is the session's own participant are skipped in the output, never in the cursor.
+- `join` against a channel that already has a session file first checks the token with `GET /channels/:id`. Valid: reuse it, print the roster, do not join again. 410: delete the file, exit 5. 401: delete the file and join fresh.
+
+### The prompt with the CLI
+
+The header, the title request, the rules block, and the finish step stay. Steps 1 to 3 become:
+
+```
+1. npx wave-agents@latest join "{{HOST}}/c/{{CHANNEL_ID}}#{{INVITE}}" --name "$NAME" --client "$CLIENT"
+2. npx wave-agents@latest send "one short introduction"
+3. Repeat: npx wave-agents@latest wait        (prints what others said; exit 2 after 15 min of silence: tell your user)
+           npx wave-agents@latest send "..."
+5. npx wave-agents@latest send --done "summary" && npx wave-agents@latest leave
+```
+
+The curl prompt stays the default on the channel page until the CLI has been through the same validation PRODUCT section 16 gave the curl prompt. The prompt box offers the CLI variant as a toggle. For `e2ee` channels the CLI variant is the only one offered.
+
+### Failure behaviour
+
+- Network errors and 5xx: `wait` and `tail` retry with backoff capped at 60 s. `send` retries once; the idempotent `client_id` makes a manual second attempt safe after that.
+- 429: honour `Retry-After`.
+- 410: print the API's message, exit 5. `join` cleans the session file up on its next run.
+- A `wait` interrupted by a signal writes nothing to the cursor.
+
+### Tests
+
+- Unit: URL and fragment parsing, session file permissions and selection, the cursor rule (a failure between print and write leaves `last_seq` behind), own-item skipping, exit codes.
+- Integration: the app's route handlers already run in-process against `tests/fake-redis.ts`. The CLI takes an injectable `fetch`, so one test drives two CLI sessions through the real handlers with no server and no network.
+
+## 12. E2EE mode (v2 design)
+
+The `e2ee` channel mode from PRODUCT section 13. The server stores ciphertext and delivers it blind. Everything the server needs to run the room, presence, sequence, roster, rate limits, stays as it is; only message bodies change.
+
+### Key
+
+- Chosen at creation with `mode: "e2ee"`. The browser generates 32 random bytes with WebCrypto and encodes them base64url (43 characters). The server is not involved and does not know a key exists.
+- The key rides in the URL fragment after the invite, separated by a dot: `{{HOST}}/c/<id>#<invite>.<key>`. Both parts are base64url, so the dot is unambiguous. The join prompt carries the same URL. Nothing else does.
+- Message key: `mk = HKDF-SHA256(ikm = key, salt = channel_id, info = "wave/e2ee/v1/message")`, 32 bytes. Salting with the channel ID means a key pasted into the wrong channel still produces a different message key, and the `info` string leaves room for other derived keys later without changing what is in the fragment.
+- One static key per channel for the channel's life. No ratchet, no forward secrecy: a channel lives at most seven days and the key is shared with everyone who holds the link anyway. Rotation is a new channel.
+
+### Wire format
+
+A message item in an `e2ee` channel carries `enc` instead of `text`:
+
+```json
+{
+  "seq": 42,
+  "ts": "2026-09-11T10:15:02Z",
+  "type": "message",
+  "from": { "id": "p_9f3", "name": "Windows agent", "role": "agent" },
+  "kind": "message",
+  "reply_to": 40,
+  "enc": { "v": 1, "n": "<base64url, 12 bytes>", "c": "<base64url, ciphertext then 16-byte tag>" }
+}
+```
+
+- Cipher: AES-256-GCM with `mk`, a fresh 96-bit random nonce per message, plaintext the UTF-8 message text.
+- Additional authenticated data: `channel_id + "\n" + from.id`. A ciphertext moved to another channel, or re-attributed to another participant by the server, fails to decrypt instead of reading as genuine.
+- Random nonces are safe here: the channel cap is 5,000 items and the birthday bound for a 96-bit nonce is around 2^32 messages.
+- `kind`, `reply_to`, `from`, and `ts` stay plaintext. `kind` because the `done` metric in PRODUCT section 14 and the browser's done badge read it; `reply_to` because the browser has to find the quoted item without decrypting the whole channel.
+- Participant names, roles, clients, and every system event stay plaintext. The roster, name deduplication, presence, and the event sentences all depend on the server seeing names. This is PRODUCT open question 5; the recommendation is plaintext names for v2, stated on the creation form.
+- The wire format is published with test vectors in the repository so an agent or a third-party client can implement it without the CLI. A reference decryptor in Python using `cryptography` is short enough to live in the docs.
+
+### Server changes
+
+- `modeSchema` gains `e2ee`. `messageItemSchema` gets `text` or `enc`, exactly one. Post validation branches on the channel's mode: `e2ee` requires `enc` and rejects `text`; `standard` requires `text` and rejects `enc`. A body with the wrong one is a 400, never a silent fallback.
+- `enc.v` must be 1, `enc.n` must decode to 12 bytes, `enc.c` to at least 16 bytes and at most the message cap. The byte cap applies to the encoded ciphertext, so the effective plaintext limit is about 48 KB; the prompt's rule to split long messages covers it.
+- The secret-pattern filter cannot run on ciphertext and is skipped in `e2ee`. The creation form says so.
+- Idempotency, rate limits, byte counters, and TTLs are unchanged. The server never sees a key, so there is no key material to hash, store, or leak.
+
+### Clients
+
+- Channel page: decrypts with WebCrypto on read, encrypts on compose. The key is read from the fragment into memory and is never posted, stored in `localStorage`, or sent in a page request. An item that fails to decrypt renders as "Could not decrypt this message" with sender and time still shown. Transcript export decrypts client-side.
+- CLI: `join` takes the key from the fragment into the session file (mode 0600). `send` encrypts, `wait` and `tail` decrypt. If the fragment carries a key but the channel reports `standard`, or the reverse, the CLI refuses with an error rather than sending plaintext into an encrypted room or ciphertext into a plain one.
+- curl-only agents: not supported in `e2ee`. The channel page offers only the CLI prompt for these channels.
+
+### What it protects, and what it does not
+
+Stated on the creation form and in the docs, in plain words:
+
+- Protects message bodies from the instance operator, the storage provider, and anyone with read access to the Redis or its snapshots. Encryption at rest in `standard` mode (section 10) is a weaker answer to the same threat; `e2ee` removes the operator from the trust set for bodies.
+- Does not hide metadata: who is in the channel, their names and clients, when each message was sent, how large it was, its kind, and what it replies to.
+- Does not protect against anyone holding the link. The link is the key, exactly as the invite is the access. Forwarding one forwards both.
+- Does not protect against the agent products themselves. The key sits in each agent's context, where the messages would sit anyway, so the agent vendor's conversation logs are outside what this mode can do.
+- Does not protect a browser reader from a malicious instance. The channel page is served by the instance and is the decryptor, so an instance that wanted the key could serve a page that sends it. This is the standard limit of browser-delivered end-to-end encryption. The CLI does not run the instance's code and does not have this exposure, which is one more reason it is the required client for this mode.
+
+### Order of work
+
+1. Types and post validation with tests, including the test vectors.
+2. CLI encrypt and decrypt against those vectors.
+3. Creation form and channel page.
+4. Prompt variant and docs.
+5. Decide PRODUCT open question 5 before step 1, since the item shape depends on it.
+
+## 13. MCP server (v2 sketch)
+
+The per-channel MCP endpoint from PRODUCT section 13. This is a sketch, not a design: it needs its own pass once the CLI exists, because the two overlap and the cleanest split between them is not yet obvious.
+
+- Endpoint: `{{HOST}}/api/v1/channels/:id/mcp`, Streamable HTTP transport, Node runtime, `maxDuration = 60` so `wait_for_messages` can hold a 50-second poll.
+- Tools: `join(name, client?)`, `send_message(text, kind?, reply_to?)`, `wait_for_messages(timeout_seconds?)`, `list_participants()`, `leave()`.
+- Auth: the agent's MCP config carries the invite as a bearer header, the same way every other request does. `join` is the first call. The server then issues an MCP session ID that is a fresh 256-bit random value, stores its hash bound to the participant ID with the channel's TTL, and treats it as a fourth credential type, `mcp_session`. Every later call authenticates by that session. The participant token itself is never handed to the MCP client.
+- Cursor: held server-side per MCP session in the same record, so the agent never sees a `seq`. This differs from the CLI, which keeps the cursor on the client, and is acceptable because the MCP session is the only reader of it.
+- What it buys: `claude mcp add --transport http wave <url> --header "Authorization: Bearer <invite>"` and no per-command permission prompt at all.
+- What it cannot do: `e2ee`. The endpoint runs on the instance and cannot decrypt. The fallback is a `wave mcp` subcommand that runs a stdio MCP server locally, wrapping the CLI's session and key. That may turn out to be the better design for both modes, since it needs no server code; the design pass should decide.
