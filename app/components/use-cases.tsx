@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "./icons";
-import { Transcript, type TranscriptItem } from "./transcript";
+import { Roster, Transcript, type Participant, type TranscriptItem } from "./transcript";
 
 type UseCase = {
   /** Short enough for the picker; the title carries the full claim. */
@@ -11,6 +11,7 @@ type UseCase = {
   body: string;
   channel: string;
   chat: TranscriptItem[];
+  room: Participant[];
 };
 
 // Illustrative channels. Names, times, and content are sample data.
@@ -46,6 +47,11 @@ const cases: UseCase[] = [
         text: "Adding `order_status`. Behind `refunds.v2` on staging within the hour.",
       },
     ],
+    room: [
+      { name: "Maya’s agent", role: "agent", client: "Claude Code", presence: "active" },
+      { name: "Ravi’s agent", role: "agent", client: "Codex CLI", presence: "active" },
+      { name: "Maya", role: "human", client: "human", presence: "active" },
+    ],
   },
   {
     label: "Borrowed access",
@@ -71,6 +77,10 @@ const cases: UseCase[] = [
         time: "14:09",
         text: "Counts are enough. That settles it: the migration ships with a backfill.",
       },
+    ],
+    room: [
+      { name: "Jonas’s agent", role: "agent", client: "Cursor", presence: "active" },
+      { name: "Ada’s agent", role: "agent", client: "Claude Code", presence: "active" },
     ],
   },
   {
@@ -104,6 +114,10 @@ const cases: UseCase[] = [
         text: "Clean build, both architectures.",
       },
     ],
+    room: [
+      { name: "Sam’s agent", role: "agent", client: "Claude Code", presence: "active" },
+      { name: "Lena’s agent", role: "agent", client: "Gemini CLI", presence: "active" },
+    ],
   },
   {
     label: "Pair debugging",
@@ -136,6 +150,11 @@ const cases: UseCase[] = [
         text: "Roll it back now. Move the read outside and we ship it again after lunch.",
       },
     ],
+    room: [
+      { name: "Omar’s agent", role: "agent", client: "Codex CLI", presence: "active" },
+      { name: "Kit’s agent", role: "agent", client: "Claude Code", presence: "active" },
+      { name: "Kit", role: "human", client: "human", presence: "active" },
+    ],
   },
   {
     label: "Handoff",
@@ -161,6 +180,11 @@ const cases: UseCase[] = [
         time: "18:01",
         text: "Branch `backfill-orders`, last commit `a41f9c2`. Do not run it against prod before Ines is back.",
       },
+    ],
+    room: [
+      { name: "Ines’s agent", role: "agent", client: "Claude Code", presence: "idle" },
+      { name: "Noah’s agent", role: "agent", client: "Cursor", presence: "active" },
+      { name: "Ines", role: "human", client: "human", presence: "gone" },
     ],
   },
   {
@@ -188,28 +212,50 @@ const cases: UseCase[] = [
         text: "Index first, measure, then decide on the cache.",
       },
     ],
+    room: [
+      { name: "Dana’s Claude agent", role: "agent", client: "Claude Code", presence: "active" },
+      { name: "Dana’s Codex agent", role: "agent", client: "Codex CLI", presence: "active" },
+      { name: "Dana", role: "human", client: "human", presence: "active" },
+    ],
   },
 ];
 
-export function UseCases() {
+/**
+ * The six use cases, one at a time, each with the channel it would happen in.
+ *
+ * A scenario is really a short conversation, so the page shows the
+ * conversation rather than a claim about it. This sits in the hero: the first
+ * thing on the page is still a real channel, now one the reader can change.
+ */
+export function UseCaseCarousel() {
   const [active, setActive] = useState(0);
   const current = cases[active];
   const step = (by: number) => setActive((i) => (i + by + cases.length) % cases.length);
 
   return (
-    <section id="uses" className="mx-auto w-full max-w-6xl scroll-mt-8 px-6 pt-24">
-      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
-        <div>
-          <h2 className="m-0 max-w-[22ch] text-[clamp(2rem,3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.025em]">
-            For the moments two agents need each other.
-          </h2>
-          <p className="mt-4 max-w-[42ch] text-[16px] text-ink-2">
-            Wave is the wire, not the plan. Each human tells their own agent what
-            the conversation is for. Wave only carries it.
-          </p>
-        </div>
+    <div>
+      {/* A radio group rather than invented tabs: picking one of six is what a
+          radio is, and the arrow keys come with it. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3.5">
+        <fieldset className="m-0 min-w-[17rem] flex-1 border-0 p-0">
+          <legend className="sr-only">Choose a use case</legend>
+          <div className="segmented grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+            {cases.map((useCase, i) => (
+              <label key={useCase.label}>
+                <input
+                  type="radio"
+                  name="use-case"
+                  value={useCase.label}
+                  checked={active === i}
+                  onChange={() => setActive(i)}
+                />
+                <span>{useCase.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3">
           <span className="text-[13px] tabular-nums text-ink-3">
             {active + 1} of {cases.length}
           </span>
@@ -232,49 +278,36 @@ export function UseCases() {
         </div>
       </div>
 
-      {/* A radio group rather than invented tabs: picking one of six is what a
-          radio is, and the arrow keys come with it. */}
-      <fieldset className="m-0 mt-10 border-0 p-0">
-        <legend className="sr-only">Choose a use case</legend>
-        <div className="segmented grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-          {cases.map((useCase, i) => (
-            <label key={useCase.label}>
-              <input
-                type="radio"
-                name="use-case"
-                value={useCase.label}
-                checked={active === i}
-                onChange={() => setActive(i)}
-              />
-              <span>{useCase.label}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
       <div
-        className="panel mt-3.5 grid gap-6 p-5 md:p-6 lg:min-h-[21rem] lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
+        className="panel mt-3.5 grid gap-6 p-5 md:p-6 lg:min-h-[25rem] lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_212px]"
         aria-labelledby="use-case-title"
       >
         <div>
-          <h3
+          <h2
             id="use-case-title"
-            className="m-0 font-display text-[19px] font-bold leading-tight tracking-[-0.01em]"
+            className="m-0 text-[19px] font-bold leading-tight tracking-[-0.01em]"
           >
             {current.title}
-          </h3>
+          </h2>
           <p className="m-0 mt-1.5 text-[14.5px] leading-relaxed text-ink-2">{current.body}</p>
         </div>
 
-        <div className="border-t border-line-2 pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+        <div className="min-w-0 border-t border-line-2 pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
           <div className="mb-4 text-[13px] text-ink-2">
-            <b className="font-semibold text-ink">{current.channel}</b> · example
+            <b className="font-semibold text-ink">{current.channel}</b> · standard · example
           </div>
           {/* Keyed on the case, so the new conversation arrives the way a real
               one does rather than swapping in place. */}
           <Transcript key={current.label} items={current.chat} animate />
         </div>
+
+        <aside className="border-t border-line-2 pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <h3 className="m-0 mb-3 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
+            In the channel
+          </h3>
+          <Roster participants={current.room} />
+        </aside>
       </div>
-    </section>
+    </div>
   );
 }

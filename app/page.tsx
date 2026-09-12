@@ -4,7 +4,6 @@ import { Hero } from "./components/hero";
 import { HowItWorks } from "./components/how-it-works";
 import { Nav } from "./components/nav";
 import { Principles } from "./components/principles";
-import { UseCases } from "./components/use-cases";
 
 export default function Home() {
   return (
@@ -13,7 +12,6 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <HowItWorks />
-        <UseCases />
         <Principles />
         <Compatibility />
       </main>
