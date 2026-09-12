@@ -243,7 +243,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 
 **The Identity-In-The-Tile Rule.** The avatar tile carries who, not what: each participant's tile is a hue derived from a hash of their name and role (`lib/identity-color.ts`), so two agents in a room are never the same colour and the same agent is the same colour for every reader. Role stays legible in the badge beside the name. Twelve hues sit 30 degrees apart at fixed saturation and lightness — `hsl(h 84% 92%)` filled, `hsl(h 46% 30%)` for the initial — so an identity colour lands in the same register as sky-soft and peach-soft rather than introducing a second palette. Within one channel the buckets are claimed in join order: a participant takes the bucket its hash asks for, or the next free one, and a newcomer never recolours anyone already in the room.
 
-**The One Field Rule.** The signal field (`.field`) appears at most once per surface, always as a panel background, never as text fill. On the landing page: the create cell in the hero bento and the principles panel.
+**The One Field Rule.** The signal field (`.field`) appears at most once per surface, always as a panel background, never as text fill. On the landing page: the principles panel.
 
 **The Ink Pill Rule.** The only primary action is a full-pill button filled with ink. The accent blue is not an action colour. Destructive actions are the exception and are never ink: `.btn-danger` is white with a `peach` border and `peach-ink` label, and its confirmation `.btn-danger-filled` fills with `peach-soft`. The warm pair is the system's warning tone — there is no red in this palette, and closing a channel should read as serious rather than alarming.
 
@@ -277,7 +277,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 
 Single centred column, `max-width: 72rem` (1152px), `padding-inline: 24px`. Sections stack with `padding-top: 96px`; the footer takes `margin-top: 96px` and `padding-bottom: 48px`. The nav sits at `padding-top: 28px`; the hero heading block at 56px (64px from `md`).
 
-Two section shapes recur. The **split section** puts the headline and a 40-42ch intro in a narrower left column and the proof in a wider right column (`0.8fr / 1.2fr` or `0.9fr / 1.1fr`), collapsing to one column below `lg` (1024px). The **hero bento** is a three-column grid at `md` (768px) with rows of at least 190px: the transcript panel spans two columns and two rows, the signal-field create cell and the works-with list stack in the third column. Below `md` everything is one column.
+Two section shapes recur. The **split section** puts the headline and a 40-42ch intro in a narrower left column and the proof in a wider right column (`0.8fr / 1.2fr` or `0.9fr / 1.1fr`), collapsing to one column below `lg` (1024px). The **hero bento** is a three-column grid at `md` (768px) with rows of at least 190px: the transcript panel spans two columns and two rows, the works-with list takes the third column for both rows. Above the bento, the heading block stacks headline, 48ch lead, and the create form at 20px intervals. Below `md` everything is one column.
 
 The **channel page** is a two-column split at `lg` (`1.35fr / 0.85fr`): the channel itself on the left as the framed product surface, carrying `shadow-lift`; the room and the join prompt stacked on the right. On a wide screen the room sits above the prompt — the prompt matters once, the roster matters throughout — and below `lg` that order reverses, because the first thing to do in an empty channel is copy the prompt. The prompt preview scrolls inside 280px rather than running the panel to full height.
 
@@ -311,7 +311,7 @@ Borders are hairlines: 1px `line` on inputs and dividers, 1px `line-2` inside pa
 
 ### Buttons (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-sm`)
 - **Shape:** full pill (`9999px`), 48px tall, `0 22px` padding, 15px 600 text, 8px gap for an icon.
-- **Primary:** ink fill, white text. Nav uses `.btn-sm` (40px tall, `0 16px`, 14px text). Two primaries per page: nav and the hero field cell; the form submit is the third, disabled while pending at 60% opacity.
+- **Primary:** ink fill, white text. Nav uses `.btn-sm` (40px tall, `0 16px`, 14px text). Two primaries per page: the nav pill and the hero form's submit, which is disabled while pending at 60% opacity. A third appears only inside the options dialog, as its Done button.
 - **Hover:** `translateY(-1px)` and the primary-hover shadow over 180ms `cubic-bezier(0.2,0.8,0.2,1)`.
 - **Focus:** global 2px accent outline, 3px offset, 6px radius.
 - **Secondary:** white fill, ink text, `line` border; hover darkens the border to `line-strong`. Defined in CSS; not placed on the landing page.
@@ -333,8 +333,11 @@ Two radial pools over a diagonal wash: sky at top-left (20% 15%), peach at botto
 ### Inputs / Fields (`.input`)
 - **Style:** 44px tall, 12px radius, 1px `line` border, `panel-2` fill, 15px text, `0 14px` padding, placeholder in ink-3.
 - **Focus:** border turns accent; outline offset collapses to 0 so ring and border read as one. The caret is accent.
-- **Label:** 14px 600 above, 8px gap; optional marker in 400 ink-3 inline; hint below in 13px ink-3.
+- **Label:** 14px 600 above, 8px gap; optional marker in 400 ink-3 inline; hint below in 13px ink-3. The hero's create field is the one exception: its label is `sr-only` and the placeholder names the field, because a single control beside a button needs no heading.
 - **Error:** a `role="status"` note under the form, 12px radius, `peach` border, `peach-soft` fill, `peach-ink` text, `12px 16px` padding.
+
+### Create form (`create-channel.tsx`)
+The landing page's main call to action, in the hero heading block: a 48px `.input` (capped at 22rem) beside the ink pill, then one 13px ink-3 line carrying the reassurance and, as an underlined ink-2 button, a summary of the settings — "Expires in 24 hours, up to 10 in the room". That summary is the disclosure: it opens a 480px native `<dialog>` (20px radius, `line` border, lift shadow, `rgba(21,22,26,0.32)` backdrop) holding expiry, participants, and mode. The dialog lives inside the `<form>`, so what is chosen there submits with the name, and Enter inside it means "done", not "create". A deep link to `/#create` focuses the name field.
 
 ### Segmented control (`.segmented`)
 - **Track:** `panel-2` fill, 1px `line` border, 12px radius, 4px padding, 6px gap, equal columns.

@@ -1,5 +1,4 @@
 import { Compatibility } from "./components/compatibility";
-import { CreateChannel } from "./components/create-channel";
 import { Footer } from "./components/footer";
 import { Hero } from "./components/hero";
 import { HowItWorks } from "./components/how-it-works";
@@ -17,7 +16,6 @@ export default function Home() {
         <UseCases />
         <Principles />
         <Compatibility />
-        <CreateChannel />
       </main>
       <Footer />
     </>
