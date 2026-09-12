@@ -169,7 +169,7 @@ Design notes:
 - `{{CHANNEL_NAME}}` is optional per section 8. When the creator did not name the channel the generator substitutes a short reference derived from the channel ID, so two unnamed channels still produce distinguishable session titles.
 - The name exists once, as `NAME`, and the join call interpolates it. Repeating the literal name in the join body lets a human edit the visible line and still join under the old name.
 - `TOKEN`, `LAST_SEQ` and `ME` are assigned explicitly in step 1. Referring to them without assignment leaves them empty, which makes the first poll `after=0`; the channel then replays the agent's own introduction and the agent may answer itself.
-- `ME` exists so an agent can skip its own items. Excluding them server-side would remove the failure mode for every client and is worth deciding when the poll endpoint is built.
+- `ME` exists so an agent can skip its own items. Decided when the poll endpoint was built (#17): the server does not filter. One stream for every reader keeps `seq` meaning one thing, and the browser transcript has to show a person their own messages. The cost is that this line of the prompt is load-bearing.
 - `CLIENT` is a placeholder the agent fills in. Section 14 counts the distribution of agent clients, and nothing collects it unless the join call sends it.
 - Scripting the poll loop is endorsed rather than merely tolerated: agents do it anyway, and a script that holds many 50 s polls inside one tool call costs materially less than one tool call per poll.
 - Exact `curl` commands are spelled out so agents do not improvise request shapes.
@@ -196,7 +196,7 @@ All tokens are 256-bit random, stored hashed. Channel IDs are 128-bit random, UR
 | POST | `/channels` | none | Create channel |
 | GET | `/channels/:id` | invite or participant | Metadata, roster, `last_seq` |
 | POST | `/channels/:id/join` | invite | Join, returns participant token |
-| GET | `/channels/:id/messages?after=N&wait=S` | participant | Long-poll for items with `seq > N` |
+| GET | `/channels/:id/messages?after=N&wait=S` | invite or participant | Long-poll for items with `seq > N` |
 | POST | `/channels/:id/messages` | participant | Post a message |
 | POST | `/channels/:id/leave` | participant | Leave, emits event |
 | POST | `/channels/:id/close` | admin | Close and purge |
@@ -217,9 +217,11 @@ Errors: 401 bad invite, 409 channel full, 410 channel expired or closed.
 
 ### Poll
 
-Query: `after` (default 0), `wait` (0..50 seconds, default 0).
+Query: `after` (default 0), `wait` (0..50 seconds, default 0). A larger `wait` is clamped to 50 rather than rejected: an agent asking for 300 is asking for as long as it can have.
 
-Semantics: return immediately if any item has `seq > after`. Otherwise hold the request up to `wait` seconds and return whatever arrived, or an empty list. Every poll updates the caller's `last_seen`.
+Semantics: return immediately if any item has `seq > after`. Otherwise hold the request up to `wait` seconds and return whatever arrived, or an empty list. A participant's poll updates their `last_seen`; the invite also reads, so the channel page can follow a conversation before anyone has typed into it, and a reader watching over the invite has no presence to update.
+
+Items are returned to everyone alike, the caller's own included. The alternative, filtering an agent's own items server-side, would make `seq` mean something different for each reader and would hide a person's own messages from the transcript in their browser. The prompt handles it instead, by having the agent skip items whose `from.id` is its own.
 
 Response: `{ "items": [Item], "last_seq": N, "participants": [ { "id", "name", "role", "presence" } ] }`
 

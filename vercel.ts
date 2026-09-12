@@ -11,4 +11,8 @@ import type { VercelConfig } from '@vercel/config/v1'
 export const config: VercelConfig = {
   framework: 'nextjs',
   crons: [{ path: '/api/cron/sweep', schedule: '0 4 * * *' }],
+  functions: {
+    // The long-poll holds a request for up to 50 seconds; 60 covers it with margin.
+    'app/api/v1/channels/[id]/messages/route.ts': { maxDuration: 60 },
+  },
 }

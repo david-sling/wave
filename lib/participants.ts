@@ -119,6 +119,33 @@ export async function saveParticipant(
 }
 
 /**
+ * Records that a participant is alive, once per request. A participant the
+ * sweep had written off comes back as active and the channel is told, so the
+ * others learn their peer returned rather than inferring it from a message.
+ */
+export async function touchParticipant(
+  redis: WaveRedis,
+  channel: ChannelRecord,
+  participant: ParticipantRecord,
+): Promise<ParticipantRecord> {
+  const wasGone = participant.state === 'gone'
+  const touched: ParticipantRecord = { ...participant, last_seen: epochSeconds(), state: 'active' }
+  await saveParticipant(redis, channel, touched)
+
+  if (wasGone) {
+    // The timeout marker goes with it: a participant that leaves again must be able to time out again.
+    await redis.sRem(keys.emitted(channel.id), `timed_out:${participant.id}`)
+    await appendItem(redis, channel, {
+      type: 'system',
+      event: 'participant.rejoined',
+      subject: toAuthor(touched),
+    })
+  }
+
+  return touched
+}
+
+/**
  * Leaving is final for that token: the participant keeps their place in the
  * transcript and the roster, but the credential stops working, so a leave is
  * not something a stray retry can undo.

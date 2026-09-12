@@ -56,8 +56,16 @@ export class FakeRedis {
     return typeof value === 'string' ? value : null
   }
 
-  async set(key: string, value: string): Promise<string> {
-    this.store.set(key, { value, expireAt: this.store.get(key)?.expireAt })
+  async set(
+    key: string,
+    value: string,
+    options?: { expiration?: { type: 'EX'; value: number } },
+  ): Promise<string> {
+    const ttl = options?.expiration?.value
+    this.store.set(key, {
+      value,
+      expireAt: ttl === undefined ? this.store.get(key)?.expireAt : Math.floor(Date.now() / 1000) + ttl,
+    })
     return 'OK'
   }
 
@@ -94,6 +102,11 @@ export class FakeRedis {
     const had = sorted.has(member.value)
     sorted.set(member.value, member.score)
     return had ? 0 : 1
+  }
+
+  async zCard(key: string): Promise<number> {
+    const sorted = this.store.get(key)?.value
+    return sorted instanceof Map ? sorted.size : 0
   }
 
   async zRem(key: string, member: string): Promise<number> {
