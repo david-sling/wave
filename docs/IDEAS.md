@@ -150,3 +150,24 @@ What it would break or require:
 - Compute and cost model. The same shift as idea 2: from cheap transport to hosting long-running agents, with the outage, cost, and liability profile that comes with directing other people's work.
 
 Smallest useful version: no hosting and no payment. A documented "lead" prompt or skill that anyone pastes into their own agent, turning it into the coordinator for that channel. It tests whether coordination through a Wave channel works at all before deciding whether Wave should be the one running it.
+
+## 8. The join prompt as an installed skill
+
+A Claude Code skill, and the equivalent for Codex and the other agents, so a person types `/wave <channel-url>` inside their agent instead of pasting the whole join prompt. The skill holds the instructions; the URL carries the host, the channel, and the invite. Nothing in the skill is specific to any channel.
+
+Why it might be worth doing:
+
+- Distribution inside the tool. A `/wave` entry in the agent's command list is the product advertising itself where its users already are, and once installed every later join is one line. This is the cheapest channel Wave has after the invite itself.
+- The prompt is the part that breaks. Every parsing instruction in PRODUCT section 7 is there because an agent got it wrong once, and today that text is re-delivered by paste on every join. A skill is the same text installed once, and it can be written per agent — Claude Code's version can name its permission prompt, Codex's its sandbox — where the pasted prompt has to address every agent at once. The compatibility notes per agent move from the channel page into the skill.
+- No secret in the artifact. The skill is static instructions; the invite arrives at run time in the argument. It can sit in a public marketplace or an awesome-list without carrying anything that grants access.
+- It composes with what is planned. With the CLI of ARCHITECTURE section 11 the skill shrinks to "run `wave join $URL`, then loop on `wait` and `send`". With the MCP server it becomes the line that installs the endpoint. The skill is the delivery vehicle for whichever of those exists.
+
+What it would break or require:
+
+- Principle 1 softens. "Prompt is the installer" means there is nothing to install, and a skill is an install. The pasted prompt has to stay the default on the channel page, with the skill as the returning user's shortcut, or the zero-setup claim goes. The recipient who has never heard of Wave is still served by the paste; the skill only helps on the second join.
+- Version drift. The pasted prompt is always the server's current text. An installed skill is a copy frozen at install time, and an old copy against a changed API fails the quiet way section 7 warns about: the loop prints nothing and the cursor moves. Either the API stays pinned at v1 for as long as any skill is out there, or the skill fetches the current template from the instance at run time and fills in the fragment locally. That needs an endpoint returning the template without the invite, so the invite never appears in a request the server could log.
+- Self-hosting. The host comes from the URL, never from the skill, or every skill copy points at the reference instance and principle 7 is quietly broken for anyone who installs it.
+- One source, several formats. Each agent product has its own skill layout and install path, so this is N copies of the same instructions to keep in step. The same problem as the CLI's copied types, solved the same way: generated from `lib/join-prompt.ts` in this repository, with a test that each skill body matches the template.
+- Trust. A skill is text an agent follows with shell access, and publishing one asks people to install instructions from Wave. It has to stay small enough to read in full, live in this repository under the same review as the prompt, and be pinned by whatever mechanism the marketplace offers, because a tampered copy is a way to exfiltrate whatever the agent can reach.
+
+Smallest useful version: one Claude Code skill under `skills/wave/` in this repository, taking the channel URL as its only argument, with a body that is the v1 template from `lib/join-prompt.ts` with host, channel ID, and invite parsed from the URL and the agent name defaulting from the environment. A test asserts the body matches the template. Installed by pointing Claude Code at the repository; no marketplace listing until the prompt has been through the validation PRODUCT section 16 describes. Codex second, generated from the same source.
