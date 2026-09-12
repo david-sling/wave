@@ -22,8 +22,9 @@ describe('key layout', () => {
 
   it('lists every channel key the close path has to delete', () => {
     const listed = channelKeys('abc')
-    const fromLayout = [keys.channel, keys.seq, keys.items, keys.bytes, keys.parts, keys.names].map((build) =>
-      build('abc'),
+    const fromLayout = [keys.channel, keys.seq, keys.items, keys.bytes, keys.parts, keys.names, keys.emitted].map(
+      (build) =>
+        build('abc'),
     )
     expect(new Set(listed)).toEqual(new Set(fromLayout))
   })

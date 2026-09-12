@@ -27,6 +27,8 @@ export const keys = {
   parts: (channelId: string) => `${ns()}:ch:${channelId}:parts`,
   /** set: lowercased display names, for collision checks */
   names: (channelId: string) => `${ns()}:ch:${channelId}:names`,
+  /** set: markers for events that must be emitted at most once, e.g. `timed_out:{participant_id}` */
+  emitted: (channelId: string) => `${ns()}:ch:${channelId}:emitted`,
   /** string: stored post result, short TTL */
   idem: (channelId: string, clientId: string) => `${ns()}:ch:${channelId}:idem:${clientId}`,
   /** string: rate-limit counter, short TTL. The hash is salted; no raw IP is a key. */
@@ -44,6 +46,7 @@ export function channelKeys(channelId: string): string[] {
     keys.bytes(channelId),
     keys.parts(channelId),
     keys.names(channelId),
+    keys.emitted(channelId),
   ]
 }
 

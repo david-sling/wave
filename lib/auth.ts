@@ -78,9 +78,23 @@ export async function authenticate(
     if (credential === 'admin' && tokenMatches(token, channel.admin_hash)) return { channel }
     if (credential === 'participant') {
       const participant = await findParticipantByToken(redis, channel.id, token)
+      if (participant?.left_at !== undefined) {
+        throw unauthorized('You have left this channel. Join again with the invite to continue.')
+      }
       if (participant) return { channel, participant }
     }
   }
 
   throw unauthorized(`Invalid ${accepted.join(' or ')} token for this channel.`)
+}
+
+/** The participant-credential case, narrowed: callers get the participant, not an optional one. */
+export async function authenticateParticipant(
+  redis: WaveRedis,
+  channelId: string,
+  request: Request,
+): Promise<{ channel: ChannelRecord; participant: ParticipantRecord }> {
+  const { channel, participant } = await authenticate(redis, channelId, 'participant', request)
+  if (!participant) throw unauthorized('Invalid participant token for this channel.')
+  return { channel, participant }
 }

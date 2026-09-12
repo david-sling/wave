@@ -94,6 +94,8 @@ export const participantRecordSchema = z.object({
   joined_at: z.coerce.number().int().positive(),
   last_seen: z.coerce.number().int().positive(),
   state: presenceSchema,
+  /** Set when the participant called leave. Their token stops working at that moment. */
+  left_at: z.coerce.number().int().positive().optional(),
   /** Self-reported agent product, from join. Free text, shown to nobody by default. */
   client: z.string().max(120).optional(),
 })

@@ -81,9 +81,11 @@ export async function createChannel(redis: WaveRedis, request: CreateChannelRequ
 /**
  * Presence as the roster reports it. Derived from last_seen rather than read
  * from the stored state: the sweep emits the events, but a reader should not
- * see someone as active because the sweep is a minute behind.
+ * see someone as active because the sweep is a minute behind. Someone who left
+ * stays in the roster as gone, so the transcript and the roster agree.
  */
 export function derivePresence(participant: ParticipantRecord, now: number = epochSeconds()): Presence {
+  if (participant.left_at !== undefined) return 'gone'
   const silentFor = now - participant.last_seen
   if (silentFor >= PRESENCE.goneAfter) return 'gone'
   if (silentFor >= PRESENCE.idleAfter) return 'idle'

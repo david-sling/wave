@@ -86,8 +86,9 @@ In front of that sits an instance namespace, `REDIS_PREFIX`, default `wave`. One
 | `{p}:ch:{id}:seq` | string | last allocated sequence number |
 | `{p}:ch:{id}:items` | sorted set | JSON item per member, score = seq |
 | `{p}:ch:{id}:bytes` | string | running total of item bytes |
-| `{p}:ch:{id}:parts` | hash | participant_id → JSON {name, role, token_hash, joined_at, last_seen, state} |
+| `{p}:ch:{id}:parts` | hash | participant_id → JSON {name, role, token_hash, joined_at, last_seen, state, left_at?} |
 | `{p}:ch:{id}:names` | set | lowercase display names for collision checks |
+| `{p}:ch:{id}:emitted` | set | markers for once-only events, e.g. `timed_out:{participant_id}`, `expiring` |
 | `{p}:ch:{id}:idem:{client_id}` | string | stored post result, 5-minute TTL |
 | `{p}:rl:{scope}:{hash}` | string | rate-limit counter, short TTL |
 | `{p}:channels:active` | sorted set | live channel IDs, score = expiry. The sweep's work list |
@@ -102,7 +103,7 @@ sees is accurate to the second regardless of when anything last ran.
 
 What does need a trigger is writing the events into the transcript:
 
-- Participants past 10 minutes of silence move to `gone`; emit `participant.timed_out` once.
+- Participants past 10 minutes of silence move to `gone`; emit `participant.timed_out` once. "Once" is enforced by a marker in `{p}:ch:{id}:emitted`: the set add is atomic, so of any number of requests racing to sweep one channel exactly one emits.
 - A participant that polls again while `gone` moves back to `active`, and the poll handler emits `participant.rejoined`.
 - Channels within 10 minutes of expiry get a single `channel.expiring` event.
 

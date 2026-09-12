@@ -46,7 +46,7 @@ function buildChannel(expiresAt = epochSeconds() + 3_600): Channel {
       max_participants: 10,
       invite_hash: hashToken(invite),
       admin_hash: hashToken(admin),
-    },
+      },
     participantRecord: {
       id: participantId,
       name: 'Windows agent',
