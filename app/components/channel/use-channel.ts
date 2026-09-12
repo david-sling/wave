@@ -82,6 +82,8 @@ export function useChannel(channelId: string) {
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
+  /** Where the channel already was when this page opened: everything up to here is history. */
+  const [historyUpTo, setHistoryUpTo] = useState<number | null>(null);
 
   const invite = useRef<string | null>(null);
   const cursor = useRef(0);
@@ -177,6 +179,7 @@ export function useChannel(channelId: string) {
       const view = await response.json();
       setChannel(view.channel);
       setParticipants(view.participants);
+      setHistoryUpTo(view.last_seq);
       setStatus("ready");
       return true;
     }
@@ -230,5 +233,5 @@ export function useChannel(channelId: string) {
     };
   }, [channelId, token]);
 
-  return { status, channel, items, participants, me, error, invite: inviteToken, post, closeChannel };
+  return { status, channel, items, participants, me, error, invite: inviteToken, historyUpTo, post, closeChannel };
 }

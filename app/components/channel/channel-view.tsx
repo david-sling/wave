@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { sileo, Toaster } from "sileo";
 import { identityPalette } from "@/lib/identity-color";
 import { Logo } from "../logo";
 import { Roster, Transcript, type TranscriptItem } from "../transcript";
 import { AddAgentDialog } from "./add-agent-dialog";
+import { announcementFor } from "./channel-events";
+import { ChannelMenu, ChannelMenuButton } from "./channel-menu";
 import { Compose } from "./compose";
 import { Controls, ExpiryCountdown } from "./controls";
 import { PromptBox } from "./prompt-box";
+import { useReadMarker } from "./use-read-marker";
 import { adminKey, useChannel, type Item, type RosterEntry } from "./use-channel";
 
 /**
@@ -47,8 +51,9 @@ function describe(item: Extract<Item, { type: "system" }>): string {
 function toTranscript(items: Item[]): TranscriptItem[] {
   return items.map((item) =>
     item.type === "system"
-      ? { type: "system", text: describe(item) }
+      ? { seq: item.seq, type: "system", text: describe(item) }
       : {
+          seq: item.seq,
           type: "message",
           from: { name: item.from.name, role: item.from.role },
           time: new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -83,17 +88,22 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 /** The bar across the top: what this channel is, and how long it has left. */
-function TopBar({ children }: { children?: React.ReactNode }) {
+function TopBar({ children, menu }: { children?: React.ReactNode; menu?: React.ReactNode }) {
   return (
-    <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line px-4 py-2.5">
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
       <div className="flex min-w-0 items-center gap-3">
         <Logo size={24} wordmarkClassName="hidden sm:inline" />
         {children ? <span aria-hidden className="hidden h-5 w-px shrink-0 bg-line sm:block" /> : null}
         {children}
       </div>
-      <Link href="/#create" className="btn btn-sm btn-secondary shrink-0">
-        New channel
-      </Link>
+      <div className="flex shrink-0 items-center gap-1">
+        {/* On a phone the channel's actions live in the sheet, so the bar keeps
+            one control instead of three competing for the same 375 pixels. */}
+        <Link href="/#create" className="btn btn-sm btn-secondary hidden lg:inline-flex">
+          New channel
+        </Link>
+        {menu}
+      </div>
     </header>
   );
 }
@@ -114,13 +124,30 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 }
 
 export function ChannelView({ channelId, host }: { channelId: string; host: string }) {
-  const { status, channel, items, participants, me, error, invite, post, closeChannel } = useChannel(channelId);
-  const tail = useRef<HTMLDivElement>(null);
+  const { status, channel, items, participants, me, error, invite, historyUpTo, post, closeChannel } =
+    useChannel(channelId);
   const [adding, setAdding] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { scroller, tail, markerAt, onScroll } = useReadMarker(channelId, items, status === "ready");
 
+  // The toast store is a module singleton, and Next hands each client boundary
+  // its own copy, so the calls have to be made from the module that renders the
+  // Toaster. Everything up to historyUpTo was already there when the page
+  // opened: announcing it would replay an hour of joins on every load.
+  const announcedUpTo = useRef<number | null>(null);
   useEffect(() => {
-    tail.current?.scrollIntoView({ block: "end" });
-  }, [items.length]);
+    if (historyUpTo === null) return;
+    announcedUpTo.current ??= historyUpTo;
+
+    for (const item of items) {
+      if (item.seq <= announcedUpTo.current) continue;
+      const said = announcementFor(item);
+      if (!said) continue;
+      if (said.kind === "warning") sileo.warning({ title: said.title, duration: 6_000 });
+      else sileo.info({ title: said.title, duration: 4_000 });
+    }
+    announcedUpTo.current = items.at(-1)?.seq ?? announcedUpTo.current;
+  }, [items, historyUpTo]);
 
   if (status === "no-invite") {
     return (
@@ -177,7 +204,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
   return (
     <Shell>
-      <TopBar>
+      <TopBar menu={<ChannelMenuButton onOpen={() => setMenuOpen(true)} />}>
         <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-2">
           <b className="truncate font-semibold text-ink">{channel.name || "Unnamed channel"}</b>
           <span aria-hidden>·</span>
@@ -199,10 +226,16 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <main className="order-2 flex min-h-0 min-w-0 flex-1 flex-col lg:order-1" aria-label="Conversation">
-          <div className="pane-scroll flex max-h-[62vh] flex-1 flex-col overflow-y-auto px-4 py-4 lg:max-h-none lg:px-6">
-            <div className="mx-auto mt-auto w-full max-w-[92ch]">
+          <div
+            ref={scroller}
+            onScroll={onScroll}
+            className="pane-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 lg:px-6"
+          >
+            {/* A running conversation sits on the composer; an empty channel
+                centres its one piece of business instead. */}
+            <div className={`mx-auto w-full max-w-[92ch] ${started ? "mt-auto" : "my-auto"}`}>
               {started ? (
-                <Transcript items={toTranscript(items)} colorFor={colorFor} />
+                <Transcript items={toTranscript(items)} colorFor={colorFor} unreadAfter={markerAt} />
               ) : (
                 <div className="mx-auto grid w-full max-w-[520px] gap-4 py-6">
                   <div className="grid gap-1.5">
@@ -229,7 +262,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
         </main>
 
         <aside
-          className="order-1 flex w-full shrink-0 flex-col border-line bg-panel-2 lg:order-2 lg:w-[320px] lg:border-l"
+          className="order-1 hidden w-full shrink-0 flex-col border-line bg-panel-2 lg:order-2 lg:flex lg:w-[320px] lg:border-l"
           aria-label="Room"
         >
           <section className="pane-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4" aria-label="In the room">
@@ -253,6 +286,42 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
           </div>
         </aside>
       </div>
+
+      <ChannelMenu open={menuOpen} onClose={() => setMenuOpen(false)}>
+        <div className="px-4 py-4">
+          <h3 className="m-0 mb-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
+            In the room
+          </h3>
+          {participants.length === 0 ? (
+            <p className="m-0 text-[13px] text-ink-3">Nobody has joined yet.</p>
+          ) : (
+            <Roster participants={toRoster(participants, items)} colorFor={colorFor} />
+          )}
+        </div>
+        <div className="border-t border-line px-4 py-4">
+          {started ? (
+            <button
+              type="button"
+              className="btn btn-sm btn-primary mb-4 w-full"
+              onClick={() => {
+                setMenuOpen(false);
+                setAdding(true);
+              }}
+            >
+              Add an agent
+            </button>
+          ) : null}
+          <Controls shareUrl={shareUrl} canClose={canClose} onClose={closeChannel} />
+          <Link href="/#create" className="btn btn-sm btn-secondary mt-4 w-full">
+            New channel
+          </Link>
+        </div>
+      </ChannelMenu>
+
+      {/* Mounted here rather than in the root layout: the toast store is a module
+          singleton, and Next gives each client boundary its own copy of it, so a
+          toaster in the layout never sees a call made from this one. */}
+      <Toaster position="top-right" theme="light" />
 
       <AddAgentDialog
         open={adding}

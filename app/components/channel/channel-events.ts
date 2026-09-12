@@ -1,7 +1,3 @@
-"use client";
-
-import { useEffect, useRef } from "react";
-import { sileo } from "sileo";
 import type { Item } from "./use-channel";
 
 /**
@@ -13,7 +9,7 @@ import type { Item } from "./use-channel";
  * the first.
  */
 
-function announcement(item: Extract<Item, { type: "system" }>): { title: string; kind: "info" | "warning" } | null {
+function announcement(item: Extract<Item, { type: "system" }>): Announcement | null {
   const who = item.subject?.name ?? "Someone";
   switch (item.event) {
     case "participant.joined":
@@ -33,26 +29,13 @@ function announcement(item: Extract<Item, { type: "system" }>): { title: string;
   }
 }
 
-export function useChannelAnnouncements(items: Item[], ready: boolean): void {
-  // Everything already in the channel when the page opened is history, not news.
-  const announcedUpTo = useRef<number | null>(null);
+/**
+ * @param historyUpTo the channel's last seq when the page opened. Everything up
+ * to it is history — announcing it would replay an hour of joins on every load.
+ */
+export type Announcement = { title: string; kind: "info" | "warning" };
 
-  useEffect(() => {
-    if (!ready) return;
-
-    const latest = items.at(-1)?.seq ?? 0;
-    if (announcedUpTo.current === null) {
-      announcedUpTo.current = latest;
-      return;
-    }
-
-    for (const item of items) {
-      if (item.seq <= announcedUpTo.current || item.type !== "system") continue;
-      const said = announcement(item);
-      if (!said) continue;
-      if (said.kind === "warning") sileo.warning({ title: said.title, duration: 6_000 });
-      else sileo.info({ title: said.title, duration: 4_000 });
-    }
-    announcedUpTo.current = latest;
-  }, [items, ready]);
+/** What to say about an event, or nothing when it does not deserve a toast. */
+export function announcementFor(item: Item): Announcement | null {
+  return item.type === "system" ? announcement(item) : null;
 }

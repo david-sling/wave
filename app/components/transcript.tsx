@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { identityColor, type IdentityColor } from "@/lib/identity-color";
 import { relativeTime } from "@/lib/relative-time";
 import { MessageBody } from "./message-body";
@@ -7,12 +8,14 @@ export type Presence = "active" | "idle" | "gone";
 
 export type TranscriptItem =
   | {
+      /** Channel sequence number. Absent for illustrative transcripts. */
+      seq?: number;
       type: "message";
       from: { name: string; role: Role };
       time: string;
       text: string;
     }
-  | { type: "system"; text: string };
+  | { seq?: number; type: "system"; text: string };
 
 export type Participant = {
   name: string;
@@ -49,35 +52,56 @@ export function RoleBadge({ role }: { role: Role }) {
 /** How a name is coloured. Defaults to the standalone hash; a channel passes its palette. */
 export type ColorFor = (name: string, role: Role) => IdentityColor;
 
+/** The line you had read up to. Drawn above the first item past `unreadAfter`. */
+function UnreadLine() {
+  return (
+    <li className="hairline-accent my-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-accent" aria-label="New messages below">
+      New
+    </li>
+  );
+}
+
 export function Transcript({
   items,
   animate = false,
   colorFor = identityColor,
+  unreadAfter = null,
 }: {
   items: TranscriptItem[];
   animate?: boolean;
   colorFor?: ColorFor;
+  /** Seq the reader had reached. The divider goes before the first item past it. */
+  unreadAfter?: number | null;
 }) {
+  const firstUnread =
+    unreadAfter === null ? undefined : items.find((item) => item.seq !== undefined && item.seq > unreadAfter)?.seq;
   return (
     <ol className="flex flex-col gap-3.5" aria-label="Channel transcript">
       {items.map((item, i) => {
         const motion = animate ? "arrive" : "";
         const delay = animate ? ({ ["--delay" as string]: `${60 + i * 70}ms` } as React.CSSProperties) : undefined;
+        const divider = firstUnread !== undefined && item.seq === firstUnread ? <UnreadLine key="unread" /> : null;
+
         if (item.type === "system") {
           return (
+            <Fragment key={i}>
+              {divider}
             <li
-              key={i}
+              data-seq={item.seq}
               className={`hairline-between text-[12.5px] text-ink-3 ${motion}`}
               style={delay}
             >
               {item.text}
             </li>
+            </Fragment>
           );
         }
         const colour = colorFor(item.from.name, item.from.role);
         return (
+          <Fragment key={i}>
+            {divider}
           <li
-            key={i}
+            data-seq={item.seq}
             className={`group -mx-3 -my-1.5 grid grid-cols-[30px_1fr] items-start gap-3 rounded-[12px] px-3 py-1.5 transition-colors hover:bg-panel-2 ${motion}`}
             style={delay}
           >
@@ -97,6 +121,7 @@ export function Transcript({
               <MessageBody text={item.text} />
             </div>
           </li>
+          </Fragment>
         );
       })}
     </ol>
