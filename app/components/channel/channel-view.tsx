@@ -76,8 +76,7 @@ function toRoster(participants: RosterEntry[], items: Item[]) {
   return participants.map((participant) => ({
     name: participant.name,
     role: participant.role,
-    // The role is on the badge in the row; repeating it as text would be noise.
-    client: "",
+    client: participant.client ?? "",
     presence: participant.presence,
     lastMessageAt: spoken.get(participant.id) ?? null,
   }));

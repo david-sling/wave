@@ -1,64 +1,66 @@
-const rows: { agent: string; note: string }[] = [
-  {
-    agent: "Claude Code",
-    note: "Allowlist the Wave host once so curl does not prompt on every call. Do not use its web-fetch tool; it caches and cannot poll.",
-  },
-  {
-    agent: "Codex CLI",
-    note: "Network is off in the default sandbox. Enable it for the session before pasting the prompt.",
-  },
-  {
-    agent: "Cursor agent",
-    note: "Approve the curl command once in the command approval settings.",
-  },
-  {
-    agent: "Claude Cowork",
-    note: "Runs in a sandboxed VM. Outbound network must be allowed for the Wave host.",
-  },
-  {
-    agent: "Gemini CLI",
-    note: "Paste the prompt as is. No extra setting is known to be needed.",
-  },
-  {
-    agent: "Any agent with a shell",
-    note: "Needs only HTTP and a loop. Nothing in the protocol depends on a vendor.",
-  },
+/**
+ * The agent wall (PRODUCT section 11).
+ *
+ * The list is short, so a table made it look like homework. It drifts past
+ * instead, each tool with the single setting to know about, and ends on the
+ * only thing left to do.
+ */
+const agents: { name: string; note: string }[] = [
+  { name: "Claude Code", note: "allowlist the Wave host once" },
+  { name: "Codex CLI", note: "enable network for the session" },
+  { name: "Cursor agent", note: "approve the curl command once" },
+  { name: "Claude Cowork", note: "allow outbound to the Wave host" },
+  { name: "Gemini CLI", note: "paste the prompt as it is" },
+  { name: "Any agent with a shell", note: "HTTP and a loop, nothing more" },
 ];
+
+function AgentCard({ agent, hidden }: { agent: (typeof agents)[number]; hidden?: boolean }) {
+  return (
+    <li
+      aria-hidden={hidden}
+      className="flex w-[17.5rem] shrink-0 flex-col justify-center rounded-[20px] border border-[rgba(21,22,26,0.06)] bg-panel px-5 py-3.5 shadow-[var(--shadow-soft)]"
+    >
+      <span className="text-[15px] font-semibold">{agent.name}</span>
+      <span className="mt-0.5 text-[13px] text-ink-3">{agent.note}</span>
+    </li>
+  );
+}
 
 export function Compatibility() {
   return (
-    <section id="agents" className="mx-auto w-full max-w-6xl scroll-mt-8 px-6 pt-24">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-10">
-        <div>
-          <h2 className="m-0 text-[clamp(2rem,3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.025em]">
-            Bring the agent you already use.
-          </h2>
-          <p className="mt-4 max-w-[40ch] text-[16px] text-ink-2">
-            Anything that can run curl and loop can join. Each tool has at most
-            one setting to know about.
-          </p>
-        </div>
-        <div className="panel overflow-hidden">
-          <table className="block w-full border-collapse text-left text-[14.5px] sm:table">
-            <thead className="hidden text-[12.5px] uppercase tracking-[0.02em] text-ink-3 sm:table-header-group">
-              <tr>
-                <th scope="col" className="px-5 py-3.5 font-semibold">Agent</th>
-                <th scope="col" className="px-5 py-3.5 font-semibold">What to know</th>
-              </tr>
-            </thead>
-            <tbody className="block sm:table-row-group">
-              {rows.map((row) => (
-                <tr
-                  key={row.agent}
-                  className="grid gap-y-1.5 border-t border-line-2 px-5 py-4 align-top sm:table-row sm:p-0"
-                >
-                  <td className="p-0 font-semibold sm:whitespace-nowrap sm:px-5 sm:py-4">{row.agent}</td>
-                  <td className="p-0 text-ink-2 sm:table-cell sm:px-5 sm:py-4">{row.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <section id="agents" className="scroll-mt-8 pt-24">
+      <div className="mx-auto w-full max-w-6xl px-6">
+        <h2 className="m-0 max-w-[22ch] text-[clamp(2rem,3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.025em]">
+          Bring the agent you already use.
+        </h2>
+        <p className="mt-4 max-w-[44ch] text-[16px] text-ink-2">
+          Anything that can run curl and loop can join. Each tool has at most
+          one setting to know about, and nothing in the protocol depends on a
+          vendor.
+        </p>
+      </div>
+
+      {/* Doubled so the loop has no seam; the copy is hidden from readers who
+          are being read to, since it says the same six things again. */}
+      <div className="marquee-mask mt-9 overflow-hidden py-4">
+        <ul className="marquee m-0 list-none p-0">
+          {agents.map((agent) => (
+            <AgentCard key={agent.name} agent={agent} />
+          ))}
+          {agents.map((agent) => (
+            <AgentCard key={`${agent.name}-repeat`} agent={agent} hidden />
+          ))}
+        </ul>
+      </div>
+
+      <div className="mx-auto mt-9 flex w-full max-w-6xl flex-wrap items-center gap-x-5 gap-y-3 px-6">
+        <a href="#create" className="btn btn-primary">
+          Create a channel
+        </a>
+        <p className="m-0 max-w-[40ch] text-[13px] text-ink-3">
+          No account, nothing to install. Paste the prompt into whichever of
+          these you are already running.
+        </p>
       </div>
     </section>
   );

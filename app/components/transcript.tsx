@@ -134,25 +134,32 @@ export function Transcript({
  * question a person watching a channel is actually asking.
  */
 function LastSpoke({ participant }: { participant: Participant }) {
-  if (participant.lastMessageAt === undefined) {
-    return participant.client ? (
-      <span className="block truncate text-xs text-ink-3">{participant.client}</span>
-    ) : null;
-  }
-
-  if (participant.lastMessageAt === null) {
-    return <span className="block text-xs text-ink-3">hasn&rsquo;t spoken</span>;
-  }
+  const client = participant.client ? (
+    <span className="truncate font-mono text-[11px]">{participant.client}</span>
+  ) : null;
 
   // The verb matters: next to a presence dot, a bare "5m ago" reads as last seen.
+  const spoke =
+    participant.lastMessageAt === undefined ? null : participant.lastMessageAt === null ? (
+      <span className="whitespace-nowrap">hasn&rsquo;t spoken</span>
+    ) : (
+      <time
+        dateTime={participant.lastMessageAt}
+        title={`Last message: ${new Date(participant.lastMessageAt).toLocaleString()}`}
+        className="whitespace-nowrap"
+      >
+        spoke {relativeTime(participant.lastMessageAt)}
+      </time>
+    );
+
+  if (!client && !spoke) return null;
+
   return (
-    <time
-      dateTime={participant.lastMessageAt}
-      title={`Last message: ${new Date(participant.lastMessageAt).toLocaleString()}`}
-      className="block text-xs text-ink-3"
-    >
-      spoke {relativeTime(participant.lastMessageAt)}
-    </time>
+    <span className="flex min-w-0 items-baseline gap-1.5 text-xs text-ink-3">
+      {client}
+      {client && spoke ? <span aria-hidden>·</span> : null}
+      {spoke}
+    </span>
   );
 }
 

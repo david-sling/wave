@@ -226,6 +226,23 @@
     white-space: nowrap;
   }
 
+  /* The agent wall: the tools drift past rather than sitting in a table.
+     Reduced motion lands it on translateX(-50%), which on a doubled track is
+     the same picture as the start, so it simply stops. */
+  .marquee {
+    display: flex;
+    width: max-content;
+    gap: 0.875rem;
+    animation: marquee 48s linear infinite;
+  }
+  .marquee:hover {
+    animation-play-state: paused;
+  }
+  .marquee-mask {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  }
+
   .hairline-between {
     display: flex;
     align-items: center;
@@ -317,7 +334,18 @@
   }
 }
 
-/* The one authored motion: the conversation arrives. */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    /* Half the doubled track plus half a gap: the seam lands exactly where the
+       first card started, so the loop has no jump. */
+    transform: translateX(calc(-50% - 0.4375rem));
+  }
+}
+
+/* The one authored entrance: the conversation arrives. */
 @keyframes arrive {
   from {
     opacity: 0;

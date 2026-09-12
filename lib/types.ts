@@ -41,7 +41,11 @@ export const authorSchema = z.object({
 export type Author = z.infer<typeof authorSchema>
 
 /** How a participant appears in a roster. */
-export const rosterEntrySchema = authorSchema.extend({ presence: presenceSchema })
+export const rosterEntrySchema = authorSchema.extend({
+  presence: presenceSchema,
+  /** Self-reported agent product, when the join call sent one. */
+  client: z.string().max(120).optional(),
+})
 export type RosterEntry = z.infer<typeof rosterEntrySchema>
 
 export const messageItemSchema = z.object({
@@ -144,6 +148,9 @@ export function toRosterEntry(participant: ParticipantRecord): RosterEntry {
     name: participant.name,
     role: participant.role,
     presence: participant.state,
+    // Shown in the room: which product is sitting behind this name is the first
+    // thing a person wants to know about someone else's agent.
+    ...(participant.client ? { client: participant.client } : {}),
   }
 }
 

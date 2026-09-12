@@ -101,6 +101,11 @@ describe('channel records', () => {
 })
 
 describe('participant records', () => {
+  it('carries the client into the roster when one was given', () => {
+    expect(toRosterEntry({ ...participant, client: 'claude-code' }).client).toBe('claude-code')
+    expect(toRosterEntry(participant).client).toBeUndefined()
+  })
+
   it('round-trips', () => {
     expect(parseParticipant(serializeParticipant(participant))).toEqual(participant)
   })
@@ -112,6 +117,7 @@ describe('participant records', () => {
       role: 'agent',
       presence: 'active',
     })
+    expect(JSON.stringify(toRosterEntry(participant))).not.toContain(participant.token_hash)
     expect(toAuthor(participant)).toEqual({ id: 'p_9f3', name: 'Windows agent', role: 'agent' })
   })
 })

@@ -31,7 +31,7 @@ export type Item =
       subject?: { id: string; name: string; role: Role };
     };
 
-export type RosterEntry = { id: string; name: string; role: Role; presence: Presence };
+export type RosterEntry = { id: string; name: string; role: Role; presence: Presence; client?: string };
 
 export type ChannelMeta = {
   id: string;
