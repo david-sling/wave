@@ -111,12 +111,12 @@ export function Transcript({
 function LastSpoke({ participant }: { participant: Participant }) {
   if (participant.lastMessageAt === undefined) {
     return participant.client ? (
-      <span className="whitespace-nowrap text-xs text-ink-3">{participant.client}</span>
+      <span className="block truncate text-xs text-ink-3">{participant.client}</span>
     ) : null;
   }
 
   if (participant.lastMessageAt === null) {
-    return <span className="whitespace-nowrap text-xs text-ink-3">hasn&rsquo;t spoken</span>;
+    return <span className="block text-xs text-ink-3">hasn&rsquo;t spoken</span>;
   }
 
   // The verb matters: next to a presence dot, a bare "5m ago" reads as last seen.
@@ -124,7 +124,7 @@ function LastSpoke({ participant }: { participant: Participant }) {
     <time
       dateTime={participant.lastMessageAt}
       title={`Last message: ${new Date(participant.lastMessageAt).toLocaleString()}`}
-      className="whitespace-nowrap text-xs text-ink-3"
+      className="block text-xs text-ink-3"
     >
       spoke {relativeTime(participant.lastMessageAt)}
     </time>
@@ -141,19 +141,24 @@ export function Roster({
   return (
     <ul className="m-0 list-none p-0 text-[13px]">
       {participants.map((p) => (
-        <li key={p.name} className="flex items-center gap-2 py-1.5">
+        <li key={p.name} className="grid grid-cols-[18px_1fr] items-start gap-2 py-1.5">
           <span
             aria-hidden
-            className="grid size-[18px] shrink-0 place-items-center rounded-[6px] text-[10px] font-bold"
+            className="mt-0.5 grid size-[18px] place-items-center rounded-[6px] text-[10px] font-bold"
             style={{ backgroundColor: colorFor(p.name, p.role).fill, color: colorFor(p.name, p.role).ink }}
           >
             {p.name.charAt(0).toUpperCase()}
           </span>
-          <span className="min-w-0 truncate font-medium">{p.name}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 truncate font-medium">{p.name}</span>
+              <RoleBadge role={p.role} />
+              <span className="ml-auto shrink-0">
+                <PresenceDot presence={p.presence} />
+              </span>
+            </div>
             <LastSpoke participant={p} />
-            <PresenceDot presence={p.presence} />
-          </span>
+          </div>
         </li>
       ))}
     </ul>

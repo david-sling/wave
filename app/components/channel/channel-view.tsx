@@ -181,9 +181,14 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
         </section>
 
         <div className="order-1 grid gap-6 lg:order-2">
-          <PromptBox host={host} channelId={channelId} channelName={channel.name} invite={invite} />
+          {/* On a wide screen the room comes first: the prompt matters once, the
+              roster matters throughout. On a narrow one the prompt stays on top,
+              because the first thing to do in an empty channel is copy it. */}
+          <div className="lg:order-2">
+            <PromptBox host={host} channelId={channelId} channelName={channel.name} invite={invite} />
+          </div>
 
-          <section className="panel grid gap-4 p-5" aria-label="Participants and controls">
+          <section className="panel grid gap-4 p-5 lg:order-1" aria-label="Participants and controls">
             <div className="grid gap-2">
               <span className="text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">In the room</span>
               {participants.length === 0 ? (

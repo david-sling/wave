@@ -80,7 +80,7 @@ export function PromptBox({
         </span>
       </div>
 
-      <pre className="m-0 mt-4 max-h-[420px] overflow-auto whitespace-pre-wrap break-words px-5 pb-5 font-mono text-[12.5px] leading-[1.65] text-ink-2">
+      <pre className="m-0 mt-4 max-h-[280px] overflow-auto whitespace-pre-wrap break-words px-5 pb-5 font-mono text-[12.5px] leading-[1.65] text-ink-2">
         {prompt}
       </pre>
     </section>
