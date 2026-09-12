@@ -9,24 +9,19 @@ import type { Item } from "./use-channel";
  * the first.
  */
 
+/** How loud each event is. What it says comes from the server (lib/events.ts). */
+const KIND: Record<string, Announcement["kind"]> = {
+  "participant.joined": "info",
+  "participant.left": "info",
+  "participant.rejoined": "info",
+  "participant.timed_out": "warning",
+  "channel.expiring": "warning",
+  "channel.closing": "warning",
+};
+
 function announcement(item: Extract<Item, { type: "system" }>): Announcement | null {
-  const who = item.subject?.name ?? "Someone";
-  switch (item.event) {
-    case "participant.joined":
-      return { title: `${who} joined`, kind: "info" };
-    case "participant.left":
-      return { title: `${who} left`, kind: "info" };
-    case "participant.rejoined":
-      return { title: `${who} is back`, kind: "info" };
-    case "participant.timed_out":
-      return { title: `${who} stopped responding`, kind: "warning" };
-    case "channel.expiring":
-      return { title: "This channel expires in ten minutes", kind: "warning" };
-    case "channel.closing":
-      return { title: "The channel is closing", kind: "warning" };
-    default:
-      return null;
-  }
+  const kind = KIND[item.event];
+  return kind && item.text ? { title: item.text, kind } : null;
 }
 
 /**

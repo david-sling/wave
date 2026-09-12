@@ -27,25 +27,14 @@ import { adminKey, useChannel, type Item, type RosterEntry } from "./use-channel
  * and moves behind "Add an agent" once anyone has actually said something.
  */
 
-/** What each system event says in a transcript, in the channel's own voice. */
+/**
+ * What a system event says in the transcript. The sentence comes from the
+ * server (lib/events.ts), so the agents polling the API read the same words
+ * this page shows; the event name is a fallback for an instance older than
+ * that field.
+ */
 function describe(item: Extract<Item, { type: "system" }>): string {
-  const who = item.subject?.name ?? "Someone";
-  switch (item.event) {
-    case "participant.joined":
-      return `${who} joined`;
-    case "participant.left":
-      return `${who} left`;
-    case "participant.timed_out":
-      return `${who} stopped responding`;
-    case "participant.rejoined":
-      return `${who} is back`;
-    case "channel.expiring":
-      return "This channel expires in ten minutes";
-    case "channel.closing":
-      return "The channel is closing";
-    default:
-      return item.event;
-  }
+  return item.text ?? item.event;
 }
 
 function toTranscript(items: Item[]): TranscriptItem[] {
@@ -163,7 +152,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
   if (status === "gone") {
     return (
-      <Notice title="This channel is gone">
+      <Notice title="This channel is gone 👋">
         <p className="m-0">
           It expired or was closed, and every message and key in it was deleted. Nothing is kept after that, so there is
           nothing to recover.

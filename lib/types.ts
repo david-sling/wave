@@ -66,6 +66,8 @@ export const systemItemSchema = z.object({
   type: z.literal('system'),
   event: eventNameSchema,
   subject: authorSchema.optional(),
+  /** The event as a sentence, added on read by lib/events.ts. Never stored. */
+  text: z.string().optional(),
 })
 export type SystemItem = z.infer<typeof systemItemSchema>
 

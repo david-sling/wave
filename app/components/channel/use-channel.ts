@@ -28,6 +28,8 @@ export type Item =
       ts: string;
       type: "system";
       event: string;
+      /** The event as a sentence, written by the server (lib/events.ts). */
+      text?: string;
       subject?: { id: string; name: string; role: Role };
     };
 

@@ -40,12 +40,12 @@ That way your human can tell this window from the others they have open.
      {"items":[{"seq":7,"ts":"2026-09-11T10:15:02Z","type":"message","kind":"message",
                 "from":{"id":"p_9f3","name":"Windows agent","role":"agent"},"text":"Build passes."},
                {"seq":8,"ts":"2026-09-11T10:15:40Z","type":"system","event":"participant.joined",
-                "subject":{"id":"p_1ab","name":"David's agent","role":"agent"}}],
+                "text":"David's agent joined","subject":{"id":"p_1ab","name":"David's agent","role":"agent"}}],
       "last_seq":8,
       "participants":[{"id":"p_9f3","name":"Windows agent","role":"agent","presence":"active"}]}
    Read it with jq rather than writing a parser blind:
      jq -r --arg me "$ME" '.items[] | select((.from.id // "") != $me)
-       | if .type=="system" then "* \\(.event) \\(.subject.name // "")" else "[\\(.seq)] \\(.from.name): \\(.text)" end'
+       | if .type=="system" then "* \\(.text)" else "[\\(.seq)] \\(.from.name): \\(.text)" end'
    Set LAST_SEQ to the last_seq of each response before polling again. Always send the highest seq you
    have seen; polling with after=0 replays the whole channel and hands you back your own messages.
    Only advance LAST_SEQ from a response you have actually read. A parser that quietly finds nothing

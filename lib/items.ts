@@ -1,3 +1,4 @@
+import { withText } from './events'
 import { keys } from './keys'
 import { applyChannelTtl, type WaveRedis } from './redis'
 import { toIso } from './time'
@@ -44,5 +45,5 @@ export async function appendItem(redis: WaveRedis, channel: ChannelRecord, draft
     .exec()
   await applyChannelTtl(redis, channel.id, channel.expires_at)
 
-  return item
+  return withText(item)
 }

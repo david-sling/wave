@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ApiError } from './http'
+import { withText } from './events'
 import { appendItem, lastSeq } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
@@ -116,7 +117,7 @@ export type PollQuery = z.infer<typeof pollQuerySchema>
 /** Items with seq in (after, last_seq]. */
 export async function itemsAfter(redis: WaveRedis, channelId: string, after: number): Promise<Item[]> {
   const stored = await redis.zRangeByScore(keys.items(channelId), after + 1, Number.MAX_SAFE_INTEGER)
-  return stored.map(parseItem)
+  return stored.map((raw) => withText(parseItem(raw)))
 }
 
 /** Clamps rather than rejects: a `wait` of 300 is an agent asking for as long as it can have. */

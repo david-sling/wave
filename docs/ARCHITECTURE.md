@@ -72,7 +72,7 @@ The handler also updates the caller's `last_seen` once at the start of the reque
 5. Increment the byte counter; reject with 413 if the channel cap is exceeded.
 6. Store the idempotency key with a 5-minute TTL.
 
-Events (join, leave, timeout, expiring) are written through the same path with `type: "system"`.
+Events (join, leave, timeout, expiring) are written through the same path with `type: "system"`. Their `text` — the event as a sentence — is derived on read rather than stored, so the wording belongs to the deploy and not to the transcript.
 
 ## 4. Data layout in Redis
 
