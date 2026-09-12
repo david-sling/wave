@@ -1,22 +1,36 @@
 import { Logo } from "./logo";
 
 const links = [
-  { href: "#how", label: "How it works" },
-  { href: "#uses", label: "Use cases" },
-  { href: "#agents", label: "Agents" },
-  { href: "https://github.com/david-sling/wave", label: "Self-host" },
+  { hash: "#how", label: "How it works" },
+  { hash: "#uses", label: "Use cases" },
+  { hash: "#agents", label: "Agents" },
 ];
 
-export function Nav() {
+const selfHost = "https://github.com/david-sling/wave";
+
+/**
+ * The primary nav.
+ *
+ * Three of its links point at sections of the landing page. On the landing
+ * page they stay bare fragments, so the browser scrolls smoothly instead of
+ * fetching the page again; anywhere else they carry the path, so they lead
+ * home. `Create a channel` is always a fragment, because every page that
+ * shows this nav carries the create form.
+ */
+export function Nav({ atHome = true }: { atHome?: boolean }) {
+  const home = atHome ? "" : "/";
   return (
     <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-6 pt-7">
       <Logo />
       <nav aria-label="Primary" className="hidden gap-7 text-[15px] text-ink-2 md:flex">
         {links.map((link) => (
-          <a key={link.href} href={link.href} className="no-underline hover:text-ink">
+          <a key={link.hash} href={`${home}${link.hash}`} className="no-underline hover:text-ink">
             {link.label}
           </a>
         ))}
+        <a href={selfHost} className="no-underline hover:text-ink">
+          Self-host
+        </a>
       </nav>
       <a href="#create" className="btn btn-primary btn-sm">
         Create a channel

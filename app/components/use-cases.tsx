@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useCases } from "@/lib/use-cases";
-import { ChevronLeftIcon, ChevronRightIcon } from "./icons";
+import Link from "next/link";
+import { casePath, headingText, useCases } from "@/lib/use-cases";
+import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "./icons";
 import { Roster, Transcript } from "./transcript";
 
 /**
@@ -119,6 +120,17 @@ export function UseCaseCarousel() {
             {current.title}
           </h2>
           <p className="m-0 mt-1.5 text-[14.5px] leading-relaxed text-ink-2">{current.body}</p>
+          {/* The case's own page, named with the sentence somebody would have
+              searched for rather than with a bare "read more". */}
+          <Link
+            href={casePath(current.slug)}
+            className="link mt-3.5 inline-block text-[14px] font-medium"
+          >
+            {/* The arrow flows with the text rather than sitting beside it, so
+                a heading that wraps keeps it after the last word. */}
+            {headingText(current)}{" "}
+            <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
+          </Link>
         </div>
 
         <div className="min-w-0 border-t border-line-2 pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
