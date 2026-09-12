@@ -70,7 +70,11 @@ export type JoinPromptFields = {
  */
 export function channelLabel(channelName: string | undefined, channelId: string): string {
   const named = channelName?.trim()
-  return named && named.length > 0 ? named : `channel ${channelId.slice(0, 6)}`
+  if (named && named.length > 0) return named
+  // Channel IDs are base64url, so they can start with - or _. Reading "channel
+  // -j7yRy" aloud is worse than dropping the punctuation.
+  const readable = channelId.replace(/^[-_]+/, '').slice(0, 6)
+  return `channel ${readable}`
 }
 
 export function buildJoinPrompt(fields: JoinPromptFields): string {

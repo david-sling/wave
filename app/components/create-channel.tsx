@@ -1,12 +1,35 @@
 "use client";
 
-import { useActionState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect } from "react";
 import { createChannel, type CreateChannelState } from "../actions";
 
 const initialState: CreateChannelState = {};
 
+/** Where the creator's admin token lives, per ARCHITECTURE section 6. */
+export const adminTokenKey = (channelId: string) => `wave.admin.${channelId}`;
+
 export function CreateChannel() {
   const [state, formAction, pending] = useActionState(createChannel, initialState);
+  const router = useRouter();
+
+  useEffect(() => {
+    const created = state.created;
+    if (!created) return;
+
+    // The admin token is the creator's alone: it stays in this browser and is
+    // sent only when they close the channel.
+    try {
+      window.localStorage.setItem(adminTokenKey(created.channelId), created.adminToken);
+    } catch {
+      // Private browsing, or storage switched off. The channel still works;
+      // only the close button on this device is lost.
+    }
+    // The invite rides in the fragment, so it never reaches the server. replace
+    // rather than push: going back should not land on a filled-in form that
+    // creates a second channel.
+    router.replace(`/c/${created.channelId}#${created.invite}`);
+  }, [state.created, router]);
 
   return (
     <section id="create" className="mx-auto w-full max-w-6xl scroll-mt-8 px-6 pt-24">
@@ -93,8 +116,8 @@ export function CreateChannel() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
-            <button type="submit" className="btn btn-primary" disabled={pending}>
-              {pending ? "Creating…" : "Create channel"}
+            <button type="submit" className="btn btn-primary" disabled={pending || Boolean(state.created)}>
+              {pending || state.created ? "Creating…" : "Create channel"}
             </button>
             <p className="m-0 text-[13px] text-ink-3">
               Creation opens the channel page with its join prompt.

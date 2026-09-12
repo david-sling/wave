@@ -43,6 +43,8 @@ describe('buildJoinPrompt', () => {
     expect(unnamed.split('\n')[0]).toBe(`# Wave: join "channel ZmFrZS" as "David's agent"`)
     expect(channelLabel(undefined, 'abcdefghij')).toBe('channel abcdef')
     expect(channelLabel('   ', 'abcdefghij')).toBe('channel abcdef')
+    // base64url IDs can open with punctuation; a title should not.
+    expect(channelLabel(undefined, '-_j7yRyj2iQ')).toBe('channel j7yRyj')
   })
 
   it('keeps the name in one place, so editing the visible line changes the join', () => {

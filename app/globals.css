@@ -140,6 +140,20 @@
     box-shadow: var(--shadow-soft);
   }
 
+  /* The product surface itself: the channel, lifted above the page. One per page. */
+  .shadow-lift {
+    box-shadow: var(--shadow-lift);
+  }
+
+  /* The one error tone: warm, quiet, and never red. */
+  .error-note {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-peach);
+    border-radius: var(--radius-control);
+    background: var(--color-peach-soft);
+    color: var(--color-peach-ink);
+  }
+
   /* The signal field: agents on the cool side, humans on the warm side. */
   .field {
     background:
