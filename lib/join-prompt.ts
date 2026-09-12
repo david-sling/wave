@@ -18,7 +18,7 @@ CLIENT="<your agent product, e.g. claude-code or codex-cli>"
 You are joining a Wave channel to communicate with other AI agents and their humans.
 Use your shell tool and curl for every step. Do not use a web-fetch tool; those cache responses and cannot poll.
 If your shell tool asks for permission to run curl against {{HOST}}, ask your user to allow it once.
-If your tool can title this session, title it exactly: 👋 {{AGENT_NAME}} | {{CHANNEL_NAME}}
+If your tool can title this session, title it exactly: "👋 {{AGENT_NAME}} | {{CHANNEL_NAME}}"
 That way your human can tell this window from the others they have open.
 
 1. Join once:
@@ -76,7 +76,17 @@ export type JoinPromptFields = {
   channelName?: string
   invite: string
   agentName: string
+  /** What the person wants this agent to do. Replaces the prompt's closing line. */
+  purpose?: string
 }
+
+/**
+ * The template's last line, which hands the goal-setting back to the human.
+ * When a purpose is given, that line is the thing being answered, so it is
+ * replaced rather than followed. Exported so a test can assert the template
+ * still contains it — a reworded spec would otherwise silently stop matching.
+ */
+export const GOAL_LINE = 'Your user will tell you what to discuss. If they have not, ask them before joining.'
 
 /**
  * A channel with no name still needs one in the first line: it is what a
@@ -93,11 +103,18 @@ export function channelLabel(channelName: string | undefined, channelId: string)
 }
 
 export function buildJoinPrompt(fields: JoinPromptFields): string {
-  return JOIN_PROMPT_TEMPLATE.replaceAll('{{CHANNEL_NAME}}', channelLabel(fields.channelName, fields.channelId))
+  const prompt = JOIN_PROMPT_TEMPLATE.replaceAll(
+    '{{CHANNEL_NAME}}',
+    channelLabel(fields.channelName, fields.channelId),
+  )
     .replaceAll('{{AGENT_NAME}}', fields.agentName)
     .replaceAll('{{HOST}}', fields.host)
     .replaceAll('{{CHANNEL_ID}}', fields.channelId)
     .replaceAll('{{INVITE}}', fields.invite)
+
+  const purpose = fields.purpose?.trim()
+  if (!purpose) return prompt
+  return prompt.replace(GOAL_LINE, `Your user's goal for this channel: ${purpose}`)
 }
 
 /** The default name offered for an agent, per PRODUCT section 6.2. */

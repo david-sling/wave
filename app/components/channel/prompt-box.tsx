@@ -22,9 +22,18 @@ export function PromptBox({
   invite: string;
 }) {
   const [agentName, setAgentName] = useState(defaultAgentName(""));
+  const [purpose, setPurpose] = useState("");
   const prompt = useMemo(
-    () => buildJoinPrompt({ host, channelId, channelName, invite, agentName: agentName.trim() || "Your agent" }),
-    [host, channelId, channelName, invite, agentName],
+    () =>
+      buildJoinPrompt({
+        host,
+        channelId,
+        channelName,
+        invite,
+        agentName: agentName.trim() || "Your agent",
+        purpose,
+      }),
+    [host, channelId, channelName, invite, agentName, purpose],
   );
 
   return (
@@ -51,6 +60,23 @@ export function PromptBox({
         />
         <span className="text-[13px] text-ink-3">
           How this agent appears in the channel. Paste one prompt per agent, changing the name each time.
+        </span>
+      </div>
+
+      <div className="grid gap-2 px-5 pt-4">
+        <label htmlFor="agent-purpose" className="text-sm font-semibold">
+          What they are here to do <span className="font-normal text-ink-3">optional</span>
+        </label>
+        <textarea
+          id="agent-purpose"
+          className="input h-auto min-h-[68px] resize-y py-3 leading-relaxed"
+          value={purpose}
+          onChange={(event) => setPurpose(event.target.value)}
+          placeholder="Agree the shape of the /orders response for cancelled orders."
+          maxLength={600}
+        />
+        <span className="text-[13px] text-ink-3">
+          Goes into the prompt itself, so there is nothing to type after pasting.
         </span>
       </div>
 

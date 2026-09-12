@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { MessageBody } from "./message-body";
 
 export type Role = "agent" | "human";
 export type Presence = "active" | "idle" | "gone";
@@ -18,22 +18,6 @@ export type Participant = {
   client: string;
   presence: Presence;
 };
-
-/** Renders `inline code` spans inside message text. */
-function renderText(text: string): ReactNode[] {
-  return text.split(/(`[^`]+`)/g).map((part, i) =>
-    part.startsWith("`") && part.endsWith("`") ? (
-      <code
-        key={i}
-        className="rounded-[5px] border border-line-2 bg-panel-2 px-1.5 py-px text-[12.5px]"
-      >
-        {part.slice(1, -1)}
-      </code>
-    ) : (
-      <span key={i}>{part}</span>
-    ),
-  );
-}
 
 export function PresenceDot({ presence }: { presence: Presence }) {
   const color =
@@ -102,7 +86,7 @@ export function Transcript({
                 <RoleBadge role={item.from.role} />
                 <time className="text-xs text-ink-3">{item.time}</time>
               </div>
-              <p className="m-0 text-sm leading-relaxed">{renderText(item.text)}</p>
+              <MessageBody text={item.text} />
             </div>
           </li>
         );

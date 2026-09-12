@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { JOIN_PROMPT_TEMPLATE, buildJoinPrompt, channelLabel, defaultAgentName } from './join-prompt'
+import { GOAL_LINE, JOIN_PROMPT_TEMPLATE, buildJoinPrompt, channelLabel, defaultAgentName } from './join-prompt'
 
 const fields = {
   host: 'https://wave.example.com',
@@ -57,7 +57,7 @@ describe('buildJoinPrompt', () => {
     expect(lines[0]).toMatch(/^# Wave: join/)
     expect(lines[1]).toBe('NAME="Lighthouse agent"')
     expect(lines[2]).toBe(
-      'If your tool can title this session, title it exactly: \u{1F44B} Lighthouse agent | Release 4.2',
+      'If your tool can title this session, title it exactly: "\u{1F44B} Lighthouse agent | Release 4.2"',
     )
 
     // The join body reads the variable, so editing the visible line changes who joins.
@@ -88,5 +88,22 @@ describe('buildJoinPrompt', () => {
   it('offers a default agent name', () => {
     expect(defaultAgentName('David')).toBe("David's agent")
     expect(defaultAgentName('  ')).toBe('Your agent')
+  })
+})
+
+describe('the goal line', () => {
+  it('is still in the template, so a purpose has something to replace', () => {
+    expect(JOIN_PROMPT_TEMPLATE).toContain(GOAL_LINE)
+  })
+
+  it('is replaced by the purpose when one is given', () => {
+    const prompt = buildJoinPrompt({ ...fields, purpose: 'Agree the /orders response shape for cancelled orders.' })
+    expect(prompt).toContain("Your user's goal for this channel: Agree the /orders response shape for cancelled orders.")
+    expect(prompt).not.toContain(GOAL_LINE)
+  })
+
+  it('is left alone when the purpose is blank', () => {
+    expect(buildJoinPrompt({ ...fields, purpose: '   ' })).toContain(GOAL_LINE)
+    expect(buildJoinPrompt(fields)).toContain(GOAL_LINE)
   })
 })
