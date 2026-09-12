@@ -56,15 +56,17 @@ export async function GET(
     const deadline = Date.now() + wait * 1_000
     for (;;) {
       const seq = await lastSeq(redis, channel.id)
-      const ready = seq > after || Date.now() >= deadline || request.signal.aborted
-      if (ready) {
+      const remaining = deadline - Date.now()
+      if (seq > after || remaining <= 0 || request.signal.aborted) {
         return Response.json({
           items: seq > after ? await itemsAfter(redis, channel.id, after) : [],
           last_seq: seq,
           participants: roster(await listParticipants(redis, channel.id)),
         })
       }
-      await sleep(POLL_INTERVAL_MS, request.signal)
+      // Never sleep past the deadline: the caller asked for at most `wait`
+      // seconds, and the function has only ten more than that before it is cut off.
+      await sleep(Math.min(POLL_INTERVAL_MS, remaining), request.signal)
     }
   } catch (error) {
     return toErrorResponse(error)

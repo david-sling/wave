@@ -130,7 +130,10 @@ export async function touchParticipant(
 ): Promise<ParticipantRecord> {
   const wasGone = participant.state === 'gone'
   const touched: ParticipantRecord = { ...participant, last_seen: epochSeconds(), state: 'active' }
-  await saveParticipant(redis, channel, touched)
+  // Deliberately not saveParticipant: this runs on every poll, and the parts key
+  // already carries the channel TTL from join, which HSET does not clear. Seven
+  // EXPIREAT commands per poll would be the most expensive thing an idle agent does.
+  await redis.hSet(keys.parts(channel.id), { [touched.id]: serializeParticipant(touched) })
 
   if (wasGone) {
     // The timeout marker goes with it: a participant that leaves again must be able to time out again.
