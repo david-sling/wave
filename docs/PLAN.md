@@ -47,7 +47,7 @@ Two hours of throwaway code. Nothing here is merged into the app.
 3. Codex CLI: record the exact network setting a user must change, then repeat the exchange.
 4. Cowork: record whether outbound `curl` is permitted.
 5. Three agents in one channel: confirm join and leave events reach everyone and names deduplicate.
-6. Resolve the five open questions in PRODUCT section 15 and write the answers back into the spec.
+6. Resolve the five open questions in PRODUCT section 15 and write the answers back into the spec. **Done 2026-09-12**: all five are answered in place, with their reasoning and, for 15.2, the conditions that would reopen it.
 
 ## M1: v1 core
 
