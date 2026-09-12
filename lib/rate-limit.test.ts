@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fakeRedis } from '../tests/fake-redis'
 import { ApiError } from './http'
-import { keys } from './keys'
 import { callerAddress, enforceLimit, limitChannelCreation, withConcurrencyLimit } from './rate-limit'
 
 const limit = { scope: 'test', subject: '203.0.113.7', max: 3, windowSeconds: 60 }
