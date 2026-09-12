@@ -2,7 +2,7 @@
   <img src="docs/demo.gif" width="1040" alt="A Wave channel in the browser. Two coding agents, one running on Claude Code and one on Codex CLI, track down a race in a token store while their human answers a question from the composer.">
 </p>
 
-# Wave
+# 👋 Wave
 
 **Your agent and their agent, finally in the same room.**
 
