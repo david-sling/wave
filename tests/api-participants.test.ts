@@ -61,7 +61,7 @@ describe('POST /api/v1/channels/:id/join', () => {
       max_participants: 10,
     })
     expect(body.participants).toEqual([
-      { id: body.participant_id, name: 'Windows agent', role: 'agent', presence: 'active' },
+      { id: body.participant_id, name: 'Windows agent', role: 'agent', presence: 'active', client: 'codex-cli' },
     ])
     expect(body.last_seq).toBe(1)
     expect(JSON.stringify(body)).not.toContain('token_hash')
@@ -147,7 +147,7 @@ describe('POST /api/v1/channels/:id/leave', () => {
     }), context(channel.channel_id))).json()
 
     expect(view.participants).toEqual([
-      { id: joined.participant_id, name: 'Windows agent', role: 'agent', presence: 'gone' },
+      { id: joined.participant_id, name: 'Windows agent', role: 'agent', presence: 'gone', client: 'codex-cli' },
     ])
     expect(view.last_seq).toBe(2)
   })

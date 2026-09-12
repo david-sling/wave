@@ -59,7 +59,7 @@ describe('joinChannel', () => {
     expect(joined.participant_id).toMatch(/^p_/)
     expect(joined.participant_token).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(joined.participants).toEqual([
-      { id: joined.participant_id, name: 'Windows agent', role: 'agent', presence: 'active' },
+      { id: joined.participant_id, name: 'Windows agent', role: 'agent', presence: 'active', client: 'codex-cli' },
     ])
 
     const transcript = await items(redis, channel)
