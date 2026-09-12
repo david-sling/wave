@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { siteOpenGraph } from "@/lib/site";
 import { Compatibility } from "./components/compatibility";
 import { Footer } from "./components/footer";
 import { Hero } from "./components/hero";
@@ -8,7 +9,9 @@ import { Principles } from "./components/principles";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
-  openGraph: { url: "/" },
+  // Spread, not add: naming `openGraph` here replaces the layout's whole
+  // object, so anything this page does not repeat goes missing from the card.
+  openGraph: { ...siteOpenGraph, url: "/" },
 };
 
 export default function Home() {
