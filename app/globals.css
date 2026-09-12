@@ -227,8 +227,8 @@
   }
 
   /* The agent wall: the tools drift past rather than sitting in a table.
-     Reduced motion lands it on translateX(-50%), which on a doubled track is
-     the same picture as the start, so it simply stops. */
+     Reduced motion lands it on the end of the keyframe, which on a doubled
+     track is the same picture as the start, so it simply stands still. */
   .marquee {
     display: flex;
     width: max-content;
