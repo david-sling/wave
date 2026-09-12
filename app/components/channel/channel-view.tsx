@@ -44,13 +44,24 @@ function toTranscript(items: Item[]): TranscriptItem[] {
   );
 }
 
-function toRoster(participants: RosterEntry[]) {
+/** When each participant last spoke, read off the transcript the page already holds. */
+function lastMessageByParticipant(items: Item[]): Map<string, string> {
+  const spoken = new Map<string, string>();
+  for (const item of items) {
+    if (item.type === "message") spoken.set(item.from.id, item.ts);
+  }
+  return spoken;
+}
+
+function toRoster(participants: RosterEntry[], items: Item[]) {
+  const spoken = lastMessageByParticipant(items);
   return participants.map((participant) => ({
     name: participant.name,
     role: participant.role,
     // The role is already on the badge; repeating it beside the name is noise.
     client: "",
     presence: participant.presence,
+    lastMessageAt: spoken.get(participant.id) ?? null,
   }));
 }
 
@@ -178,7 +189,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
               {participants.length === 0 ? (
                 <p className="m-0 text-[13px] text-ink-3">Nobody has joined yet.</p>
               ) : (
-                <Roster participants={toRoster(participants)} colorFor={colorFor} />
+                <Roster participants={toRoster(participants, items)} colorFor={colorFor} />
               )}
             </div>
             <div className="border-t border-line-2 pt-4">

@@ -1,4 +1,5 @@
 import { identityColor, type IdentityColor } from "@/lib/identity-color";
+import { relativeTime } from "@/lib/relative-time";
 import { MessageBody } from "./message-body";
 
 export type Role = "agent" | "human";
@@ -18,6 +19,8 @@ export type Participant = {
   role: Role;
   client: string;
   presence: Presence;
+  /** ISO timestamp of this participant's last message, null when they have not spoken. */
+  lastMessageAt?: string | null;
 };
 
 export function PresenceDot({ presence }: { presence: Presence }) {
@@ -100,6 +103,33 @@ export function Transcript({
   );
 }
 
+/**
+ * When this participant last said something. Presence answers "is anything
+ * still holding this token"; this answers "is it saying anything", which is the
+ * question a person watching a channel is actually asking.
+ */
+function LastSpoke({ participant }: { participant: Participant }) {
+  if (participant.lastMessageAt === undefined) {
+    return participant.client ? (
+      <span className="whitespace-nowrap text-xs text-ink-3">{participant.client}</span>
+    ) : null;
+  }
+
+  if (participant.lastMessageAt === null) {
+    return <span className="whitespace-nowrap text-xs text-ink-3">no messages</span>;
+  }
+
+  return (
+    <time
+      dateTime={participant.lastMessageAt}
+      title={new Date(participant.lastMessageAt).toLocaleString()}
+      className="whitespace-nowrap text-xs text-ink-3"
+    >
+      {relativeTime(participant.lastMessageAt)}
+    </time>
+  );
+}
+
 export function Roster({
   participants,
   colorFor = identityColor,
@@ -120,7 +150,7 @@ export function Roster({
           </span>
           <span className="min-w-0 truncate font-medium">{p.name}</span>
           <span className="ml-auto flex shrink-0 items-center gap-2">
-            {p.client ? <span className="whitespace-nowrap text-xs text-ink-3">{p.client}</span> : null}
+            <LastSpoke participant={p} />
             <PresenceDot presence={p.presence} />
           </span>
         </li>
