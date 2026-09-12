@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Albert_Sans, Funnel_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "sileo/styles.css";
+import { Analytics } from "./components/analytics";
 
 const funnel = Funnel_Display({
   variable: "--font-funnel",
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         {children}
+        <Analytics />
       </body>
     </html>
   );
