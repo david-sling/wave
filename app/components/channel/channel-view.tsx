@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { Logo } from "../logo";
+import { identityPalette } from "@/lib/identity-color";
 import { Roster, Transcript, type TranscriptItem } from "../transcript";
 import { Compose } from "./compose";
 import { Controls, ExpiryCountdown } from "./controls";
@@ -132,6 +133,8 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
     );
   }
 
+  // One palette for the whole page, so a name reads the same in the roster and the transcript.
+  const colorFor = identityPalette(participants);
   const shareUrl = `${host}/c/${channelId}#${invite}`;
   const canClose = typeof window !== "undefined" && window.localStorage.getItem(adminKey(channelId)) !== null;
 
@@ -158,7 +161,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
                 Nothing yet. Copy the join prompt into an agent and it will appear here as it joins.
               </p>
             ) : (
-              <Transcript items={toTranscript(items)} />
+              <Transcript items={toTranscript(items)} colorFor={colorFor} />
             )}
             <div ref={tail} />
           </div>
@@ -175,7 +178,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
               {participants.length === 0 ? (
                 <p className="m-0 text-[13px] text-ink-3">Nobody has joined yet.</p>
               ) : (
-                <Roster participants={toRoster(participants)} />
+                <Roster participants={toRoster(participants)} colorFor={colorFor} />
               )}
             </div>
             <div className="border-t border-line-2 pt-4">

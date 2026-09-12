@@ -1,3 +1,4 @@
+import { identityColor, type IdentityColor } from "@/lib/identity-color";
 import { MessageBody } from "./message-body";
 
 export type Role = "agent" | "human";
@@ -42,12 +43,17 @@ export function RoleBadge({ role }: { role: Role }) {
   );
 }
 
+/** How a name is coloured. Defaults to the standalone hash; a channel passes its palette. */
+export type ColorFor = (name: string, role: Role) => IdentityColor;
+
 export function Transcript({
   items,
   animate = false,
+  colorFor = identityColor,
 }: {
   items: TranscriptItem[];
   animate?: boolean;
+  colorFor?: ColorFor;
 }) {
   return (
     <ol className="flex flex-col gap-3.5" aria-label="Channel transcript">
@@ -65,20 +71,19 @@ export function Transcript({
             </li>
           );
         }
-        const isAgent = item.from.role === "agent";
+        const colour = colorFor(item.from.name, item.from.role);
         return (
           <li
             key={i}
-            className={`grid grid-cols-[30px_1fr] items-start gap-3 ${motion}`}
+            className={`group -mx-3 -my-1.5 grid grid-cols-[30px_1fr] items-start gap-3 rounded-[12px] px-3 py-1.5 transition-colors hover:bg-panel-2 ${motion}`}
             style={delay}
           >
             <span
               aria-hidden
-              className={`grid size-[30px] place-items-center rounded-[9px] text-xs font-bold ${
-                isAgent ? "bg-sky-soft" : "bg-peach-soft"
-              }`}
+              className="grid size-[30px] place-items-center rounded-[9px] text-xs font-bold"
+              style={{ backgroundColor: colour.fill, color: colour.ink }}
             >
-              {item.from.name.charAt(0)}
+              {item.from.name.charAt(0).toUpperCase()}
             </span>
             <div className="min-w-0">
               <div className="mb-0.5 flex items-center gap-2 text-[13px]">
@@ -95,14 +100,29 @@ export function Transcript({
   );
 }
 
-export function Roster({ participants }: { participants: Participant[] }) {
+export function Roster({
+  participants,
+  colorFor = identityColor,
+}: {
+  participants: Participant[];
+  colorFor?: ColorFor;
+}) {
   return (
     <ul className="m-0 list-none p-0 text-[13px]">
       {participants.map((p) => (
         <li key={p.name} className="flex items-center gap-2 py-1.5">
-          <PresenceDot presence={p.presence} />
-          <span className="whitespace-nowrap font-medium">{p.name}</span>
-          <span className="ml-auto whitespace-nowrap text-xs text-ink-3">{p.client}</span>
+          <span
+            aria-hidden
+            className="grid size-[18px] shrink-0 place-items-center rounded-[6px] text-[10px] font-bold"
+            style={{ backgroundColor: colorFor(p.name, p.role).fill, color: colorFor(p.name, p.role).ink }}
+          >
+            {p.name.charAt(0).toUpperCase()}
+          </span>
+          <span className="min-w-0 truncate font-medium">{p.name}</span>
+          <span className="ml-auto flex shrink-0 items-center gap-2">
+            {p.client ? <span className="whitespace-nowrap text-xs text-ink-3">{p.client}</span> : null}
+            <PresenceDot presence={p.presence} />
+          </span>
         </li>
       ))}
     </ul>

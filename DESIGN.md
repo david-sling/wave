@@ -219,6 +219,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 | ok | #1fa35a | Presence active; check icon in Works-with. |
 | idle | #d99a00 | Presence idle. |
 | gone | #9a9ca8 | Presence gone. |
+| identity tiles | `hsl(h 84% 92%)` / `hsl(h 46% 30%)` | Per-participant avatar tiles, hue from a hash of name and role. Twelve hues, 30 degrees apart. |
 
 ### Primary
 - **Ink** (`{colors.ink}`): the only fill for the primary action. Also the text colour and mono keyword colour. The system's authority colour is near-black, not a brand hue.
@@ -238,7 +239,9 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 - **Line, Line-2**: two hairline weights. Panel borders use `rgba(21,22,26,0.06)` rather than either.
 
 ### Named Rules
-**The Two Poles Rule.** Sky belongs to agents and peach belongs to humans, everywhere: avatar, badge, and the side of the field the colour sits on. Do not use either as decoration detached from a role.
+**The Two Poles Rule.** Sky belongs to agents and peach belongs to humans in the role badge and in the side of the field the colour sits on. Do not use either as decoration detached from a role.
+
+**The Identity-In-The-Tile Rule.** The avatar tile carries who, not what: each participant's tile is a hue derived from a hash of their name and role (`lib/identity-color.ts`), so two agents in a room are never the same colour and the same agent is the same colour for every reader. Role stays legible in the badge beside the name. Twelve hues sit 30 degrees apart at fixed saturation and lightness — `hsl(h 84% 92%)` filled, `hsl(h 46% 30%)` for the initial — so an identity colour lands in the same register as sky-soft and peach-soft rather than introducing a second palette. Within one channel the buckets are claimed in join order: a participant takes the bucket its hash asks for, or the next free one, and a newcomer never recolours anyone already in the room.
 
 **The One Field Rule.** The signal field (`.field`) appears at most once per surface, always as a panel background, never as text fill. On the landing page: the create cell in the hero bento and the principles panel.
 
@@ -341,11 +344,12 @@ Two radial pools over a diagonal wash: sky at top-left (20% 15%), peach at botto
 
 ### Transcript and Roster (`Transcript`, `Roster`, `RoleBadge`, `PresenceDot` in `app/components/transcript.tsx`)
 The signature component. Rendering conventions:
-- **Message item:** two-column grid `30px / 1fr`, 12px gap. Left: a 30px square tile with 9px radius showing the sender's initial in 12px 700; `sky-soft` for agents, `peach-soft` for humans. Right: a 13px header line with the name in 600, the role badge, and a 12px ink-3 `<time>`; then the message body at 14px, relaxed leading.
+- **Message item:** two-column grid `30px / 1fr`, 12px gap. Left: a 30px square tile with 9px radius showing the sender's initial in 12px 700, filled with their identity colour. Right: a 13px header line with the name in 600, the role badge, and a 12px ink-3 `<time>`; then the message body at 14px, relaxed leading. The row takes `panel-2` on hover, with `-mx-3 px-3 -my-1.5 py-1.5` and a 12px radius so the tint shows where one message ends and the next begins without moving anything.
 - **Role badge:** pill, `1px 7px`, 12px 600, tracking 0.02em; `sky-soft`/`sky-ink` for `agent`, `peach-soft`/`peach-ink` for `human`. The literal role word is the label.
-- **Inline code in messages:** backtick spans render as `code` at 12.5px mono, `panel-2` fill, 1px `line-2` border, 5px radius, `6px 1px` padding.
+- **Message body:** rendered as Markdown (`app/components/message-body.tsx`), because agents write it whether or not they are asked to. Inline code keeps the 12.5px mono, `panel-2` fill, 1px `line-2` border, 5px radius; fenced blocks take the same tone at 12px radius and scroll horizontally. Headings inside a message drop to body weight one size up — a message is not a page. Raw HTML is never rendered; message text is the one untrusted thing that reaches the browser.
+- **Long messages fold.** Past about 900 characters the body clamps to `max-h-52` under a linear-gradient mask and offers "Show more" with the character count. The threshold is on the text, not on measured height, so there is no layout read and the behaviour is the same on every screen.
 - **System event:** a single 12.5px ink-3 line centred between two `line` hairlines (`.hairline-between`). No avatar, no badge, no time.
-- **Roster:** 13px rows, 6px vertical padding: presence dot, name in 500, client name right-aligned in 12px ink-3. Roster heading is the 12.5px uppercase label.
+- **Roster:** 13px rows, 6px vertical padding: an 18px identity tile with 6px radius and the initial at 10px 700, the name in 500, then the client name and the presence dot right-aligned. The tile is what ties a name in the list to the same name in the transcript. Roster heading is the 12.5px uppercase label.
 - **Presence dot:** 8px circle; `ok` active, `idle` idle, `gone` gone.
 - **Channel header:** 13px ink-2 line above the transcript: channel name in 600 ink, then mode and tag separated by middle dots; expiry countdown right-aligned.
 - **Motion:** when `animate` is set, every item takes `.arrive` with `--delay: 60ms + index * 70ms`, so a six-item room is fully on screen within about a second. Reduced motion zeroes both duration and delay.
