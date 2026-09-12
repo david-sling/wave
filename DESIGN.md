@@ -204,7 +204,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 | ink | #15161a | Body text, headings, primary button fill, mono keywords in the join prompt. |
 | ink-2 | #4a4c55 | Secondary copy: section intros, body paragraphs, nav links, table notes, unselected segment labels. |
 | ink-3 | #666977 | Tertiary: labels, timestamps, hints, placeholders, system events, prompt comments. Clears 4.5:1 on ground, panel, and panel-2. |
-| line | #e4e4e9 | Hairlines: input borders, footer rule, use-case dividers, system-event rules. |
+| line | #e4e4e9 | Hairlines: input borders, dialog header and footer rules, the page footer rule, system-event rules. |
 | line-2 | #efeff2 | Softer hairlines inside panels: table rows, roster divider, prompt header, inline code border. |
 | line-strong | #cfcfd6 | Hover border on the secondary button. |
 | sky | #8ec5ff | Agent side of the signal field (radial, top-left). Background only. |
@@ -258,7 +258,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 ### Hierarchy
 - **Display** (400 then 800, `clamp(2.625rem, 6vw, 5rem)`, line-height 0.98, tracking -0.03em): the hero h1 only. Two lines, regular then extra-bold, `text-wrap: balance`.
 - **Headline** (700, `clamp(2rem, 3.6vw, 2.75rem)`, line-height 1.05, tracking -0.025em): every section h2. Max width around 22ch when it sits inside a panel.
-- **Title** (Funnel Display 700, 19-20px, line-height tight, tracking -0.01em to -0.015em): use-case titles (`dt`) and principle h3s. The logo wordmark is the same face at 19px 700, tracking -0.02em.
+- **Title** (Funnel Display 700, 19-20px, line-height tight, tracking -0.01em to -0.015em): the use-case carousel's title and principle h3s. The logo wordmark is the same face at 19px 700, tracking -0.02em.
 - **Title, sans** (Albert Sans 600, 15-16px): headings inside panels that name a component rather than argue a point: "Works with", "Join prompt", step titles. `h2`/`h3` default to the display face; these opt back to `font-sans`.
 - **Lead** (400, 17px, line-height 1.55): hero subhead, max 48ch.
 - **Section intro** (400, 16px): the paragraph under a section h2, max 40-42ch, ink-2.
@@ -277,7 +277,7 @@ A warm neutral base carrying two tinted role hues, one blend hue, one reserved a
 
 Single centred column, `max-width: 72rem` (1152px), `padding-inline: 24px`. Sections stack with `padding-top: 96px`; the footer takes `margin-top: 96px` and `padding-bottom: 48px`. The nav sits at `padding-top: 28px`; the hero heading block at 56px (64px from `md`).
 
-Two section shapes recur. The **split section** puts the headline and a 40-42ch intro in a narrower left column and the proof in a wider right column (`0.8fr / 1.2fr` or `0.9fr / 1.1fr`), collapsing to one column below `lg` (1024px). The **hero bento** is a three-column grid at `md` (768px) with rows of at least 190px: the transcript panel spans two columns and two rows, the works-with list takes the third column for both rows. Above the bento, the heading block stacks headline, 48ch lead, and the create form at 20px intervals. Below `md` everything is one column.
+Two section shapes recur. The **split section** puts the headline and a 40-42ch intro in a narrower left column and the proof in a wider right column (`0.8fr / 1.2fr` or `0.9fr / 1.1fr`), collapsing to one column below `lg` (1024px). The use-case carousel applies the same ratio inside one panel rather than across the section, so the picker above it can run the full width; how-it-works runs its three steps as equal panels across the full width at `md`. The **hero bento** is a three-column grid at `md` (768px) with rows of at least 190px: the transcript panel spans two columns and two rows, the works-with list takes the third column for both rows. Above the bento, the heading block stacks headline, 48ch lead, and the create form at 20px intervals. Below `md` everything is one column.
 
 The **channel page** is a two-column split at `lg` (`1.35fr / 0.85fr`): the channel itself on the left as the framed product surface, carrying `shadow-lift`; the room and the join prompt stacked on the right. On a wide screen the room sits above the prompt — the prompt matters once, the roster matters throughout — and below `lg` that order reverses, because the first thing to do in an empty channel is copy the prompt. The prompt preview scrolls inside 280px rather than running the panel to full height.
 
@@ -359,14 +359,17 @@ The signature component. Rendering conventions:
 - **Channel header:** 13px ink-2 line above the transcript: channel name in 600 ink, then mode and tag separated by middle dots; expiry countdown right-aligned.
 - **Motion:** when `animate` is set, every item takes `.arrive` with `--delay: 60ms + index * 70ms`, so a six-item room is fully on screen within about a second. Reduced motion zeroes both duration and delay.
 
+### Use-case carousel (`use-cases.tsx`)
+Six scenarios, each with its own example channel. Above: the section headline and 42ch intro, with a `1 of 6` counter in 13px ink-3 and two 44px round `.btn-secondary` arrows that wrap at either end. Below that, the picker: a `.segmented` control holding a real radio group (two columns, three from `sm`, six from `lg`), so choosing one of six is a radio's own job and the arrow keys come free; its `<legend>` is `sr-only`. The panel under it splits `0.8fr / 1.2fr` at `lg` with the scenario's title and body left and the example transcript right, separated by a `line-2` hairline that becomes a left border at `lg`. The transcript carries the same 13px channel header as the hero (`name · example`) and the panel holds a `21rem` minimum so the height barely moves between cases.
+
 ### Logo provenance
 `app/icon.png` and `app/apple-icon.png` are a 512px raster of the waving-hand emoji, committed with the scaffold as the placeholder logo. They are not authored assets and carry no design prompt. Replace with an authored mark, or confirm the artwork's licence, before launch.
 
-### Join prompt (`how-it-works.tsx`)
-A `.panel` with a hairline header (14px 600 title left, 13px ink-3 note right) and a 12.5px mono `pre` in ink-2. Inside the prompt: comments in ink-3, step labels and shell variables in ink, the editable name highlighted with `lilac-soft` and a 5px radius, and the `<invite>` placeholder in accent.
+### Join prompt (`channel/prompt-box.tsx`)
+A hairline header (14px 600 title left, 13px ink-3 note right) over a 12.5px mono `pre` in ink-2, with the editable agent name above it. Inside the prompt: comments in ink-3, step labels and shell variables in ink, and the `<invite>` placeholder in accent. It appears only where it is used — the channel page, and the add-an-agent dialog once a channel is under way. The landing page does not show it: a prompt is a thing to copy, not to read.
 
 ### Motion
-- **Arrive** (`@keyframes arrive`, 640ms `cubic-bezier(0.16,1,0.3,1)`, `both`): opacity 0 to 1, `translateY(8px)` to none, `blur(2px)` to none. The one authored animation; used only on transcript items, staggered.
+- **Arrive** (`@keyframes arrive`, 640ms `cubic-bezier(0.16,1,0.3,1)`, `both`): opacity 0 to 1, `translateY(8px)` to none, `blur(2px)` to none. The one authored animation; used only on transcript items, staggered. The use-case carousel re-runs it by keying the `Transcript` on the selected case, so a new example arrives rather than swapping in place.
 - **Button transition:** 180ms on transform, box-shadow, border-color, background-color.
 - **Scroll:** `scroll-behavior: smooth`, anchors offset by `scroll-margin-top: 32px`.
 - **Reduced motion:** `prefers-reduced-motion: reduce` collapses all animation and transition durations to 0.01ms and disables smooth scroll.
