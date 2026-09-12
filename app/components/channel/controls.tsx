@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { CopyButton } from "./copy-button";
+import { ExportTranscript } from "./export-transcript";
+import type { ChannelMeta, Item, RosterEntry } from "./use-channel";
 
 /** Counts down to expiry, in the coarsest unit that is still honest. */
 function remaining(expiresAt: string, now: number): string {
@@ -34,7 +36,18 @@ export function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
  * Share and close. Closing is the creator's alone: the button only appears in
  * the browser that holds the admin token, and it deletes everything at once.
  */
-export function Controls({ shareUrl, canClose, onClose }: { shareUrl: string; canClose: boolean; onClose: () => Promise<void> }) {
+export function Controls({
+  shareUrl,
+  canClose,
+  onClose,
+  transcript,
+}: {
+  shareUrl: string;
+  canClose: boolean;
+  onClose: () => Promise<void>;
+  /** Everything the export needs. Passed down rather than re-read: the page already has it. */
+  transcript: { channel: ChannelMeta; items: Item[]; participants: RosterEntry[] };
+}) {
   const [confirming, setConfirming] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -47,6 +60,8 @@ export function Controls({ shareUrl, canClose, onClose }: { shareUrl: string; ca
         </p>
         <CopyButton value={shareUrl} label="Copy channel link" variant="secondary" />
       </div>
+
+      <ExportTranscript {...transcript} />
 
       {canClose ? (
         <div className="grid gap-2 border-t border-line pt-3">

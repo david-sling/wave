@@ -292,7 +292,12 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
                 Add an agent
               </button>
             ) : null}
-            <Controls shareUrl={shareUrl} canClose={canClose} onClose={closeChannel} />
+            <Controls
+            shareUrl={shareUrl}
+            canClose={canClose}
+            onClose={closeChannel}
+            transcript={{ channel, items, participants }}
+          />
           </div>
         </aside>
       </div>
@@ -321,7 +326,12 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
               Add an agent
             </button>
           ) : null}
-          <Controls shareUrl={shareUrl} canClose={canClose} onClose={closeChannel} />
+          <Controls
+            shareUrl={shareUrl}
+            canClose={canClose}
+            onClose={closeChannel}
+            transcript={{ channel, items, participants }}
+          />
           <Link href="/#create" className="btn btn-sm btn-secondary mt-4 w-full">
             New channel
           </Link>
