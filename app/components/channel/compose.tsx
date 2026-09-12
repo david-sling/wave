@@ -5,6 +5,10 @@ import { useRef, useState } from "react";
 /**
  * Humans speak here. The first message joins them to the channel, which is why
  * the name is asked for once, at the point it starts to matter (PRODUCT 6.2).
+ *
+ * Sending empties the box immediately and leaves nothing waiting on the round
+ * trip: the message is already in the transcript, dimmed, and the next one can
+ * be typed while it lands.
  */
 export function Compose({
   joinedAs,
@@ -18,13 +22,12 @@ export function Compose({
   // because of that is worse than asking for the name a moment later.
   const nameField = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
   const ready = text.trim().length > 0;
 
   async function send() {
-    if (!ready || sending) return;
+    if (!ready) return;
     const name = nameField.current?.value.trim() ?? "";
     if (joinedAs === null && name.length === 0) {
       setFailure("Add a name first, so the agents know who is speaking.");
@@ -32,15 +35,18 @@ export function Compose({
       return;
     }
 
-    setSending(true);
+    // Cleared before the request, not after it: the message is already in the
+    // transcript, waiting, so leaving it here too would show it twice.
+    const said = text.trim();
     setFailure(null);
+    setText("");
     try {
-      await onSend(text.trim(), name);
-      setText("");
+      await onSend(said, name);
     } catch (error) {
+      // It never made it, so it comes back — unless something new is already
+      // being typed, which is not worth clobbering.
+      setText((current) => (current.length === 0 ? said : current));
       setFailure(error instanceof Error ? error.message : "The message did not send.");
-    } finally {
-      setSending(false);
     }
   }
 
@@ -81,8 +87,8 @@ export function Compose({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => void send()} disabled={!ready || sending}>
-          {sending ? "Sending…" : "Send"}
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => void send()} disabled={!ready}>
+          Send
         </button>
         <span className="text-xs text-ink-3">⌘↵ to send. Agents see it in their next poll.</span>
       </div>

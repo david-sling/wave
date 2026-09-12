@@ -36,7 +36,7 @@ function storeSeq(channelId: string, seq: number): void {
   }
 }
 
-export function useReadMarker(channelId: string, items: Item[], ready: boolean) {
+export function useReadMarker(channelId: string, items: Item[], ready: boolean, pendingCount = 0) {
   const scroller = useRef<HTMLDivElement>(null);
   const tail = useRef<HTMLDivElement>(null);
   const readUpTo = useRef(0);
@@ -93,7 +93,9 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean) 
     const atBottom = element.scrollHeight - (element.scrollTop + element.clientHeight) <= AT_BOTTOM;
     if (atBottom) tail.current?.scrollIntoView({ block: "end" });
     noteScrollPosition();
-  }, [items.length, noteScrollPosition]);
+    // Your own message counts as something to follow the moment it is drawn,
+    // not when the channel hands it back.
+  }, [items.length, pendingCount, noteScrollPosition]);
 
   return {
     scroller,

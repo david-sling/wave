@@ -14,6 +14,8 @@ export type TranscriptItem =
       from: { name: string; role: Role };
       time: string;
       text: string;
+      /** Said here but not yet handed back by the channel. Drawn dimmed until it is. */
+      pending?: boolean;
     }
   | { seq?: number; type: "system"; text: string };
 
@@ -102,7 +104,11 @@ export function Transcript({
             {divider}
           <li
             data-seq={item.seq}
-            className={`group -mx-3 -my-1.5 grid grid-cols-[30px_1fr] items-start gap-3 rounded-[12px] px-3 py-1.5 transition-colors hover:bg-panel-2 ${motion}`}
+            aria-busy={item.pending || undefined}
+            // A message in flight is dimmed rather than withheld, and the
+            // dimming is what lifts when it lands: the same node, the same
+            // place, one transition, so nothing jumps or blinks.
+            className={`group -mx-3 -my-1.5 grid grid-cols-[30px_1fr] items-start gap-3 rounded-[12px] px-3 py-1.5 transition-[background-color,opacity] duration-200 hover:bg-panel-2 ${item.pending ? "opacity-55" : "opacity-100"} ${motion}`}
             style={delay}
           >
             <span
@@ -116,7 +122,11 @@ export function Transcript({
               <div className="mb-0.5 flex items-center gap-2 text-[13px]">
                 <b className="font-semibold">{item.from.name}</b>
                 <RoleBadge role={item.from.role} />
-                <time className="text-xs text-ink-3">{item.time}</time>
+                {item.pending ? (
+                  <span className="text-xs text-ink-3">Sending&hellip;</span>
+                ) : (
+                  <time className="text-xs text-ink-3">{item.time}</time>
+                )}
               </div>
               <MessageBody text={item.text} />
             </div>

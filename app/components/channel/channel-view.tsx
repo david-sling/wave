@@ -13,7 +13,7 @@ import { Compose } from "./compose";
 import { Controls, ExpiryCountdown } from "./controls";
 import { PromptBox } from "./prompt-box";
 import { useReadMarker } from "./use-read-marker";
-import { adminKey, useChannel, type Item, type RosterEntry } from "./use-channel";
+import { adminKey, useChannel, type Item, type PendingMessage, type RosterEntry } from "./use-channel";
 
 /**
  * The channel, as an application surface rather than a document (PRODUCT 6.2).
@@ -37,18 +37,40 @@ function describe(item: Extract<Item, { type: "system" }>): string {
   return item.text ?? item.event;
 }
 
-function toTranscript(items: Item[]): TranscriptItem[] {
-  return items.map((item) =>
+function clockTime(ts: string): string {
+  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * The transcript, with anything still on its way to the channel on the end.
+ *
+ * Drafts sit after the items because that is where they will land. When the
+ * poll returns the real message it takes the same position in the list, so
+ * React keeps the node and only the dimming changes.
+ */
+function toTranscript(items: Item[], pending: PendingMessage[]): TranscriptItem[] {
+  const said: TranscriptItem[] = items.map((item) =>
     item.type === "system"
       ? { seq: item.seq, type: "system", text: describe(item) }
       : {
           seq: item.seq,
           type: "message",
           from: { name: item.from.name, role: item.from.role },
-          time: new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          time: clockTime(item.ts),
           text: item.text,
         },
   );
+
+  for (const draft of pending) {
+    said.push({
+      type: "message",
+      from: { name: draft.name, role: "human" },
+      time: clockTime(draft.ts),
+      text: draft.text,
+      pending: true,
+    });
+  }
+  return said;
 }
 
 /** When each participant last spoke, read off the transcript the page already holds. */
@@ -112,11 +134,11 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 }
 
 export function ChannelView({ channelId, host }: { channelId: string; host: string }) {
-  const { status, channel, items, participants, me, error, invite, historyUpTo, post, closeChannel } =
+  const { status, channel, items, pending, participants, me, error, invite, historyUpTo, post, closeChannel } =
     useChannel(channelId);
   const [adding, setAdding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const { scroller, tail, markerAt, onScroll } = useReadMarker(channelId, items, status === "ready");
+  const { scroller, tail, markerAt, onScroll } = useReadMarker(channelId, items, status === "ready", pending.length);
 
   // The toast store is a module singleton, and Next hands each client boundary
   // its own copy, so the calls have to be made from the module that renders the
@@ -186,7 +208,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
   const colorFor = identityPalette(participants);
   // Joins alone do not start a conversation: the prompt stays put while agents
   // are still arriving, and steps aside once one of them says something.
-  const started = items.some((item) => item.type === "message");
+  const started = pending.length > 0 || items.some((item) => item.type === "message");
   const shareUrl = `${host}/c/${channelId}#${invite}`;
   const canClose = typeof window !== "undefined" && window.localStorage.getItem(adminKey(channelId)) !== null;
 
@@ -223,7 +245,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
                 centres its one piece of business instead. */}
             <div className={`mx-auto w-full max-w-[92ch] ${started ? "mt-auto" : "my-auto"}`}>
               {started ? (
-                <Transcript items={toTranscript(items)} colorFor={colorFor} unreadAfter={markerAt} />
+                <Transcript items={toTranscript(items, pending)} colorFor={colorFor} unreadAfter={markerAt} />
               ) : (
                 <div className="mx-auto grid w-full max-w-[520px] gap-4 py-6">
                   <div className="grid gap-1.5">
