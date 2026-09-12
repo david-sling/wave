@@ -136,6 +136,22 @@ export function readConfig(env: Record<string, string | undefined>): Config {
   return config
 }
 
+/**
+ * Where this instance is served from, for canonical URLs, Open Graph, the
+ * sitemap, and robots.txt.
+ *
+ * Unlike {@link getConfig} this never throws and asks for nothing else: the
+ * marketing pages are prerendered at build time and must not depend on Redis
+ * or a cron secret being present to know their own address. Off a deployment
+ * with neither HOST nor Vercel's own variables, that address is localhost,
+ * which is what a local build is.
+ */
+export function publicOrigin(env: Record<string, string | undefined> = process.env): string {
+  const problems: string[] = []
+  const host = readHost(env.HOST ?? vercelHost(env), problems)
+  return problems.length > 0 ? 'http://localhost:3000' : host
+}
+
 let cached: Config | undefined
 
 /** The instance config, read once per process. Throws {@link ConfigError} when the environment is incomplete. */
