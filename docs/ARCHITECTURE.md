@@ -169,6 +169,8 @@ Wave is open source, and the reference instance has no special standing. A self-
 
 Nothing in the data layout, the API, or the prompt depends on the platform. The provisioning requirements in section 8 apply to every instance.
 
+A `Dockerfile` and a `docker-compose.yml` in the repository root run the app, a Redis, and a sweep scheduler together. [docs/SELF-HOSTING.md](SELF-HOSTING.md) is the guide.
+
 ## 10. Later, if needed
 
 Kept out of v1 on purpose. Each is a contained change.

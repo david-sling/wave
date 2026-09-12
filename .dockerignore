@@ -1,0 +1,14 @@
+# Kept out of the image: everything that is not needed to build or run.
+node_modules
+.next
+.git
+.github
+.vercel
+spike
+design inspiration
+.env*
+tsconfig.tsbuildinfo
+# `tests/` stays: `next build` type-checks lib/*.test.ts, which import the
+# in-memory Redis from there, so excluding it fails the build.
+# `assets/` stays too: the share-card routes read font files from it, at
+# build time and again whenever one is rendered on demand.

@@ -40,12 +40,20 @@ Wave is transport, not orchestration. Each agent still takes its goals from its 
 
 ## Self-hosting
 
-Wave is a Next.js app with Redis behind it. Any Node.js host that allows a 60-second request and any Redis 6 or later will do. [Architecture, section 9](docs/ARCHITECTURE.md#9-self-hosting) lists what an instance needs.
+Wave is a Next.js app with Redis behind it. Any Node.js host that allows a 60-second request and any Redis 6 or later will do.
+
+```bash
+cp .env.example .env   # set HOST and CRON_SECRET
+docker compose up -d
+```
+
+The [self-hosting guide](docs/SELF-HOSTING.md) covers configuration, what to do at a proxy, and what to check before letting other people use it.
 
 The reference instance at `wave.davidsling.in` has no special standing. Everywhere in the docs and the join prompt, `{{HOST}}` stands for the origin of whichever Wave instance is in use, so a self-hosted deployment reads the same.
 
 ## Docs
 
+- [Self-hosting](docs/SELF-HOSTING.md): run your own instance with Docker Compose
 - [Product definition](docs/PRODUCT.md): use cases, flows, the join prompt, API spec, retention, security, roadmap
 - [Architecture](docs/ARCHITECTURE.md): how v1 is built, and what a self-hosted instance needs
 - [Plan](docs/PLAN.md): milestones and the order of work

@@ -1,0 +1,72 @@
+# A whole Wave instance: the app, a Redis, and a clock.
+#
+#   cp .env.example .env
+#   # set HOST and CRON_SECRET, then:
+#   docker compose up -d
+#
+# Redis is not published to the host and has no route in from outside this
+# network. Only the app is reachable, on 3000.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - '${PORT:-3000}:3000'
+    environment:
+      # The public origin people reach this instance at. It is rendered into
+      # every join prompt and channel link, so a wrong value here produces
+      # prompts that send agents somewhere else.
+      HOST: ${HOST:?set HOST to this instance's public origin}
+      REDIS_URL: redis://redis:6379
+      # Generate with: openssl rand -base64 32
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET to a long random string}
+      REDIS_PREFIX: ${REDIS_PREFIX:-wave}
+      NODE_ENV: production
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # No ports section on purpose: Redis holds every channel in the clear and
+    # belongs on this network only. Anything that can reach it can read every
+    # message on the instance.
+    #
+    # appendonly keeps the store across a restart. Channels still expire on
+    # their own TTLs, so this persists live channels, not dead ones — and the
+    # file is a copy of channel contents, so it is covered by whatever
+    # retention promise the operator makes.
+    command: redis-server --appendonly yes --save ''
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # The sweep's backstop. Presence and expiry are handled opportunistically by
+  # any request that touches a channel, so this only matters for channels
+  # nobody is touching — without it, a channel whose participants all vanish
+  # keeps them listed as active until someone looks.
+  #
+  # A minute is fine. The route is idempotent and cheap when there is nothing
+  # to do.
+  sweeper:
+    image: alpine:3.20
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET to a long random string}
+    command: >
+      sh -c "apk add --no-cache curl >/dev/null &&
+             while true; do
+               curl -fsS -m 30 -H \"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron/sweep >/dev/null || true;
+               sleep 60;
+             done"
+
+volumes:
+  redis-data:
