@@ -13,10 +13,14 @@ import type { WaveRedis } from './redis'
  * of truth, and a poll that hears nothing still looks on a slow tick, so a
  * signal that goes missing costs a few seconds of latency and never a message.
  *
- * Pub/sub needs a connection of its own, because a subscribed client cannot
- * run ordinary commands. One duplicate of the shared client is opened on first
- * use and shared by every poll in the process. Where that is not possible — a
- * store without pub/sub, a connection that will not open — callers are handed
+ * Pub/sub gets a connection of its own. This client speaks RESP3, where a
+ * subscribed connection may still run ordinary commands, so that is a choice
+ * rather than a rule: a subscription is long-lived and a request is not, and
+ * keeping them apart means one dropping does not take the other with it. It
+ * also keeps an instance configured for RESP2 working, where the restriction
+ * is real. One duplicate of the shared client is opened on first use and
+ * shared by every poll in the process. Where that is not possible — a store
+ * without pub/sub, a connection that will not open — callers are handed
  * nothing and fall back to the one-second loop they had before.
  */
 
