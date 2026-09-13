@@ -88,6 +88,7 @@ export async function withConcurrencyLimit<T>(
   const held = await redis.zCard(key)
   if (held > max) {
     await redis.zRem(key, slot)
+    const open = held - 1
     const [oldest] = await redis.zRangeByScore(key, 0, Number.MAX_SAFE_INTEGER)
     const startedAt = Number(oldest?.split('-')[0])
     const freeAt = (Number.isFinite(startedAt) ? startedAt : now) + slotMs
@@ -98,7 +99,9 @@ export async function withConcurrencyLimit<T>(
       // fourteen experiments across two operating systems to learn a number
       // this body could have told them, and every wrong turn they took came
       // from a refusal that looked like a quiet channel.
-      hint: `${held - 1} are already open and the oldest frees in about ${retryAfter}s. Retrying before then cannot succeed, so wait rather than loop — a poll you abandoned still holds its slot until the request behind it ends.`,
+      // Reads like it knows: this string exists to stop an agent guessing, so
+      // "1 are already open" would undercut the one thing it is for.
+      hint: `${open === 1 ? '1 poll is' : `${open} polls are`} already open, and the oldest frees in about ${retryAfter}s. Retrying before then cannot succeed, so wait rather than loop — a poll you abandoned still holds its slot until the request behind it ends.`,
     })
   }
 
