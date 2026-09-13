@@ -93,8 +93,11 @@ describe('buildJoinPrompt', () => {
     it('builds message JSON with jq instead of inlining it', () => {
       // Inline -d died on the first apostrophe, parenthesis or newline. Two
       // different agents in two different shells lost a message to it.
-      expect(prompt).toContain("jq -Rs '{text: .}'")
+      expect(prompt).toContain('jq -Rs')
       expect(prompt).not.toContain(`-d '{"text":"..."}'`)
+      // And a client_id with it, so a retry after an ambiguous failure returns
+      // the seq it already has instead of saying the same thing twice.
+      expect(prompt).toContain('client_id: $c')
     })
 
     it("keeps the '%s' in printf", () => {
@@ -102,26 +105,76 @@ describe('buildJoinPrompt', () => {
       expect(prompt).toContain(`printf '%s'`)
     })
 
-    it('guards the poll against an empty body', () => {
+    it('guards the poll against a body it could not read', () => {
       // A 0-byte body made jq print nothing and exit 0, so last_seq became ""
       // and the next request went out as after= — the cursor blanked rather
       // than held, and the agent re-read the channel believing it was polling.
-      expect(prompt).toContain('[ -s "$W/r.json" ] || continue')
       expect(prompt).toContain('jq -er .last_seq')
-      expect(prompt).toContain('curl -sf')
+      expect(prompt).toContain('[ -z "$N" ]')
+      // The status code is read rather than thrown away. `curl -sf` was worse
+      // than nothing here: on an error it writes no body at all, so the 422 the
+      // secret filter returns — whose body is the whole answer — vanished, and
+      // a 429 became an ordinary quiet round.
+      expect(prompt).toContain(`-w '%{http_code}'`)
+      expect(prompt).not.toContain('curl -sf')
+    })
+
+    it('names the one error a client must not retry', () => {
+      // Two agents measured this: a held poll's slot outlives the client that
+      // abandoned it, and retrying into the refusal keeps the slot alive. The
+      // remedy is in the body already; the script has to act on it rather than
+      // fold it into a generic backoff.
+      expect(prompt).toContain(`[ "$C" = 429 ]`)
+      expect(prompt).toMatch(/do not retry/i)
     })
 
     it('advances the cursor only after a response it has read', () => {
-      expect(prompt).toContain('mv "$W/seq.next" "$W/seq"')
+      // The cursor moves on the line after the items are written out, never before.
+      expect(prompt).toContain('echo "$N" > "$W/seq"')
+      // And it refuses to carry anything that is not a number. An agent whose
+      // parser printed the word "None" would have polled with after=None ever
+      // after; an empty one replays the channel from the start, which for an
+      // agent is re-execution rather than re-reading.
+      expect(prompt).toContain(`case "$S" in ''|*[!0-9]*)`)
     })
 
-    it('warns off echo, which corrupts the saved response under zsh', () => {
-      expect(prompt).toMatch(/Never write the body out with echo/)
+    it('never routes the response body through a shell variable', () => {
+      // zsh turns the \n inside a JSON string into a real newline, so a body
+      // captured into a variable and echoed back stopped parsing. The old
+      // prompt warned about it; this one makes it unreachable by writing the
+      // body straight to a file with -o and reading it with jq.
+      expect(prompt).toContain('-o "$W/r.json"')
+      expect(prompt).not.toMatch(/R=\$\(curl/)
     })
 
     it('keeps state in files, since a shell session does not survive a turn', () => {
-      expect(prompt).toContain('W=$(mktemp -d)')
       expect(prompt).toContain('> "$W/token"')
+    })
+
+    it('gives the state directory a name that can be recomputed', () => {
+      // mktemp -d stored the path to the state in the one place the prompt had
+      // just said never to keep state: a shell variable, under a random name
+      // nothing could reconstruct. In a harness where every call is a fresh
+      // shell that fails on the second command.
+      expect(prompt).not.toContain('mktemp -d')
+      expect(prompt).toContain('W="${W%/}/wave-' + fields.channelId + '"')
+      expect(prompt).toMatch(/Never remember a path; recompute it/)
+    })
+
+    it('sends the agent to read the backlog before it speaks', () => {
+      // join returns last_seq read after the join event, so a new participant's
+      // first poll is empty and a busy channel looks like a dead one. One agent
+      // worked a whole release beside a peer without ever reading the message
+      // where that peer said what access it had: it was seq 2, and the cursor
+      // it was handed started at 3.
+      expect(prompt).toContain('after=0&wait=0')
+      expect(prompt).toMatch(/Read the room before you speak/)
+    })
+
+    it('does not sign off by re-posting the introduction', () => {
+      // Step 6 built the done message from the same file step 3 wrote the hello into.
+      expect(prompt).toContain('"$W/bye.txt"')
+      expect(prompt).toContain(`jq -Rs '{text: ., kind: "done"}' "$W/bye.txt"`)
     })
 
     it('does not assume the agent has jq, or a POSIX shell at all', () => {
