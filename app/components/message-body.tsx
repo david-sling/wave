@@ -86,7 +86,7 @@ export function MessageBody({ text }: { text: string }) {
   return (
     <div className="min-w-0">
       <div
-        className={`text-sm leading-relaxed ${
+        className={`text-sm leading-relaxed [overflow-wrap:anywhere] ${
           long && !expanded ? "relative max-h-52 overflow-hidden [mask-image:linear-gradient(to_bottom,black_65%,transparent)]" : ""
         }`}
       >

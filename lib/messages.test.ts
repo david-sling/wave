@@ -7,6 +7,7 @@ import { LIMITS } from './limits'
 import { itemsAfter, parsePollQuery, postMessage, postMessageRequestSchema } from './messages'
 import { joinChannel } from './participants'
 import type { WaveRedis } from './redis'
+import { epochSeconds } from './time'
 import { parseChannel, parseParticipant, type ChannelRecord, type ParticipantRecord } from './types'
 
 async function channelWithParticipant(
@@ -208,5 +209,93 @@ describe('the secret filter on post', () => {
     await expect(postMessage(redis, channel, participant, { text: code, kind: 'message' })).resolves.toMatchObject({
       seq: 2,
     })
+  })
+})
+
+describe('parsePollQuery guards', () => {
+  const q = (search: string) => parsePollQuery(new URL(`https://wave.example.com/m?${search}`))
+
+  it('refuses an after that was sent empty rather than replaying the channel', () => {
+    // after=None was already refused; after= was not, and answering it hands
+    // the caller the whole channel back.
+    expect(() => q('after=&wait=1')).toThrow(ApiError)
+    expect(() => q('after=%20&wait=1')).toThrow(ApiError)
+    expect(q('wait=1').after).toBe(0)
+  })
+
+  it('refuses a wait that is not a number instead of silently not waiting', () => {
+    // Number('abc') || 0 made it 0, so a broken client spun until the
+    // immediate-poll limit refused it.
+    expect(() => q('after=2&wait=abc')).toThrow(ApiError)
+    expect(q('after=2&wait=').wait).toBe(0)
+  })
+
+  it('still clamps a wait that is merely too long', () => {
+    expect(q('after=2&wait=300').wait).toBe(LIMITS.maxWaitSeconds)
+  })
+})
+describe('client_id', () => {
+  it('returns the same seq for the same message, and posts nothing new', async () => {
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    const first = await postMessage(redis, channel, participant, { text: 'once', kind: 'message', client_id: 'c1' })
+    const again = await postMessage(redis, channel, participant, { text: 'once', kind: 'message', client_id: 'c1' })
+    expect(again).toEqual(first)
+    expect((await itemsAfter(redis, channel.id, 0)).filter((item) => item.type === 'message')).toHaveLength(1)
+  })
+
+  it('refuses a second, different message under the same id rather than dropping it', async () => {
+    // The second message used to come back 201 with the first message's seq.
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    await postMessage(redis, channel, participant, { text: 'the summary', kind: 'message', client_id: 'c2' })
+    await expect(
+      postMessage(redis, channel, participant, { text: 'ignore that, here is the fix', kind: 'message', client_id: 'c2' }),
+    ).rejects.toMatchObject({ status: 409, code: 'conflict' })
+  })
+
+  it('scopes the record to the participant, not just the channel', async () => {
+    // With ids derived from the text, two agents posting "ack" share one id,
+    // and sha256 of an empty message is the same constant for everybody.
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    const [other] = await joinChannel(redis, channel, { name: 'Second agent', role: 'agent' }).then(
+      (joined) => [joined.participant_id],
+    )
+    await postMessage(redis, channel, participant, { text: 'ack', kind: 'message', client_id: 'shared' })
+
+    const others = (await redis.hVals(keys.parts(channel.id))).map(parseParticipant)
+    const second = others.find((p) => p?.id === other)
+    if (!second) throw new Error('second participant was not written')
+
+    const theirs = await postMessage(redis, channel, second, { text: 'ack', kind: 'message', client_id: 'shared' })
+    expect(theirs.seq).toBeGreaterThan(0)
+    expect((await itemsAfter(redis, channel.id, 0)).filter((item) => item.type === 'message')).toHaveLength(2)
+  })
+
+  it('keeps the window to five minutes, whatever the channel TTL is', async () => {
+    // This key was stamped with the channel's EXPIREAT like every other one,
+    // which overwrote the five minutes with the channel's whole life.
+    const { fake, redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    await postMessage(redis, channel, participant, { text: 'once', kind: 'message', client_id: 'ttl' })
+    // ttlOf reports the absolute expiry, so compare it to now.
+    const expiresAt = fake.ttlOf(keys.idem(channel.id, participant.id, 'ttl')) ?? 0
+    const seconds = expiresAt - epochSeconds()
+    expect(seconds).toBeGreaterThan(0)
+    expect(seconds).toBeLessThanOrEqual(LIMITS.idempotencyTtlSeconds)
+    expect(channel.expires_at - epochSeconds()).toBeGreaterThan(LIMITS.idempotencyTtlSeconds)
+  })
+
+  it('honours a record written before the body was recorded', async () => {
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    await redis.set(
+      keys.idem(channel.id, participant.id, 'old'),
+      JSON.stringify({ seq: 7, ts: '2026-09-11T10:15:02Z' }),
+    )
+    await expect(
+      postMessage(redis, channel, participant, { text: 'anything', kind: 'message', client_id: 'old' }),
+    ).resolves.toEqual({ seq: 7, ts: '2026-09-11T10:15:02Z' })
   })
 })

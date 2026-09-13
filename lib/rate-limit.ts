@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { getConfig } from './config'
 import { ApiError } from './http'
 import { keys } from './keys'
@@ -46,9 +46,14 @@ export async function enforceLimit(redis: WaveRedis, limit: Limit): Promise<void
 }
 
 /**
- * Holds a slot while `work` runs, so a participant cannot park more than two
- * long-polls at once. The slot carries a TTL as well as being released in a
- * finally, because a function killed mid-request never reaches the finally.
+ * Holds a slot while `work` runs, so a participant cannot park more than `max`
+ * long-polls at once.
+ *
+ * A sorted set keyed by start time rather than a counter, because a counter
+ * cannot expire one slot: a request that never reaches its `finally` stayed
+ * counted for as long as the participant kept polling. Scored members can be
+ * dropped individually, so anything older than the route's own ceiling belongs
+ * to a request that cannot still be running and the limit heals on its own.
  */
 export async function withConcurrencyLimit<T>(
   redis: WaveRedis,
@@ -56,23 +61,43 @@ export async function withConcurrencyLimit<T>(
   max: number,
   work: () => Promise<T>,
 ): Promise<T> {
-  const key = keys.rateLimit('concurrent', fingerprint(subject))
-  const held = await redis.incr(key)
-  // Two minutes is longer than any request this app allows, so a leaked slot heals.
-  await redis.expire(key, 120)
+  // Its own scope: the counter this replaced stored a string under
+  // `concurrent`, and a live instance still holding one would fail on ZADD.
+  const key = keys.rateLimit('pollslots', fingerprint(subject))
+  const slotMs = LIMITS.pollSlotSeconds * 1_000
+  const now = Date.now()
 
+  // Start time leads the member, so the oldest slot reads back from the range
+  // alone without a second call asking for scores.
+  const slot = `${now}-${randomUUID()}`
+  for (const abandoned of await redis.zRangeByScore(key, 0, now - slotMs)) {
+    await redis.zRem(key, abandoned)
+  }
+  await redis.zAdd(key, { score: now, value: slot })
+  // Safe to refresh on every add, unlike the counter: the set prunes itself by
+  // score, so extending the key's life cannot extend a slot's.
+  await redis.expire(key, LIMITS.pollSlotSeconds * 2)
+
+  const held = await redis.zCard(key)
   if (held > max) {
-    await redis.decr(key)
+    await redis.zRem(key, slot)
+    const open = held - 1
+    const [oldest] = await redis.zRangeByScore(key, 0, Number.MAX_SAFE_INTEGER)
+    const startedAt = Number(oldest?.split('-')[0])
+    const freeAt = (Number.isFinite(startedAt) ? startedAt : now) + slotMs
+    const retryAfter = Math.max(1, Math.ceil((freeAt - now) / 1_000))
     throw new ApiError(429, 'rate_limited', `At most ${max} requests of this kind can be open at once.`, {
-      headers: { 'Retry-After': '1' },
-      hint: 'Wait for the poll you already have open to return before starting another.',
+      headers: { 'Retry-After': String(retryAfter) },
+      // Names the number rather than leaving it to be measured from outside:
+      // a refusal with no detail reads like a quiet channel.
+      hint: `${open === 1 ? '1 poll is' : `${open} polls are`} already open, and the oldest frees in about ${retryAfter}s. Retrying before then cannot succeed, so wait rather than loop — a poll you abandoned still holds its slot until the request behind it ends.`,
     })
   }
 
   try {
     return await work()
   } finally {
-    await redis.decr(key)
+    await redis.zRem(key, slot)
   }
 }
 

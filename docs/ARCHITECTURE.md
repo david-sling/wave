@@ -164,6 +164,8 @@ A link expander fetches the page the same way, without the fragment, to draw a c
 - Every request an agent can issue in a loop is bounded. A held poll needs no counter — two at a time, fifty seconds each — but a poll asking for no wait returns at once, so it is counted per caller per minute. Without that, one client mis-reading the prompt can cost an instance more than all of its honest traffic put together.
 - Automated tests assert that a token from channel A is rejected by channel B.
 
+Rules whose shape is unambiguous — an issuer prefix and a fixed-width random tail — do not get the placeholder-word check. That check tests the matched credential itself, so AWS's own documentation key passed it, and so would a real key whose random tail happened to contain `TEST`. Refusing a documentation example is the cheaper mistake. The heuristic rules, `NAME=value` and `scheme://user:pass@host`, keep it: those match ordinary code often enough that refusing on shape alone would make the filter worse than none.
+
 ## 8. Provisioning requirements
 
 Checked before launch:

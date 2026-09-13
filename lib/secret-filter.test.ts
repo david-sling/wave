@@ -84,3 +84,68 @@ describe('ordinary code it leaves alone', () => {
     expect(findSecret(code)).toBeUndefined()
   })
 })
+
+/**
+ * Seven schemes went through in one channel session before this rule existed.
+ * The passwords below are invented; the shapes are the ones agents actually
+ * pasted while debugging together.
+ */
+describe('credentials inside a connection string', () => {
+  it.each([
+    ['postgres', 'postgres://svc_orders:Xk9d2LmQp4RzT7v@db.internal:5432/orders'],
+    ['mysql', 'mysql://db_user:SynthP4ssw0rd123@db.example.internal:3306/app'],
+    ['mongodb+srv', 'mongodb+srv://admin:SynthMongoSecret456@cluster0.mongodb.net/db'],
+    ['redis', 'redis://cache:SynthRedisAuth789@cache.internal:6379/0'],
+    ['amqp', 'amqp://broker_user:SynthRabbit321@queue.internal:5672//'],
+    ['https basic auth', 'https://api_user:SynthBasicKey654@api.internal/v1'],
+  ])('catches a %s password', (_scheme, url) => {
+    expect(findSecret(url)?.label).toBe('a password inside a connection string')
+  })
+
+  it('decodes the password first, so one spelling cannot hide behind another', () => {
+    // p%40ssw0rd%21 is p@ssw0rd!, and the encoding is how a password with a
+    // reserved character arrives rather than an attempt to smuggle one.
+    expect(findSecret('postgres://u:p%40ssw0rd%21%23xyz@db.internal:5432/app')).toBeDefined()
+  })
+
+  it('reads only the password, never the host', () => {
+    // db.example.internal would make the whole URL look like a placeholder.
+    expect(findSecret('postgres://u:R7mQx2LpVn4z@db.example.internal/app')).toBeDefined()
+  })
+
+  it('leaves ordinary URLs alone', () => {
+    expect(findSecret('https://wave.example.com/api/v1/channels/abc')).toBeUndefined()
+    expect(findSecret('postgres://reader@db.internal:5432/orders')).toBeUndefined()
+    expect(findSecret('redis://localhost:6379')).toBeUndefined()
+  })
+
+  it('leaves placeholders and interpolation alone', () => {
+    expect(findSecret('postgres://user:your_password@host:5432/db')).toBeUndefined()
+    expect(findSecret('postgres://user:${DB_PASSWORD}@host:5432/db')).toBeUndefined()
+    expect(findSecret('postgres://user:changeme@host:5432/db')).toBeUndefined()
+  })
+})
+
+describe('the placeholder list and the structural rules', () => {
+  it("refuses AWS's own documentation key, because a real key can read like one", () => {
+    // The word list was tested against the matched credential, and AWS spells
+    // its example AKIAIOSFODNN7EXAMPLE.
+    expect(findSecret('AKIAIOSFODNN7EXAMPLE')?.label).toBe('an AWS access key ID')
+    expect(findSecret('AKIA5MTESTQ2XNVLPDQK')?.label).toBe('an AWS access key ID')
+    expect(findSecret('ghp_' + 'SAMPLE'.padEnd(36, 'a'))?.label).toBe('a GitHub token')
+  })
+
+  it('still lets the word list do its work where the shape is only a guess', () => {
+    // These match ordinary code too often to refuse on shape alone.
+    expect(findSecret('API_KEY=your-key-here')).toBeUndefined()
+    expect(findSecret('DATABASE_URL=postgres://user:changeme@db.example.internal/app')).toBeUndefined()
+    expect(findSecret('AWS_SECRET_ACCESS_KEY=process.env.AWS_SECRET_ACCESS_KEY')).toBeUndefined()
+  })
+
+  it('catches a presigned URL, which is a bearer credential wearing a link', () => {
+    // The access key ID rides in X-Amz-Credential.
+    const url =
+      'https://bkt.s3.eu-west-1.amazonaws.com/k.msi?X-Amz-Credential=AKIA3RQZ7YT2LMWNPDQK%2F20260913%2Feu-west-1%2Fs3%2Faws4_request'
+    expect(findSecret(url)?.label).toBe('an AWS access key ID')
+  })
+})

@@ -13,6 +13,7 @@ export type ApiErrorCode =
   | 'forbidden'
   | 'invalid_request'
   | 'channel_full'
+  | 'conflict'
   | 'too_large'
   | 'rejected_content'
   | 'rate_limited'

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from './http'
 import { withText } from './events'
@@ -5,7 +6,8 @@ import { appendItem, lastSeq } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
 import { countMessage } from './metrics'
-import { applyTtl, type WaveRedis } from './redis'
+import type { WaveRedis } from './redis'
+import { epochSeconds } from './time'
 import { findSecret } from './secret-filter'
 import { parseItem, toAuthor, type ChannelRecord, type Item, type ParticipantRecord } from './types'
 
@@ -16,22 +18,32 @@ export const postMessageRequestSchema = z.object({
   kind: z.enum(['message', 'done']).default('message'),
   /** The seq this answers. Rendered as a thread hint; nothing depends on it. */
   reply_to: z.int().positive().optional(),
-  /** Makes a retry safe for five minutes: the same client_id gets the same seq back. */
+  /**
+   * Makes a retry safe for five minutes: the same client_id gets the same seq
+   * back. Derive it from the message text, not from the clock or the process.
+   */
   client_id: z.string().trim().min(1).max(128).optional(),
 })
 export type PostMessageRequest = z.infer<typeof postMessageRequestSchema>
 
 export type PostMessageResult = { seq: number; ts: string }
 
-const postResultSchema = z.object({ seq: z.int().positive(), ts: z.string() })
+/** An earlier post under this client_id. `text` is a digest, only ever compared. */
+const postResultSchema = z.object({ seq: z.int().positive(), ts: z.string(), text: z.string().optional() })
+type StoredResult = z.infer<typeof postResultSchema>
+
+function digest(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 32)
+}
 
 /** Reads the stored result of an earlier post with this client_id, if it is still in the window. */
 async function storedResult(
   redis: WaveRedis,
   channelId: string,
+  participantId: string,
   clientId: string,
-): Promise<PostMessageResult | undefined> {
-  const stored = await redis.get(keys.idem(channelId, clientId))
+): Promise<StoredResult | undefined> {
+  const stored = await redis.get(keys.idem(channelId, participantId, clientId))
   if (!stored) return undefined
   const parsed = postResultSchema.safeParse(JSON.parse(stored))
   return parsed.success ? parsed.data : undefined
@@ -50,8 +62,17 @@ export async function postMessage(
   request: PostMessageRequest,
 ): Promise<PostMessageResult> {
   if (request.client_id) {
-    const earlier = await storedResult(redis, channel.id, request.client_id)
-    if (earlier) return earlier
+    const earlier = await storedResult(redis, channel.id, participant.id, request.client_id)
+    if (earlier) {
+      // A record from before this field existed cannot be checked; its window
+      // is five minutes, so it is honoured as the retry it claims to be.
+      if (earlier.text !== undefined && earlier.text !== digest(request.text)) {
+        throw new ApiError(409, 'conflict', 'That client_id was already used for a different message.', {
+          hint: `It posted seq ${earlier.seq}. A client_id says "this is the same message again", so derive it from the text rather than from the clock or the process id — otherwise a second message sent within the same second is read as a retry of the first and dropped.`,
+        })
+      }
+      return { seq: earlier.seq, ts: earlier.ts }
+    }
   }
 
   const bytes = Buffer.byteLength(request.text, 'utf8')
@@ -99,12 +120,14 @@ export async function postMessage(
   const result: PostMessageResult = { seq: item.seq, ts: item.ts }
 
   if (request.client_id) {
-    const key = keys.idem(channel.id, request.client_id)
+    const stored: StoredResult = { ...result, text: digest(request.text) }
+    const key = keys.idem(channel.id, participant.id, request.client_id)
+    // The channel's expiry is a ceiling here, never an extension: stamping this
+    // key the way every other key is stamped gave it the channel's whole life.
+    const seconds = Math.max(1, Math.min(LIMITS.idempotencyTtlSeconds, channel.expires_at - epochSeconds()))
     // A retry is sequential by nature, so a plain write is enough here: the
     // window only has to cover an agent sending the same request twice.
-    await redis.set(key, JSON.stringify(result), { expiration: { type: 'EX', value: LIMITS.idempotencyTtlSeconds } })
-    // This key alone: the append a moment ago stamped the rest.
-    await applyTtl(redis, [key], channel.expires_at)
+    await redis.set(key, JSON.stringify(stored), { expiration: { type: 'EX', value: seconds } })
   }
 
   await countMessage(redis, channel, participant, request.kind)
@@ -124,11 +147,33 @@ export async function itemsAfter(redis: WaveRedis, channelId: string, after: num
   return stored.map((raw) => withText(parseItem(raw)))
 }
 
-/** Clamps rather than rejects: a `wait` of 300 is an agent asking for as long as it can have. */
+/**
+ * Clamps a `wait` that is out of range, rejects one that is not a number, and
+ * refuses an `after` that was sent empty.
+ *
+ * Out of range is an agent asking for as long as it can have. Not a number is a
+ * broken client, and so is an empty `after` — which would replay the whole
+ * channel, and for an agent a replay is re-execution rather than re-reading.
+ * Omitting `after` still means 0.
+ */
 export function parsePollQuery(url: URL): PollQuery {
+  const rawAfter = url.searchParams.get('after')
+  const rawWait = url.searchParams.get('wait')
+
+  if (rawAfter !== null && rawAfter.trim() === '') {
+    throw new ApiError(400, 'invalid_request', 'after was sent empty.', {
+      hint: 'Send the highest seq you have taken delivery of, or omit after entirely to start at 0. An empty cursor would replay the whole channel.',
+    })
+  }
+  if (rawWait !== null && rawWait.trim() !== '' && !Number.isFinite(Number(rawWait))) {
+    throw new ApiError(400, 'invalid_request', 'wait must be a number of seconds.', {
+      hint: `wait is capped at ${LIMITS.maxWaitSeconds} seconds. A wait that is not a number would poll without waiting at all.`,
+    })
+  }
+
   const parsed = pollQuerySchema.safeParse({
-    after: url.searchParams.get('after') ?? undefined,
-    wait: Math.min(Number(url.searchParams.get('wait') ?? 0) || 0, LIMITS.maxWaitSeconds),
+    after: rawAfter ?? undefined,
+    wait: Math.min(Number(rawWait ?? 0) || 0, LIMITS.maxWaitSeconds),
   })
   if (!parsed.success) {
     throw new ApiError(400, 'invalid_request', 'after must be a whole number, wait a number of seconds.', {

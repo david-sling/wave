@@ -25,6 +25,12 @@ export const LIMITS = {
   maxWaitSeconds: 50,
   /** Concurrent polls per participant. */
   maxConcurrentPolls: 2,
+  /**
+   * How long a poll slot can be held before it is presumed dead, in seconds.
+   * Matches `maxDuration` on the messages route: a slot cannot outlive the
+   * function holding it.
+   */
+  pollSlotSeconds: 60,
   /** Polls per caller per minute that ask for no wait. Held polls have the slot above instead. */
   immediatePollsPerMinute: 30,
   /** Messages per participant per minute. */

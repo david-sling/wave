@@ -10,7 +10,7 @@ describe('key layout', () => {
     expect(keys.bytes('abc')).toBe('wave:ch:abc:bytes')
     expect(keys.parts('abc')).toBe('wave:ch:abc:parts')
     expect(keys.names('abc')).toBe('wave:ch:abc:names')
-    expect(keys.idem('abc', 'retry-1')).toBe('wave:ch:abc:idem:retry-1')
+    expect(keys.idem('abc', 'p_1', 'retry-1')).toBe('wave:ch:abc:idem:p_1:retry-1')
     expect(keys.rateLimit('create', 'deadbeef')).toBe('wave:rl:create:deadbeef')
     expect(keys.activeChannels()).toBe('wave:channels:active')
   })
@@ -30,7 +30,7 @@ describe('key layout', () => {
   })
 
   it('namespaces every key so another app can share the same Redis', () => {
-    const everyKey = [...channelKeys('abc'), keys.idem('abc', 'r'), keys.rateLimit('create', 'h'), keys.activeChannels()]
+    const everyKey = [...channelKeys('abc'), keys.idem('abc', 'p_1', 'r'), keys.rateLimit('create', 'h'), keys.activeChannels()]
     expect(everyKey.every((key) => key.startsWith('wave:'))).toBe(true)
   })
 
@@ -38,7 +38,7 @@ describe('key layout', () => {
     const pattern = channelKeyPattern('abc')
     expect(pattern).toBe('wave:ch:abc*')
     const matches = (key: string) => key.startsWith(pattern.slice(0, -1))
-    expect([...channelKeys('abc'), keys.idem('abc', 'retry-1')].every(matches)).toBe(true)
+    expect([...channelKeys('abc'), keys.idem('abc', 'p_1', 'retry-1')].every(matches)).toBe(true)
     expect(matches(keys.channel('xyz'))).toBe(false)
   })
 })

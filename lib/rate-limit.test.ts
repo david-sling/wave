@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fakeRedis } from '../tests/fake-redis'
 import { ApiError } from './http'
+import { LIMITS } from './limits'
 import { callerAddress, enforceLimit, limitChannelCreation, withConcurrencyLimit } from './rate-limit'
 
 const limit = { scope: 'test', subject: '203.0.113.7', max: 3, windowSeconds: 60 }
@@ -98,8 +99,57 @@ describe('withConcurrencyLimit', () => {
   it('leaves a TTL on the slot, so a killed request cannot hold it forever', async () => {
     const { fake, redis } = fakeRedis()
     await withConcurrencyLimit(redis, 'p_3', 1, async () => 'ok')
-    const [key] = fake.keys().filter((stored: string) => stored.includes(':rl:concurrent:'))
+    const [key] = fake.keys().filter((stored: string) => stored.includes(':rl:pollslots:'))
     expect(fake.ttlOf(key)).toBeGreaterThan(0)
+  })
+
+  it('reclaims a slot whose request cannot still be running', async () => {
+    // A function recycled or cut off before its finally leaves a slot nobody
+    // will ever give back, which a counter could not represent.
+    const { fake, redis } = fakeRedis()
+    await withConcurrencyLimit(redis, 'p_4', 2, async () => 'ok')
+    const [key] = fake.keys().filter((stored: string) => stored.includes(':rl:pollslots:'))
+
+    const abandoned = Date.now() - (LIMITS.pollSlotSeconds + 1) * 1_000
+    await fake.zAdd(key, { score: abandoned, value: `${abandoned}-dead-one` })
+    await fake.zAdd(key, { score: abandoned, value: `${abandoned}-dead-two` })
+
+    await expect(withConcurrencyLimit(redis, 'p_4', 2, async () => 'ok')).resolves.toBe('ok')
+    expect(await fake.zCard(key)).toBe(0)
+  })
+
+  it('keeps a slot that could still be running', async () => {
+    const { fake, redis } = fakeRedis()
+    await withConcurrencyLimit(redis, 'p_5', 2, async () => 'ok')
+    const [key] = fake.keys().filter((stored: string) => stored.includes(':rl:pollslots:'))
+
+    const recent = Date.now() - 1_000
+    await fake.zAdd(key, { score: recent, value: `${recent}-live-one` })
+    await fake.zAdd(key, { score: recent, value: `${recent}-live-two` })
+
+    await expect(withConcurrencyLimit(redis, 'p_5', 2, async () => 'ok')).rejects.toMatchObject({
+      status: 429,
+    })
+    expect(await fake.zCard(key)).toBe(2)
+  })
+
+  it('says how long the wait really is, rather than one second', async () => {
+    // Retry-After was a flat 1 while the wait could be the whole poll window.
+    const { fake, redis } = fakeRedis()
+    await withConcurrencyLimit(redis, 'p_6', 1, async () => 'ok')
+    const [key] = fake.keys().filter((stored: string) => stored.includes(':rl:pollslots:'))
+
+    const startedAt = Date.now() - 10_000
+    await fake.zAdd(key, { score: startedAt, value: `${startedAt}-holder` })
+
+    const error = (await withConcurrencyLimit(redis, 'p_6', 1, async () => 'ok').catch(
+      (e: unknown) => e,
+    )) as ApiError
+    const retryAfter = Number(error.headers?.['Retry-After'])
+    expect(retryAfter).toBeGreaterThan(LIMITS.pollSlotSeconds - 12)
+    expect(retryAfter).toBeLessThanOrEqual(LIMITS.pollSlotSeconds)
+    expect(error.hint).toMatch(/^1 poll is already open/)
+    expect(error.hint).toMatch(/Retrying before then cannot succeed/)
   })
 })
 

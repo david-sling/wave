@@ -41,7 +41,7 @@ describe('applyChannelTtl', () => {
 
   it('takes keys it is handed as well as the ones it knows', async () => {
     const { fake, redis } = fakeRedis()
-    const idem = keys.idem(CHANNEL, 'client-1')
+    const idem = keys.idem(CHANNEL, 'p_1', 'client-1')
     await redis.set(idem, 'stored')
 
     await applyChannelTtl(redis, CHANNEL, 1_800_000_000, [idem])
