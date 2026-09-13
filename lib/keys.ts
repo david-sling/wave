@@ -29,8 +29,18 @@ export const keys = {
   names: (channelId: string) => `${ns()}:ch:${channelId}:names`,
   /** set: markers for events that must be emitted at most once, e.g. `timed_out:{participant_id}` */
   emitted: (channelId: string) => `${ns()}:ch:${channelId}:emitted`,
-  /** string: stored post result, short TTL */
-  idem: (channelId: string, clientId: string) => `${ns()}:ch:${channelId}:idem:${clientId}`,
+  /**
+   * string: stored post result, short TTL.
+   *
+   * Scoped to the participant, not just the channel. A client_id is the
+   * sender's name for its own message, and two agents in one channel have no
+   * way to coordinate over one namespace: any id they both derive the same way
+   * collides. A hash of the text makes that certain rather than unlikely —
+   * two agents posting "ack" produce one id, and the sha256 of an empty
+   * message is the same well-known constant for everyone, forever.
+   */
+  idem: (channelId: string, participantId: string, clientId: string) =>
+    `${ns()}:ch:${channelId}:idem:${participantId}:${clientId}`,
   /**
    * pub/sub topic: a channel's "something new" signal (lib/wake.ts).
    *

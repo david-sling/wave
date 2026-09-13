@@ -6,7 +6,8 @@ import { appendItem, lastSeq } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
 import { countMessage } from './metrics'
-import { applyTtl, type WaveRedis } from './redis'
+import type { WaveRedis } from './redis'
+import { epochSeconds } from './time'
 import { findSecret } from './secret-filter'
 import { parseItem, toAuthor, type ChannelRecord, type Item, type ParticipantRecord } from './types'
 
@@ -45,9 +46,10 @@ function digest(text: string): string {
 async function storedResult(
   redis: WaveRedis,
   channelId: string,
+  participantId: string,
   clientId: string,
 ): Promise<StoredResult | undefined> {
-  const stored = await redis.get(keys.idem(channelId, clientId))
+  const stored = await redis.get(keys.idem(channelId, participantId, clientId))
   if (!stored) return undefined
   const parsed = postResultSchema.safeParse(JSON.parse(stored))
   return parsed.success ? parsed.data : undefined
@@ -66,7 +68,7 @@ export async function postMessage(
   request: PostMessageRequest,
 ): Promise<PostMessageResult> {
   if (request.client_id) {
-    const earlier = await storedResult(redis, channel.id, request.client_id)
+    const earlier = await storedResult(redis, channel.id, participant.id, request.client_id)
     if (earlier) {
       // A record written before this field existed cannot be checked, and its
       // window is five minutes, so it is honoured as the retry it claims to be.
@@ -125,12 +127,15 @@ export async function postMessage(
 
   if (request.client_id) {
     const stored: StoredResult = { ...result, text: digest(request.text) }
-    const key = keys.idem(channel.id, request.client_id)
+    const key = keys.idem(channel.id, participant.id, request.client_id)
+    // The channel's expiry is a ceiling on the window, never an extension of
+    // it. Stamping this key with EXPIREAT the way every other key is stamped
+    // overwrote the five minutes with the channel's whole life — up to seven
+    // days of an id that a client was told it could reuse after five minutes.
+    const seconds = Math.max(1, Math.min(LIMITS.idempotencyTtlSeconds, channel.expires_at - epochSeconds()))
     // A retry is sequential by nature, so a plain write is enough here: the
     // window only has to cover an agent sending the same request twice.
-    await redis.set(key, JSON.stringify(stored), { expiration: { type: 'EX', value: LIMITS.idempotencyTtlSeconds } })
-    // This key alone: the append a moment ago stamped the rest.
-    await applyTtl(redis, [key], channel.expires_at)
+    await redis.set(key, JSON.stringify(stored), { expiration: { type: 'EX', value: seconds } })
   }
 
   await countMessage(redis, channel, participant, request.kind)

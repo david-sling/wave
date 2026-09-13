@@ -164,7 +164,7 @@ describe('closeChannel', () => {
     const doomed = await createChannel(redis, { ttl: '1h', mode: 'standard' })
     const survivor = await createChannel(redis, { ttl: '1h', mode: 'standard' })
     const channel = await storedChannel(redis, doomed.channel_id)
-    await redis.set(keys.idem(channel.id, 'retry-1'), '{"seq":1}')
+    await redis.set(keys.idem(channel.id, 'p_1', 'retry-1'), '{"seq":1}')
 
     await closeChannel(redis, channel)
 
@@ -176,7 +176,7 @@ describe('closeChannel', () => {
   it('purges idempotency keys too', async () => {
     const { fake, redis } = fakeRedis()
     const created = await createChannel(redis, { ttl: '1h', mode: 'standard' })
-    await redis.set(keys.idem(created.channel_id, 'retry-1'), '{"seq":1}')
+    await redis.set(keys.idem(created.channel_id, 'p_1', 'retry-1'), '{"seq":1}')
     const deleted = await purgeChannelKeys(redis, created.channel_id)
     expect(deleted).toBeGreaterThanOrEqual(4)
     expect(fake.keys().some((key: string) => key.includes(created.channel_id))).toBe(false)

@@ -7,6 +7,7 @@ import { LIMITS } from './limits'
 import { itemsAfter, parsePollQuery, postMessage, postMessageRequestSchema } from './messages'
 import { joinChannel } from './participants'
 import type { WaveRedis } from './redis'
+import { epochSeconds } from './time'
 import { parseChannel, parseParticipant, type ChannelRecord, type ParticipantRecord } from './types'
 
 async function channelWithParticipant(
@@ -261,10 +262,53 @@ describe('client_id', () => {
     ).rejects.toMatchObject({ status: 409, code: 'conflict' })
   })
 
+  it('scopes the record to the participant, not just the channel', async () => {
+    // A client_id is the sender's name for its own message. Two agents in one
+    // channel share no namespace to coordinate over, and a hash of the text
+    // makes a collision certain rather than unlikely: both post "ack" and they
+    // are one id. The sha256 of an empty message is worse — a single well-known
+    // constant, the same for every agent on every platform, reachable from a
+    // missing file. An agent raised this and rightly refused to test it live,
+    // because proving it would have destroyed someone else's message.
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    const [other] = await joinChannel(redis, channel, { name: 'Second agent', role: 'agent' }).then(
+      (joined) => [joined.participant_id],
+    )
+    await postMessage(redis, channel, participant, { text: 'ack', kind: 'message', client_id: 'shared' })
+
+    const others = (await redis.hVals(keys.parts(channel.id))).map(parseParticipant)
+    const second = others.find((p) => p?.id === other)
+    if (!second) throw new Error('second participant was not written')
+
+    const theirs = await postMessage(redis, channel, second, { text: 'ack', kind: 'message', client_id: 'shared' })
+    expect(theirs.seq).toBeGreaterThan(0)
+    expect((await itemsAfter(redis, channel.id, 0)).filter((item) => item.type === 'message')).toHaveLength(2)
+  })
+
+  it('keeps the window to five minutes, whatever the channel TTL is', async () => {
+    // Every other key is stamped with the channel's EXPIREAT after a write, and
+    // this one was too — overwriting the five minutes with up to seven days of
+    // an id the client had been told it could reuse.
+    const { fake, redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    await postMessage(redis, channel, participant, { text: 'once', kind: 'message', client_id: 'ttl' })
+    // ttlOf reports the absolute expiry the fake stored, so compare it to now.
+    const expiresAt = fake.ttlOf(keys.idem(channel.id, participant.id, 'ttl')) ?? 0
+    const seconds = expiresAt - epochSeconds()
+    expect(seconds).toBeGreaterThan(0)
+    expect(seconds).toBeLessThanOrEqual(LIMITS.idempotencyTtlSeconds)
+    // The channel outlives it by a wide margin, which is the whole point.
+    expect(channel.expires_at - epochSeconds()).toBeGreaterThan(LIMITS.idempotencyTtlSeconds)
+  })
+
   it('honours a record written before the body was recorded', async () => {
     const { redis } = fakeRedis()
     const { channel, participant } = await channelWithParticipant(redis)
-    await redis.set(keys.idem(channel.id, 'old'), JSON.stringify({ seq: 7, ts: '2026-09-11T10:15:02Z' }))
+    await redis.set(
+      keys.idem(channel.id, participant.id, 'old'),
+      JSON.stringify({ seq: 7, ts: '2026-09-11T10:15:02Z' }),
+    )
     await expect(
       postMessage(redis, channel, participant, { text: 'anything', kind: 'message', client_id: 'old' }),
     ).resolves.toEqual({ seq: 7, ts: '2026-09-11T10:15:02Z' })

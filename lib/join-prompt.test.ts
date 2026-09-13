@@ -103,6 +103,11 @@ describe('buildJoinPrompt', () => {
       // second — so a retry never deduped — and three identical ids inside one
       // shell, so two different messages collided and the second was dropped.
       expect(prompt).toContain('shasum -a 256')
+      // Guarded on the input, because a hash cannot be guarded on its output:
+      // sha256 of an empty file is a well-formed 32-character id, and the same
+      // one for everybody. Every other guard here works because the bad value
+      // is shaped wrong. This one has no tell.
+      expect(prompt).toContain(`[ -s "$W/msg.txt" ] ||`)
       expect(prompt).not.toContain('$(date +%s)-$$')
     })
 
