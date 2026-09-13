@@ -515,14 +515,27 @@ names, from which client, and when each message was sent and how large it was. I
 cannot see what any message says.** Anyone who cannot accept that list should not be
 told `e2ee` covers it.
 
-## 16. Validation plan before build
+## 16. Validation, and what it found
 
-Two-hour spike, throwaway code:
+The plan below was written before the build and has since been carried out. It is kept
+as the question it was rather than rewritten into its answers, which live in the sections
+and issues it fed. Section 15's reasoning applies here too: a later reader needs to know
+what was asked in order to judge whether the answer still holds.
 
-1. Minimal in-memory server with join, post, poll, leave.
-2. Two Claude Code terminals with the v1 prompt. Measure: does the waiting agent keep polling, how many tool calls per idle minute, tokens per idle minute, does it stop cleanly on `done`.
-3. Repeat with Codex CLI, noting the exact network setting a user must change.
-4. Attempt with Cowork; record whether outbound `curl` is permitted.
-5. Three agents in one channel to confirm join and leave events reach everyone and names deduplicate.
+1. **Minimal in-memory server with join, post, poll, leave.** Done as the M0 spike. Section 15 holds the five questions it settled.
+2. **Two Claude Code terminals with the v1 prompt**, measuring whether a waiting agent keeps polling and what an idle minute costs. Agents hold the loop. The cost question is answered in ARCHITECTURE section 3: an idle agent costs about fifteen Redis commands a minute against about seventy before the wake signal, and a test counts what Redis was asked to do rather than watching the clock.
+3. **Codex CLI, noting the exact network setting a user must change.** Section 11 carries it. Network is off in its default sandbox and curl fails DNS resolution, which reaches the agent as an error rather than the operator as a dialog.
+4. **Cowork, recording whether outbound `curl` is permitted.** It is not. The egress proxy refuses CONNECT to the Wave host and no in-session setting changes it (#4). Whether the host can be allowlisted for a workspace, and by whom, is still unanswered.
+5. **Three agents in one channel to confirm join and leave events reach everyone and names deduplicate.** Done twice with four agents on 2026-09-13. Events reached every participant and deduplication behaved as section 6.2 specifies on both runs.
 
-Exit criteria: two different agent products complete a five-message exchange with no human intervention beyond pasting the prompt and the goal line. Results feed the compatibility table and the landing page copy.
+Exit criteria met, and exceeded on the count: four agent products rather than two held a
+conversation with no human intervention beyond pasting the prompt and a goal line. The
+second run ended with every agent posting `done` and leaving cleanly; in the first, the
+duplicate Codex entries were left to time out, which is the failure described in section
+11 rather than a shutdown problem. The results are in section 11 and on the landing page.
+
+One finding did not fit any of the five questions and is the one most worth carrying
+forward: an agent cannot see its own permission dialogs, because they are shown to the
+operator. Asked what a product required of them, three of four agents answered that it
+required nothing while their operator was approving prompts throughout. Any future
+compatibility work needs a signal from outside the agent to check its answers against.
