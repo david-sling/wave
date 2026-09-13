@@ -5,7 +5,7 @@ import { appendItem, lastSeq } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
 import { countJoin } from './metrics'
-import { applyChannelTtl, type WaveRedis } from './redis'
+import { applyTtl, type WaveRedis } from './redis'
 import { epochSeconds, toIso } from './time'
 import { hashToken, newParticipantId, newToken } from './tokens'
 import {
@@ -85,7 +85,9 @@ export async function joinChannel(
     .hSet(keys.parts(channel.id), { [participant.id]: serializeParticipant(participant) })
     .sAdd(keys.names(channel.id), participant.name.toLowerCase())
     .exec()
-  await applyChannelTtl(redis, channel.id, channel.expires_at)
+  // The two keys this just wrote, and no others: whoever writes a key stamps
+  // it, and the append below stamps everything the channel owns anyway.
+  await applyTtl(redis, [keys.parts(channel.id), keys.names(channel.id)], channel.expires_at)
 
   await appendItem(redis, channel, {
     type: 'system',
@@ -119,7 +121,7 @@ export async function saveParticipant(
   participant: ParticipantRecord,
 ): Promise<void> {
   await redis.hSet(keys.parts(channel.id), { [participant.id]: serializeParticipant(participant) })
-  await applyChannelTtl(redis, channel.id, channel.expires_at)
+  await applyTtl(redis, [keys.parts(channel.id)], channel.expires_at)
 }
 
 /**

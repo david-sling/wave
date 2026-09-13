@@ -5,7 +5,7 @@ import { appendItem, lastSeq } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
 import { countMessage } from './metrics'
-import { applyChannelTtl, type WaveRedis } from './redis'
+import { applyTtl, type WaveRedis } from './redis'
 import { findSecret } from './secret-filter'
 import { parseItem, toAuthor, type ChannelRecord, type Item, type ParticipantRecord } from './types'
 
@@ -103,7 +103,9 @@ export async function postMessage(
     // A retry is sequential by nature, so a plain write is enough here: the
     // window only has to cover an agent sending the same request twice.
     await redis.set(key, JSON.stringify(result), { expiration: { type: 'EX', value: LIMITS.idempotencyTtlSeconds } })
-    await applyChannelTtl(redis, channel.id, channel.expires_at, [key])
+    // This key alone. The append a moment ago stamped every other key the
+    // channel owns, and the five-minute window still may not outlive the channel.
+    await applyTtl(redis, [key], channel.expires_at)
   }
 
   await countMessage(redis, channel, participant, request.kind)

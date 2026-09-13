@@ -24,7 +24,11 @@ function createWaveClient(url: string) {
 
 export type WaveRedis = ReturnType<typeof createWaveClient>
 
-const cache = globalThis as typeof globalThis & { __waveRedis?: Promise<WaveRedis> }
+const cache = globalThis as typeof globalThis & {
+  __waveRedis?: Promise<WaveRedis>
+  /** Set once a store has shown it will not run scripts. See applyChannelTtl. */
+  __waveNoScripting?: boolean
+}
 
 async function connect(): Promise<WaveRedis> {
   const client = createWaveClient(getConfig().redisUrl)
@@ -48,6 +52,7 @@ export function getRedis(): Promise<WaveRedis> {
 export async function closeRedis(): Promise<void> {
   const pending = cache.__waveRedis
   cache.__waveRedis = undefined
+  cache.__waveNoScripting = undefined
   // The subscriber is a duplicate of this client and has no life of its own.
   await closeWake()
   if (!pending) return
@@ -56,9 +61,24 @@ export async function closeRedis(): Promise<void> {
 }
 
 /**
+ * Stamps the channel's expiry onto every key handed to it.
+ *
+ * One EXPIREAT per key, in a loop the server runs rather than one the client
+ * drives. This is called after every append, so at seven or eight keys it was
+ * the largest single line in the bill for a message — more than the message
+ * itself. Sent as one command it is one command, whatever the key count.
+ */
+export const CHANNEL_TTL_SCRIPT = "for i = 1, #KEYS do redis.call('EXPIREAT', KEYS[i], ARGV[1]) end"
+
+/**
  * Sets EXPIREAT on every key a channel owns. Call after any write: retention is
  * the TTL, so a key that outlives its channel is a data-retention bug, not an
  * inconvenience. Keys that do not exist yet are skipped by Redis.
+ *
+ * A store that will not run the script is not allowed to cost anyone their
+ * retention promise, so the first refusal falls back to setting them one at a
+ * time and the process stops asking. The fallback is what this used to do: it
+ * costs more commands and behaves identically.
  */
 export async function applyChannelTtl(
   client: WaveRedis,
@@ -66,8 +86,36 @@ export async function applyChannelTtl(
   expiresAt: number,
   extraKeys: string[] = [],
 ): Promise<void> {
+  await applyTtl(client, [...channelKeys(channelId), ...extraKeys], expiresAt)
+}
+
+/**
+ * Stamps an expiry onto exactly the keys given, and no others.
+ *
+ * For the caller who has just written one key and knows the rest of the
+ * channel was stamped moments ago. Re-stamping all of them would be seven
+ * expiries the store has already been told about.
+ */
+export async function applyTtl(client: WaveRedis, keys: string[], expiresAt: number): Promise<void> {
+  if (keys.length === 0) return
+
+  if (!cache.__waveNoScripting) {
+    try {
+      await client.eval(CHANNEL_TTL_SCRIPT, { keys, arguments: [String(expiresAt)] })
+      return
+    } catch (error) {
+      // Not classified: any refusal is treated as "this store does not run
+      // scripts". A transient failure costs this process the saving and
+      // nothing else, and guessing at error strings across providers would
+      // fail in the direction that loses TTLs.
+      const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+      console.error(`redis: scripting unavailable, setting expiry one key at a time: ${detail}`)
+      cache.__waveNoScripting = true
+    }
+  }
+
   const multi = client.multi()
-  for (const key of [...channelKeys(channelId), ...extraKeys]) multi.expireAt(key, expiresAt)
+  for (const key of keys) multi.expireAt(key, expiresAt)
   await multi.exec()
 }
 

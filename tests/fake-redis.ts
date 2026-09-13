@@ -1,4 +1,4 @@
-import type { WaveRedis } from '@/lib/redis'
+import { CHANNEL_TTL_SCRIPT, type WaveRedis } from '@/lib/redis'
 
 /**
  * An in-memory stand-in for the Redis commands this app uses: strings,
@@ -148,6 +148,20 @@ export class FakeRedis {
     if (!entry) return false
     entry.expireAt = at
     return true
+  }
+
+  /**
+   * Runs the one script this app has, and refuses any other.
+   *
+   * Refusing is the point: a fake that quietly returned nothing for an unknown
+   * script would let a suite pass on work the real store never did. A second
+   * script has to teach this method what it means.
+   */
+  async eval(script: string, options?: { keys?: string[]; arguments?: string[] }): Promise<null> {
+    if (script !== CHANNEL_TTL_SCRIPT) throw new Error(`fake-redis: no such script`)
+    const at = Number(options?.arguments?.[0])
+    for (const key of options?.keys ?? []) await this.expireAt(key, at)
+    return null
   }
 
   /** Queues commands and runs them in order on exec, like MULTI/EXEC. */
