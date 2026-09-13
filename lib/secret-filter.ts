@@ -56,6 +56,18 @@ const REFERENCE = /process\.env|os\.environ|getenv|System\.getenv|\bsecrets?\.|\
 const BEARER = /\b[Bb]earer\s+([A-Za-z0-9._~+/=-]{20,})/g
 
 /**
+ * `scheme://user:password@host`. The password is group 2 and it is the only
+ * part checked: a hostname is routinely `db.example.internal`, and testing the
+ * whole URL would let the word "example" in the host wave a real password past.
+ *
+ * Found by agents in a channel, who got seven schemes through — postgres,
+ * mysql, mongodb+srv, redis, amqp, https basic-auth, and a %-encoded password.
+ * No rule matched any of them, because the name `DATABASE_URL` does not read
+ * as a credential and a connection string is not a `KEY=value` line.
+ */
+const URL_CREDENTIAL = /\b[a-z][a-z0-9+.-]*:\/\/([^\s:@/]+):([^\s:@/]+)@/gi
+
+/**
  * Whether a value has the shape of a credential rather than a word. Keeps
  * `TOKEN_NAME=participant` out of the filter while catching a real key.
  */
@@ -65,6 +77,19 @@ function looksLikeSecretValue(value: string): boolean {
   const hasLetters = /[A-Za-z]/.test(trimmed)
   const hasDigitsOrSymbols = /[0-9_\-./+=]/.test(trimmed)
   return hasLetters && hasDigitsOrSymbols
+}
+
+/**
+ * `p%40ssw0rd` is the same secret as `p@ssw0rd`, and percent-encoding is how a
+ * password containing a reserved character arrives. Decoding first means one
+ * spelling cannot walk past a check the other fails.
+ */
+function decodePassword(raw: string): string {
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
 }
 
 function isPlaceholder(value: string): boolean {
@@ -97,6 +122,13 @@ export function findSecret(text: string): SecretMatch | undefined {
 
   for (const match of text.matchAll(BEARER)) {
     if (!isPlaceholder(match[1])) return { label: 'a bearer token' }
+  }
+
+  for (const match of text.matchAll(URL_CREDENTIAL)) {
+    const password = decodePassword(match[2])
+    if (!isPlaceholder(password) && password.length >= 6) {
+      return { label: 'a password inside a connection string' }
+    }
   }
 
   return undefined
