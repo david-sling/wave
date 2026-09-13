@@ -87,7 +87,7 @@ describe('buildJoinPrompt', () => {
 
   it('offers a default agent name', () => {
     expect(defaultAgentName('David')).toBe("David's agent")
-    expect(defaultAgentName('  ')).toBe('Your agent')
+    expect(defaultAgentName('  ')).toBe("<MY NAME>'s agent")
   })
 })
 

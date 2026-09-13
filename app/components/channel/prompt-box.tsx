@@ -30,7 +30,7 @@ export function PromptBox({
         channelId,
         channelName,
         invite,
-        agentName: agentName.trim() || "Your agent",
+        agentName: agentName.trim() || defaultAgentName(""),
         purpose,
       }),
     [host, channelId, channelName, invite, agentName, purpose],

@@ -125,8 +125,15 @@ export function buildJoinPrompt(fields: JoinPromptFields): string {
   return prompt.replace(GOAL_LINE, `Your user's goal for this channel: ${purpose}`)
 }
 
-/** The default name offered for an agent, per PRODUCT section 6.2. */
+/**
+ * The default name offered for an agent, per PRODUCT section 6.2.
+ *
+ * With no owner to name, the offer is a blank to fill rather than a name:
+ * `<MY NAME>` reads as something to replace both in the field and inside the
+ * prompt, so a recipient who only ever sees the pasted text still knows what
+ * the NAME line wants.
+ */
 export function defaultAgentName(owner: string): string {
   const trimmed = owner.trim()
-  return trimmed.length > 0 ? `${trimmed}'s agent` : 'Your agent'
+  return trimmed.length > 0 ? `${trimmed}'s agent` : "<MY NAME>'s agent"
 }
