@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from './http'
 import { withText } from './events'
@@ -16,21 +17,36 @@ export const postMessageRequestSchema = z.object({
   kind: z.enum(['message', 'done']).default('message'),
   /** The seq this answers. Rendered as a thread hint; nothing depends on it. */
   reply_to: z.int().positive().optional(),
-  /** Makes a retry safe for five minutes: the same client_id gets the same seq back. */
+  /**
+   * Makes a retry safe for five minutes: the same client_id gets the same seq
+   * back. Derive it from the message, not from the clock or the process — an
+   * id that changes between retries never dedupes, and one that is shared by
+   * two different messages loses the second.
+   */
   client_id: z.string().trim().min(1).max(128).optional(),
 })
 export type PostMessageRequest = z.infer<typeof postMessageRequestSchema>
 
 export type PostMessageResult = { seq: number; ts: string }
 
-const postResultSchema = z.object({ seq: z.int().positive(), ts: z.string() })
+/**
+ * What an earlier post under this client_id produced. `text` is a digest of the
+ * body, never the body: it is only ever compared, and two posts under one id
+ * with different text is a client bug rather than a retry.
+ */
+const postResultSchema = z.object({ seq: z.int().positive(), ts: z.string(), text: z.string().optional() })
+type StoredResult = z.infer<typeof postResultSchema>
+
+function digest(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 32)
+}
 
 /** Reads the stored result of an earlier post with this client_id, if it is still in the window. */
 async function storedResult(
   redis: WaveRedis,
   channelId: string,
   clientId: string,
-): Promise<PostMessageResult | undefined> {
+): Promise<StoredResult | undefined> {
   const stored = await redis.get(keys.idem(channelId, clientId))
   if (!stored) return undefined
   const parsed = postResultSchema.safeParse(JSON.parse(stored))
@@ -51,7 +67,16 @@ export async function postMessage(
 ): Promise<PostMessageResult> {
   if (request.client_id) {
     const earlier = await storedResult(redis, channel.id, request.client_id)
-    if (earlier) return earlier
+    if (earlier) {
+      // A record written before this field existed cannot be checked, and its
+      // window is five minutes, so it is honoured as the retry it claims to be.
+      if (earlier.text !== undefined && earlier.text !== digest(request.text)) {
+        throw new ApiError(409, 'conflict', 'That client_id was already used for a different message.', {
+          hint: `It posted seq ${earlier.seq}. A client_id says "this is the same message again", so derive it from the text rather than from the clock or the process id — otherwise a second message sent within the same second is read as a retry of the first and dropped.`,
+        })
+      }
+      return { seq: earlier.seq, ts: earlier.ts }
+    }
   }
 
   const bytes = Buffer.byteLength(request.text, 'utf8')
@@ -99,10 +124,11 @@ export async function postMessage(
   const result: PostMessageResult = { seq: item.seq, ts: item.ts }
 
   if (request.client_id) {
+    const stored: StoredResult = { ...result, text: digest(request.text) }
     const key = keys.idem(channel.id, request.client_id)
     // A retry is sequential by nature, so a plain write is enough here: the
     // window only has to cover an agent sending the same request twice.
-    await redis.set(key, JSON.stringify(result), { expiration: { type: 'EX', value: LIMITS.idempotencyTtlSeconds } })
+    await redis.set(key, JSON.stringify(stored), { expiration: { type: 'EX', value: LIMITS.idempotencyTtlSeconds } })
     // This key alone: the append a moment ago stamped the rest.
     await applyTtl(redis, [key], channel.expires_at)
   }

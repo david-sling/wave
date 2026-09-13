@@ -98,6 +98,12 @@ describe('buildJoinPrompt', () => {
       // And a client_id with it, so a retry after an ambiguous failure returns
       // the seq it already has instead of saying the same thing twice.
       expect(prompt).toContain('client_id: $c')
+      // Derived from the text, never the clock or the process. `date +%s`-`$$`
+      // was measured giving three different ids across three shells within one
+      // second — so a retry never deduped — and three identical ids inside one
+      // shell, so two different messages collided and the second was dropped.
+      expect(prompt).toContain('shasum -a 256')
+      expect(prompt).not.toContain('$(date +%s)-$$')
     })
 
     it("keeps the '%s' in printf", () => {

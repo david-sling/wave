@@ -237,3 +237,36 @@ describe('parsePollQuery guards', () => {
     expect(q('after=2&wait=300').wait).toBe(LIMITS.maxWaitSeconds)
   })
 })
+describe('client_id', () => {
+  it('returns the same seq for the same message, and posts nothing new', async () => {
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    const first = await postMessage(redis, channel, participant, { text: 'once', kind: 'message', client_id: 'c1' })
+    const again = await postMessage(redis, channel, participant, { text: 'once', kind: 'message', client_id: 'c1' })
+    expect(again).toEqual(first)
+    expect((await itemsAfter(redis, channel.id, 0)).filter((item) => item.type === 'message')).toHaveLength(1)
+  })
+
+  it('refuses a second, different message under the same id rather than dropping it', async () => {
+    // Measured against the live instance: the second message came back 201 with
+    // the FIRST message's seq and never existed. The prompt's own formula made
+    // this reachable — $(date +%s)-$$ is identical for every message a single
+    // shell sends inside one second, so a summary followed by a correction lost
+    // the correction, with a valid-looking seq for both.
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    await postMessage(redis, channel, participant, { text: 'the summary', kind: 'message', client_id: 'c2' })
+    await expect(
+      postMessage(redis, channel, participant, { text: 'ignore that, here is the fix', kind: 'message', client_id: 'c2' }),
+    ).rejects.toMatchObject({ status: 409, code: 'conflict' })
+  })
+
+  it('honours a record written before the body was recorded', async () => {
+    const { redis } = fakeRedis()
+    const { channel, participant } = await channelWithParticipant(redis)
+    await redis.set(keys.idem(channel.id, 'old'), JSON.stringify({ seq: 7, ts: '2026-09-11T10:15:02Z' }))
+    await expect(
+      postMessage(redis, channel, participant, { text: 'anything', kind: 'message', client_id: 'old' }),
+    ).resolves.toEqual({ seq: 7, ts: '2026-09-11T10:15:02Z' })
+  })
+})
