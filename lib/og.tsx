@@ -31,29 +31,24 @@ export const ogSize = { width: 1200, height: 630 };
 export const ogContentType = "image/png";
 
 /**
- * The card is 1.91:1, but half the places that unfurl it crop to a square —
- * and a square crop of a 1200x630 image is its middle 630 columns. So nothing
- * that has to be read is allowed outside this width, and the ground either
- * side of it is the margin those surfaces eat. 610 rather than 630 leaves the
- * crop a hair of clearance rather than landing on the glyphs; the card carries
- * its real margin above and below, where nothing is ever cropped.
+ * The card's margins, and the width its content runs to: the whole card less
+ * the ground either side of it.
  */
-const SAFE_WIDTH = 610;
-
-/** Ground above and below the column. */
-const GUTTER = 44;
+const GUTTER = 48;
+const SIDE = 56;
+const CONTENT_WIDTH = ogSize.width - SIDE * 2;
 
 /**
  * The panel's measurements, written down because Satori wraps a row of flex
  * items only against a definite width — a message body left to size itself
  * would run past the panel's edge instead of breaking.
  */
-const PANEL_PADDING = 24;
-const TILE = 36;
-const TILE_GAP = 13;
-const BODY_WIDTH = SAFE_WIDTH - PANEL_PADDING * 2 - TILE - TILE_GAP;
+const PANEL_PADDING = 26;
+const TILE = 40;
+const TILE_GAP = 14;
+const BODY_WIDTH = CONTENT_WIDTH - PANEL_PADDING * 2 - TILE - TILE_GAP;
 
-const HEADING_SIZE = 40;
+const HEADING_SIZE = 46;
 
 /**
  * The widest the display face runs per character, read off rendered cards and
@@ -72,7 +67,7 @@ const DISPLAY_ADVANCE = 0.52;
  * the page itself does.
  */
 function headingLines(heading: { regular: string; bold: string }) {
-  const perLine = SAFE_WIDTH / (HEADING_SIZE * DISPLAY_ADVANCE);
+  const perLine = CONTENT_WIDTH / (HEADING_SIZE * DISPLAY_ADVANCE);
   return (
     Math.ceil(heading.regular.length / perLine) +
     Math.ceil(heading.bold.length / perLine)
@@ -137,8 +132,8 @@ function RoleBadge({ role }: { role: "agent" | "human" }) {
         backgroundColor: agent ? skySoft : peachSoft,
         color: agent ? skyInk : peachInk,
         borderRadius: 999,
-        padding: "1px 9px",
-        fontSize: 17,
+        padding: "1px 10px",
+        fontSize: 18,
         fontWeight: 600,
         letterSpacing: "0.02em",
       }}
@@ -210,7 +205,7 @@ function Body({ text }: { text: string }) {
         flexWrap: "wrap",
         alignItems: "baseline",
         width: BODY_WIDTH,
-        fontSize: 18,
+        fontSize: 20,
         lineHeight: 1.45,
         color: ink,
       }}
@@ -222,7 +217,7 @@ function Body({ text }: { text: string }) {
             style={{
               display: "flex",
               fontFamily: "Geist Mono",
-              fontSize: 15,
+              fontSize: 16,
               backgroundColor: panel2,
               border: `1px solid ${line2}`,
               borderRadius: 5,
@@ -261,10 +256,10 @@ function Message({
           width: TILE,
           height: TILE,
           flexShrink: 0,
-          borderRadius: 10,
+          borderRadius: 12,
           backgroundColor: color.fill,
           color: color.ink,
-          fontSize: 18,
+          fontSize: 20,
           fontWeight: 600,
         }}
       >
@@ -275,13 +270,13 @@ function Message({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            fontSize: 19,
+            gap: 11,
+            fontSize: 21,
           }}
         >
           <span style={{ fontWeight: 600, color: ink }}>{item.from.name}</span>
           <RoleBadge role={item.from.role} />
-          <span style={{ color: ink3, fontSize: 17 }}>{item.time}</span>
+          <span style={{ color: ink3, fontSize: 18 }}>{item.time}</span>
         </div>
         <Body text={item.text} />
       </div>
@@ -322,12 +317,11 @@ function OgFrame({
         fontFamily: "Albert Sans",
       }}
     >
-      {/* The square-safe column. Everything that has to survive a 1:1 crop is in it. */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
-          width: SAFE_WIDTH,
+          width: CONTENT_WIDTH,
           height: "100%",
           paddingTop: GUTTER,
           paddingBottom: GUTTER,
@@ -335,12 +329,12 @@ function OgFrame({
       >
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={mark} width={34} height={34} alt="" />
+          <img src={mark} width={40} height={40} alt="" />
           <span
             style={{
               fontFamily: "Funnel Display",
               fontWeight: 700,
-              fontSize: 27,
+              fontSize: 32,
               letterSpacing: "-0.02em",
               color: ink,
             }}
@@ -354,7 +348,7 @@ function OgFrame({
           style={{
             display: "flex",
             flexDirection: "column",
-            marginTop: 26,
+            marginTop: 24,
             fontFamily: "Funnel Display",
             fontSize: HEADING_SIZE,
             lineHeight: 1.02,
@@ -375,13 +369,13 @@ function OgFrame({
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 17,
-            marginTop: 28,
+            gap: 12,
+            marginTop: 26,
             flexGrow: 1,
             minHeight: 0,
             overflow: "hidden",
-            padding: 24,
-            borderRadius: 28,
+            padding: PANEL_PADDING,
+            borderRadius: 30,
             backgroundColor: panel,
             border: `1px solid ${panelBorder}`,
             boxShadow: shadowSoft,
@@ -413,7 +407,7 @@ export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
         style={{
           display: "flex",
           justifyContent: "space-between",
-          fontSize: 19,
+          fontSize: 20,
           color: ink2,
         }}
       >
@@ -477,11 +471,11 @@ export function OgNoticeCard({ mark, heading, lines }: OgNoticeCardProps) {
                 width: TILE,
                 height: TILE,
                 flexShrink: 0,
-                borderRadius: 10,
+                borderRadius: 12,
                 backgroundColor: panel2,
                 border: `1px solid ${line2}`,
                 color: ink2,
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: 600,
               }}
             >
@@ -491,7 +485,7 @@ export function OgNoticeCard({ mark, heading, lines }: OgNoticeCardProps) {
               style={{
                 display: "flex",
                 width: BODY_WIDTH,
-                fontSize: 21,
+                fontSize: 22,
                 lineHeight: 1.4,
                 color: ink,
               }}
