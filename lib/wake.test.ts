@@ -15,22 +15,37 @@ class FakeBus {
   readonly topics = new Map<string, Set<Listener>>()
   readonly subscribed: string[] = []
   readonly unsubscribed: string[] = []
+  readonly handlers = new Map<string, Set<() => void>>()
+  readonly options: Array<Record<string, unknown> | undefined> = []
   duplicates = 0
   closed = 0
   /** Set to fail the next subscribe, as a store that does not allow it would. */
   refuseSubscribe = false
+
+  /** Fires a connection event, the way the client does when it comes back. */
+  emit(event: string): void {
+    for (const handler of [...(this.handlers.get(event) ?? [])]) handler()
+  }
 }
 
 class FakePubSub {
   constructor(readonly bus: FakeBus) {}
 
-  duplicate(): FakePubSub {
+  duplicate(options?: Record<string, unknown>): FakePubSub {
     this.bus.duplicates += 1
+    this.bus.options.push(options)
     return new FakePubSub(this.bus)
   }
 
-  async connect(): Promise<void> {}
-  on(): void {}
+  async connect(): Promise<void> {
+    this.bus.emit('ready')
+  }
+
+  on(event: string, handler: () => void): void {
+    const handlers = this.bus.handlers.get(event) ?? new Set<() => void>()
+    handlers.add(handler)
+    this.bus.handlers.set(event, handlers)
+  }
 
   async subscribe(topic: string, listener: Listener): Promise<void> {
     if (this.bus.refuseSubscribe) throw new Error('subscribe is not allowed here')
@@ -187,6 +202,41 @@ describe('openWake', () => {
 
     expect(Date.now() - started).toBeGreaterThanOrEqual(50)
     expect(bus.subscribed).toEqual([keys.wake('abc'), keys.wake('xyz')])
+  })
+})
+
+describe('a subscriber that has been away', () => {
+  it('tells every poll to look again when the connection comes back', async () => {
+    const { bus, redis } = fakeBus()
+    const here = await openWake(redis, 'abc')
+    const there = await openWake(redis, 'xyz')
+    const started = Date.now()
+
+    // Whatever was published while the socket was away is gone: nothing will
+    // mention it again, so being told to look is the only way anyone finds out.
+    const waiting = Promise.all([here!.wait(5_000, never), there!.wait(5_000, never)])
+    bus.emit('ready')
+    await waiting
+
+    expect(Date.now() - started).toBeLessThan(1_000)
+  })
+
+  it('is remembered by a poll that was between waits at the time', async () => {
+    const { bus, redis } = fakeBus()
+    const wake = await openWake(redis, 'abc')
+
+    bus.emit('ready')
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    const started = Date.now()
+    await wake!.wait(5_000, never)
+    expect(Date.now() - started).toBeLessThan(1_000)
+  })
+
+  it('keeps the connection alive rather than waiting to find it dead', async () => {
+    const { bus, redis } = fakeBus()
+    await openWake(redis, 'abc')
+    expect(bus.options[0]).toMatchObject({ pingInterval: expect.any(Number) })
   })
 })
 

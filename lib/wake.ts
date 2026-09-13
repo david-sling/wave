@@ -51,6 +51,17 @@ function report(what: string, error: unknown): void {
 }
 
 /**
+ * How often the subscriber proves its connection is still there, in milliseconds.
+ *
+ * Two jobs, both worth one command a minute for a whole process. It keeps a
+ * connection that carries no traffic for minutes at a time from being closed
+ * by a managed store or an idle proxy in between. And it turns a connection
+ * that has quietly died into a reconnect, which every waiting poll is told
+ * about, instead of a silence nobody can tell from an empty room.
+ */
+const PING_INTERVAL_MS = 60_000
+
+/**
  * The process's subscriber connection, opened once.
  *
  * A store that cannot duplicate its client — the in-memory fake the unit tests
@@ -58,13 +69,20 @@ function report(what: string, error: unknown): void {
  * every poll would be a pointless branch. A connection that fails to open
  * clears the cache, so the next request tries again rather than being stuck
  * with a blip forever.
+ *
+ * Coming back from a reconnect wakes every poll in the process. Pub/sub is
+ * fire and forget: whatever was published while the socket was away is simply
+ * gone, and nothing later will mention it. Being told to look again is the
+ * only way a poll finds out, and it is cheap — a reconnect is rare, and the
+ * polls that had nothing waiting for them go back to waiting.
  */
 async function subscriber(redis: WaveRedis): Promise<WaveRedis | undefined> {
   const current = state()
   current.subscriber ??= (async () => {
     if (typeof (redis as Partial<WaveRedis>).duplicate !== 'function') return undefined
-    const client = redis.duplicate()
+    const client = redis.duplicate({ pingInterval: PING_INTERVAL_MS })
     client.on('error', (error: Error) => report('connection', error))
+    client.on('ready', () => wakeEveryone(current))
     await client.connect()
     return client
   })().catch((error: unknown) => {
@@ -73,6 +91,13 @@ async function subscriber(redis: WaveRedis): Promise<WaveRedis | undefined> {
     return undefined
   })
   return current.subscriber
+}
+
+/** Tells every poll in this process to look again, whatever channel it is holding. */
+function wakeEveryone(current: WakeState): void {
+  for (const topic of current.topics.values()) {
+    for (const waiting of [...topic.listeners]) waiting()
+  }
 }
 
 /** Adds one poll to a topic, subscribing if it is the first. Answers whether it is really subscribed. */

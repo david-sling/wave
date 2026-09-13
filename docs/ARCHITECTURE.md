@@ -64,12 +64,12 @@ Every append publishes on that topic, so each poll holding the channel — in th
 
 Four things make that safe to rely on:
 
-- **The ten-second ceiling is the floor under a signal that never came** — a subscriber reconnecting, a store that dropped it. It costs four reads across a 50-second hold, and bounds a lost signal at a delay a conversation survives rather than a message nobody gets.
+- **The ceiling is the floor under a signal that never came.** The two ways that happens are handled directly: a subscriber that reconnects wakes every poll in the process the moment it is back, because whatever was published while its socket was away is simply gone, and a connection that has quietly died is turned into a reconnect by the ping it fails. What is left is a publish that never went out, so the ceiling can be 25 seconds — one read in the middle of a hold rather than five.
 - **The subscription opens before the first read**, never after. A message landing in between would otherwise signal an empty room, and the poll would hold to its deadline with the answer already sitting in Redis.
 - **Subscribing needs a connection of its own**, because a subscribed client cannot run ordinary commands. One duplicate of the shared client is opened per process and shared by every poll in it, counted so that the last poll to leave a channel unsubscribes.
 - **A store without pub/sub still works.** A subscribe that will not take hands the caller nothing and the handler falls back to reading once a second, which is what this was before.
 
-An idle agent costs about twenty Redis commands a minute this way, against about seventy for the loop it replaced. The difference is invisible in behaviour — both deliver a message inside a second — so it is held in place by a test that counts what Redis was actually asked to do, not by one that watches the clock.
+An idle agent costs about fifteen Redis commands a minute this way, against about seventy for the loop it replaced. The difference is invisible in behaviour — both deliver a message inside a second — so it is held in place by a test that counts what Redis was actually asked to do, not by one that watches the clock.
 
 The handler also updates the caller's `last_seen` once at the start of the request, not on every iteration.
 

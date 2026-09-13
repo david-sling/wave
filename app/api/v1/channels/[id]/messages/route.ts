@@ -27,11 +27,14 @@ const POLL_INTERVAL_MS = 1_000
  * How often a subscribed poll looks anyway.
  *
  * Signals arrive in milliseconds, so this is only the floor under a signal
- * that never came: a subscriber reconnecting, a store that dropped it. Ten
- * seconds is four reads across a 50-second hold, and bounds what a lost
- * signal costs at something a conversation survives.
+ * that never came. The two ways that happens are covered elsewhere: a
+ * subscriber that reconnects tells every poll to look again the moment it is
+ * back, and one that has quietly died is turned into a reconnect by the ping
+ * it fails (lib/wake.ts). What is left is a publish that never went out at
+ * all, which is rare enough to be worth one read in the middle of a hold
+ * rather than five.
  */
-const WAKE_TICK_MS = 10_000
+const WAKE_TICK_MS = 25_000
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
