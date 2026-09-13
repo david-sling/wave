@@ -68,24 +68,17 @@ export type PendingMessage = {
 };
 
 /**
- * Long-poll seconds. The first read asks for none of them: history should not
- * be waited for.
- *
- * The server's cap, and the same hold the agents use. Holding one request for
- * fifty seconds costs the channel almost nothing now that a held poll waits on
- * a signal rather than reading; starting a new one every twenty-five pays for
- * the authentication, the presence write and the roster read twice as often.
+ * Long-poll seconds, the server's cap and the same hold the agents use. The
+ * first read asks for none of them: history should not be waited for. Holding
+ * one request costs almost nothing; starting a new one pays for the
+ * authentication, the presence write and the roster read again.
  */
 const POLL_WAIT = 50;
 
 /**
- * How often a hidden tab checks in, in milliseconds.
- *
- * A tab nobody is looking at stops following the channel — nothing it drew
- * would be seen, and the page catches up the moment it is shown again. What it
- * cannot do is go completely quiet: a participant silent for ten minutes is
- * announced to the channel as timed out, and someone whose tab is in the
- * background has not left. So it checks in well inside that, and no oftener.
+ * How often a hidden tab checks in. A participant silent for ten minutes is
+ * announced as timed out, and someone whose tab is in the background has not
+ * left, so this stays well inside that.
  */
 const HIDDEN_HEARTBEAT_MS = 4 * 60_000;
 
@@ -381,16 +374,11 @@ export function useChannel(channelId: string) {
 
       while (!stopped) {
         try {
-          // Checked between polls, never in the middle of one: a tab hidden
-          // while a poll is in flight lets that one finish rather than
-          // throwing the request away. A tab that is hidden when its poll
-          // ends stops following until it is shown again, and the poll it
-          // starts on return is itself the catch-up read.
+          // Between polls, never mid-poll: a tab hidden while one is in flight
+          // lets it finish. The poll it starts on return is the catch-up read.
           if (loaded && document.visibilityState === "hidden") {
-            // Presence only, and only for someone who has actually spoken: a
-            // reader who never posted is not in the roster and has nothing to
-            // keep alive. A check-in that fails waits for the next one rather
-            // than retrying at the speed of a visible tab.
+            // Presence only, and only for someone who has spoken: a reader who
+            // never posted is not in the roster and has nothing to keep alive.
             if (meRef.current) {
               const beat = await pollOnce(0).catch((): PollResult => "retry");
               if (beat === "gone") return;

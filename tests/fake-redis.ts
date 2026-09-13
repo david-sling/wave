@@ -151,11 +151,8 @@ export class FakeRedis {
   }
 
   /**
-   * Runs the one script this app has, and refuses any other.
-   *
-   * Refusing is the point: a fake that quietly returned nothing for an unknown
-   * script would let a suite pass on work the real store never did. A second
-   * script has to teach this method what it means.
+   * Runs the one script this app has, and refuses any other: a fake that
+   * quietly returned nothing would let a suite pass on work the store never did.
    */
   async eval(script: string, options?: { keys?: string[]; arguments?: string[] }): Promise<null> {
     if (script !== CHANNEL_TTL_SCRIPT) throw new Error(`fake-redis: no such script`)

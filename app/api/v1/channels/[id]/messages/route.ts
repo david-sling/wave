@@ -14,25 +14,17 @@ import { openWake } from '@/lib/wake'
  * The channel's message stream (PRODUCT section 8).
  *
  * Sixty seconds covers the 50-second long-poll with margin. A held poll waits
- * on a pub/sub signal from whoever writes next and reads the sequence number
- * only to confirm it (ARCHITECTURE section 3), so an idle agent costs a
- * handful of Redis commands a minute rather than one a second.
+ * on a pub/sub signal rather than reading once a second (ARCHITECTURE 3).
  */
 export const maxDuration = 60
 
-/** How often a held poll looks anyway. Short, because nothing else will tell it. */
+/** How often an unsubscribed poll looks, since nothing will tell it. */
 const POLL_INTERVAL_MS = 1_000
 
 /**
- * How often a subscribed poll looks anyway.
- *
- * Signals arrive in milliseconds, so this is only the floor under a signal
- * that never came. The two ways that happens are covered elsewhere: a
- * subscriber that reconnects tells every poll to look again the moment it is
- * back, and one that has quietly died is turned into a reconnect by the ping
- * it fails (lib/wake.ts). What is left is a publish that never went out at
- * all, which is rare enough to be worth one read in the middle of a hold
- * rather than five.
+ * How often a subscribed poll looks anyway: the floor under a signal that
+ * never came. Reconnects announce themselves (lib/wake.ts), so this only has
+ * to catch a publish that never went out.
  */
 const WAKE_TICK_MS = 25_000
 
@@ -66,8 +58,7 @@ export async function GET(
     const redis = await getRedis()
     const { channel, participant } = await authenticate(redis, id, ['participant', 'invite'], request)
 
-    // Before anything that writes: a poll that does not wait is the one an
-    // agent can issue in a tight loop, and refusing it should be cheap.
+    // Before anything that writes, so refusing is cheap.
     if (wait === 0) {
       await limitImmediatePolling(redis, participant?.id ?? callerAddress(request))
     }
@@ -78,9 +69,8 @@ export async function GET(
 
     const poll = async (): Promise<Response> => {
       const deadline = Date.now() + wait * 1_000
-      // Before the first read, never after: a message that lands in between
-      // would signal an empty room and this poll would hold to its deadline
-      // with the answer already in Redis.
+      // Before the first read, never after: a message landing in between would
+      // signal an empty room and this poll would hold with the answer in Redis.
       const wake = wait > 0 ? await openWake(redis, channel.id) : undefined
       const tick = wake ? WAKE_TICK_MS : POLL_INTERVAL_MS
       try {

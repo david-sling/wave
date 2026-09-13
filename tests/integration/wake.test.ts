@@ -3,15 +3,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { closeRedis, getRedis, type WaveRedis } from '@/lib/redis'
 
 /**
- * What a held poll actually costs, counted at the server.
+ * What a held poll costs, counted at the server.
  *
- * The behaviour tests cannot tell a pub/sub wake-up from the one-second loop
- * it replaced: both deliver a message within a second, which is the point.
- * The difference is the number of reads a silent channel pays for, and that
- * is only visible in Redis's own command counters. So this file holds a poll
- * open and asks Redis what it was asked to do.
- *
- * Runs against a Redis service container in CI, and locally against any Redis:
+ * A behaviour test cannot tell a wake-up from the one-second loop it replaced:
+ * both deliver within a second. The difference is only visible in Redis's own
+ * command counters, so this file holds a poll open and asks.
  *
  *   docker run -d --rm -p 6380:6379 redis:7-alpine
  *   REDIS_URL=redis://localhost:6380 npm run test:integration

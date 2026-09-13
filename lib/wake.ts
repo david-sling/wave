@@ -2,26 +2,15 @@ import { keys } from './keys'
 import type { WaveRedis } from './redis'
 
 /**
- * Wake signals for the long-poll (ARCHITECTURE sections 3 and 10).
+ * Wake signals for the long-poll (ARCHITECTURE section 3).
  *
- * A held poll used to ask Redis for the channel's sequence number once a
- * second: fifty reads for a request that usually comes back with nothing. So
- * an append publishes on the channel's wake topic instead, and every poll
- * holding that channel — in this process or any other — hears it at once.
+ * An append publishes on the channel's wake topic and every poll holding that
+ * channel hears it at once, in any process. The signal is only ever "look
+ * again": the sequence number stays the source of truth, so a signal that goes
+ * missing costs latency and never a message.
  *
- * The signal is only ever "look again". The sequence number stays the source
- * of truth, and a poll that hears nothing still looks on a slow tick, so a
- * signal that goes missing costs a few seconds of latency and never a message.
- *
- * Pub/sub gets a connection of its own. This client speaks RESP3, where a
- * subscribed connection may still run ordinary commands, so that is a choice
- * rather than a rule: a subscription is long-lived and a request is not, and
- * keeping them apart means one dropping does not take the other with it. It
- * also keeps an instance configured for RESP2 working, where the restriction
- * is real. One duplicate of the shared client is opened on first use and
- * shared by every poll in the process. Where that is not possible — a store
- * without pub/sub, a connection that will not open — callers are handed
- * nothing and fall back to the one-second loop they had before.
+ * The subscriber is a duplicate of the shared client, one per process. A store
+ * without pub/sub hands callers nothing and they fall back to reading.
  */
 
 /** One poll's subscription. Opened before the first read, closed when the request ends. */
@@ -48,37 +37,27 @@ function state(): WakeState {
   return cache.__waveWake
 }
 
-/** Never the message body, and never the arguments: only that pub/sub is not working. */
+/** Never the message body or the arguments: only that pub/sub is not working. */
 function report(what: string, error: unknown): void {
   const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
   console.error(`redis(wake): ${what}: ${detail}`)
 }
 
 /**
- * How often the subscriber proves its connection is still there, in milliseconds.
- *
- * Two jobs, both worth one command a minute for a whole process. It keeps a
- * connection that carries no traffic for minutes at a time from being closed
- * by a managed store or an idle proxy in between. And it turns a connection
- * that has quietly died into a reconnect, which every waiting poll is told
- * about, instead of a silence nobody can tell from an empty room.
+ * One command a minute, for the whole process. Keeps a managed store or an idle
+ * proxy from closing a connection that carries no traffic, and turns one that
+ * has quietly died into a reconnect rather than a silence.
  */
 const PING_INTERVAL_MS = 60_000
 
 /**
- * The process's subscriber connection, opened once.
+ * The process's subscriber connection, opened once. A store that cannot
+ * duplicate its client caches undefined; a connection that fails to open
+ * clears the cache so the next request tries again.
  *
- * A store that cannot duplicate its client — the in-memory fake the unit tests
- * run against — resolves to undefined and is cached as such: asking again
- * every poll would be a pointless branch. A connection that fails to open
- * clears the cache, so the next request tries again rather than being stuck
- * with a blip forever.
- *
- * Coming back from a reconnect wakes every poll in the process. Pub/sub is
- * fire and forget: whatever was published while the socket was away is simply
- * gone, and nothing later will mention it. Being told to look again is the
- * only way a poll finds out, and it is cheap — a reconnect is rare, and the
- * polls that had nothing waiting for them go back to waiting.
+ * Coming back from a reconnect wakes every poll: pub/sub is fire and forget,
+ * so whatever was published while the socket was away is gone, and being told
+ * to look again is the only way a poll finds out.
  */
 async function subscriber(redis: WaveRedis): Promise<WaveRedis | undefined> {
   const current = state()
@@ -114,7 +93,7 @@ async function listen(redis: WaveRedis, topic: string, listener: Listener): Prom
   if (!entry) {
     const listeners = new Set<Listener>()
     const ready = client
-      // A copy, because a listener that ends its own poll may leave the set mid-loop.
+      // A copy: a listener that ends its own poll leaves the set mid-loop.
       .subscribe(topic, () => {
         for (const waiting of [...listeners]) waiting()
       })
@@ -147,14 +126,10 @@ async function release(redis: WaveRedis, topic: string, listener: Listener): Pro
 }
 
 /**
- * Subscribes for the life of one poll, or returns undefined when this store
- * has no pub/sub to offer.
- *
- * Open it before the first read of the sequence number, never after: a message
- * that lands in between would otherwise signal an empty room and the poll
- * would hold to its deadline with the answer already sitting in Redis. The
- * handle remembers a signal that arrives while nothing is waiting, so the next
- * wait returns straight away.
+ * Subscribes for the life of one poll, or returns undefined where the store has
+ * no pub/sub. Open it before the first read of the sequence number, never
+ * after: the handle remembers a signal that arrives while nothing is waiting,
+ * which is what stops a message landing in that gap from being missed.
  */
 export async function openWake(redis: WaveRedis, channelId: string): Promise<WakeHandle | undefined> {
   const topic = keys.wake(channelId)
@@ -169,8 +144,7 @@ export async function openWake(redis: WaveRedis, channelId: string): Promise<Wak
 
   return {
     async wait(ms: number, signal: AbortSignal): Promise<void> {
-      // Consumed either way: the caller reads the sequence number on return,
-      // which is the whole of what a signal asks for.
+      // Consumed either way: the caller reads the sequence number on return.
       if (signalled || signal.aborted) {
         signalled = false
         return
@@ -195,12 +169,9 @@ export async function openWake(redis: WaveRedis, channelId: string): Promise<Wak
 }
 
 /**
- * Tells everyone holding this channel that there is something new.
- *
- * Called after the item is written, so a poll woken by it finds the item and
- * not just the number. Nothing here may fail a post: a message that reached
- * Redis is delivered whether or not the signal went out, a second later on the
- * safety tick instead of at once.
+ * Tells everyone holding this channel that there is something new. Call it
+ * after the item is written, so a woken poll finds the item and not just the
+ * number. Never fails a post: without the signal the tick still finds it.
  */
 export async function publishWake(redis: WaveRedis, channelId: string, seq: number): Promise<void> {
   if (typeof (redis as Partial<WaveRedis>).publish !== 'function') return

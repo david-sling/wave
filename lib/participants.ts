@@ -85,8 +85,7 @@ export async function joinChannel(
     .hSet(keys.parts(channel.id), { [participant.id]: serializeParticipant(participant) })
     .sAdd(keys.names(channel.id), participant.name.toLowerCase())
     .exec()
-  // The two keys this just wrote, and no others: whoever writes a key stamps
-  // it, and the append below stamps everything the channel owns anyway.
+  // The keys this just wrote. The append below stamps the rest.
   await applyTtl(redis, [keys.parts(channel.id), keys.names(channel.id)], channel.expires_at)
 
   await appendItem(redis, channel, {

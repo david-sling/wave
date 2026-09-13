@@ -4,11 +4,8 @@ import { keys } from './keys'
 import { applyChannelTtl, closeRedis, type WaveRedis } from './redis'
 
 /**
- * Channel expiry (ARCHITECTURE section 4).
- *
- * Retention is the TTL. A key that outlives its channel is a broken promise,
- * not a slow query, so both the script and the fallback are checked to leave
- * exactly the same thing behind.
+ * Channel expiry (ARCHITECTURE section 4). Retention is the TTL, so the script
+ * and the fallback are both checked to leave the same thing behind.
  */
 
 const CHANNEL = 'abcdefghijklmnopqrstuv'
