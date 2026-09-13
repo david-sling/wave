@@ -2,6 +2,7 @@ import { withText } from './events'
 import { keys } from './keys'
 import { applyChannelTtl, type WaveRedis } from './redis'
 import { toIso } from './time'
+import { publishWake } from './wake'
 import {
   itemSchema,
   serializeItem,
@@ -44,6 +45,9 @@ export async function appendItem(redis: WaveRedis, channel: ChannelRecord, draft
     .incrBy(keys.bytes(channel.id), Buffer.byteLength(encoded))
     .exec()
   await applyChannelTtl(redis, channel.id, channel.expires_at)
+  // After the write, never before: a poll woken by this must find the item and
+  // not just a sequence number that has run ahead of it.
+  await publishWake(redis, channel.id, seq)
 
   return withText(item)
 }

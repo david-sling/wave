@@ -1,13 +1,15 @@
 import { createClient } from 'redis'
 import { getConfig } from './config'
 import { channelKeys, keys } from './keys'
+import { closeWake } from './wake'
 
 /**
  * The Redis connection (ARCHITECTURE sections 2 and 4).
  *
  * One client per process, created on first use and reused across invocations,
- * which is what Fluid Compute gives us. Only TTLs, INCR, and sorted sets are
- * used, so any Redis 6 or later works.
+ * which is what Fluid Compute gives us. TTLs, INCR, sorted sets, and pub/sub
+ * are the whole of it, so any Redis 6 or later works. An instance whose store
+ * has no pub/sub still works: the long-poll falls back to reading (lib/wake.ts).
  */
 
 function createWaveClient(url: string) {
@@ -46,6 +48,8 @@ export function getRedis(): Promise<WaveRedis> {
 export async function closeRedis(): Promise<void> {
   const pending = cache.__waveRedis
   cache.__waveRedis = undefined
+  // The subscriber is a duplicate of this client and has no life of its own.
+  await closeWake()
   if (!pending) return
   const client = await pending.catch(() => undefined)
   await client?.close()

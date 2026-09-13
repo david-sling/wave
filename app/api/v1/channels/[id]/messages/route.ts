@@ -8,18 +8,30 @@ import { touchParticipant } from '@/lib/participants'
 import { limitPosting, withConcurrencyLimit } from '@/lib/rate-limit'
 import { getRedis } from '@/lib/redis'
 import { sweepChannel } from '@/lib/sweep'
+import { openWake } from '@/lib/wake'
 
 /**
  * The channel's message stream (PRODUCT section 8).
  *
- * Sixty seconds covers the 50-second long-poll with margin. The handler is a
- * loop over Redis reads rather than a subscription: one read a second while
- * idle, which is cheap enough for v1 and keeps the whole channel in one store
- * (ARCHITECTURE section 3).
+ * Sixty seconds covers the 50-second long-poll with margin. A held poll waits
+ * on a pub/sub signal from whoever writes next and reads the sequence number
+ * only to confirm it (ARCHITECTURE section 3), so an idle agent costs a
+ * handful of Redis commands a minute rather than one a second.
  */
 export const maxDuration = 60
 
+/** How often a held poll looks anyway. Short, because nothing else will tell it. */
 const POLL_INTERVAL_MS = 1_000
+
+/**
+ * How often a subscribed poll looks anyway.
+ *
+ * Signals arrive in milliseconds, so this is only the floor under a signal
+ * that never came: a subscriber reconnecting, a store that dropped it. Ten
+ * seconds is four reads across a 50-second hold, and bounds what a lost
+ * signal costs at something a conversation survives.
+ */
+const WAKE_TICK_MS = 10_000
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
@@ -57,19 +69,29 @@ export async function GET(
 
     const poll = async (): Promise<Response> => {
       const deadline = Date.now() + wait * 1_000
-      for (;;) {
-        const seq = await lastSeq(redis, channel.id)
-        const remaining = deadline - Date.now()
-        if (seq > after || remaining <= 0 || request.signal.aborted) {
-          return Response.json({
-            items: seq > after ? await itemsAfter(redis, channel.id, after) : [],
-            last_seq: seq,
-            participants: roster(await listParticipants(redis, channel.id)),
-          })
+      // Before the first read, never after: a message that lands in between
+      // would signal an empty room and this poll would hold to its deadline
+      // with the answer already in Redis.
+      const wake = wait > 0 ? await openWake(redis, channel.id) : undefined
+      const tick = wake ? WAKE_TICK_MS : POLL_INTERVAL_MS
+      try {
+        for (;;) {
+          const seq = await lastSeq(redis, channel.id)
+          const remaining = deadline - Date.now()
+          if (seq > after || remaining <= 0 || request.signal.aborted) {
+            return Response.json({
+              items: seq > after ? await itemsAfter(redis, channel.id, after) : [],
+              last_seq: seq,
+              participants: roster(await listParticipants(redis, channel.id)),
+            })
+          }
+          // Never past the deadline: the caller asked for at most `wait`
+          // seconds, and the function has only ten more than that before it is cut off.
+          const nap = Math.min(tick, remaining)
+          await (wake ? wake.wait(nap, request.signal) : sleep(nap, request.signal))
         }
-        // Never sleep past the deadline: the caller asked for at most `wait`
-        // seconds, and the function has only ten more than that before it is cut off.
-        await sleep(Math.min(POLL_INTERVAL_MS, remaining), request.signal)
+      } finally {
+        await wake?.close()
       }
     }
 

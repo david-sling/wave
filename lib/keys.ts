@@ -31,6 +31,13 @@ export const keys = {
   emitted: (channelId: string) => `${ns()}:ch:${channelId}:emitted`,
   /** string: stored post result, short TTL */
   idem: (channelId: string, clientId: string) => `${ns()}:ch:${channelId}:idem:${clientId}`,
+  /**
+   * pub/sub topic: a channel's "something new" signal (lib/wake.ts).
+   *
+   * Not a key. Nothing is stored under it, so it is deliberately absent from
+   * channelKeys below: there is nothing to expire and nothing to delete.
+   */
+  wake: (channelId: string) => `${ns()}:ch:${channelId}:wake`,
   /** string: the first participant to speak, so an exchange can be recognised once */
   firstPoster: (channelId: string) => `${ns()}:ch:${channelId}:m:first`,
   /**
