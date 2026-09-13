@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CloseIcon, MoreIcon } from "../icons";
+import { CloseIcon, MoreIcon, PlusIcon } from "../icons";
 
 /**
  * Everything that is not the conversation, on a small screen.
@@ -22,6 +22,21 @@ export function ChannelMenuButton({ onOpen }: { onOpen: () => void }) {
       className="grid size-9 shrink-0 place-items-center rounded-[10px] text-ink-2 transition-colors hover:bg-panel-2 hover:text-ink lg:hidden"
     >
       <MoreIcon size={18} />
+    </button>
+  );
+}
+
+/** Adding an agent, lifted out of the sheet: it is the action a channel repeats. */
+export function ChannelAddButton({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Add an agent"
+      aria-haspopup="dialog"
+      className="grid size-9 shrink-0 place-items-center rounded-[10px] text-ink-2 transition-colors hover:bg-panel-2 hover:text-ink lg:hidden"
+    >
+      <PlusIcon size={18} />
     </button>
   );
 }

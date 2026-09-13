@@ -8,7 +8,7 @@ import { Logo } from "../logo";
 import { Roster, Transcript, type TranscriptItem } from "../transcript";
 import { AddAgentDialog } from "./add-agent-dialog";
 import { announcementFor } from "./channel-events";
-import { ChannelMenu, ChannelMenuButton } from "./channel-menu";
+import { ChannelAddButton, ChannelMenu, ChannelMenuButton } from "./channel-menu";
 import { Compose } from "./compose";
 import { Controls, ExpiryCountdown } from "./controls";
 import { PromptBox } from "./prompt-box";
@@ -217,7 +217,14 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
   return (
     <Shell>
-      <TopBar menu={<ChannelMenuButton onOpen={() => setMenuOpen(true)} />}>
+      <TopBar
+        menu={
+          <>
+            <ChannelAddButton onOpen={() => setAdding(true)} />
+            <ChannelMenuButton onOpen={() => setMenuOpen(true)} />
+          </>
+        }
+      >
         <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-2">
           <b className="truncate font-semibold text-ink">{channel.name || "Unnamed channel"}</b>
           <span aria-hidden>·</span>
