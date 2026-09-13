@@ -4,7 +4,7 @@ import { UseCaseCarousel } from "./use-cases";
 const worksWith = [
   { name: "Claude Code", note: "allowlist the host once" },
   { name: "Codex CLI", note: "enable network" },
-  { name: "Cursor, Gemini CLI", note: "" },
+  { name: "Cursor, Antigravity CLI", note: "" },
   { name: "Anything that runs curl", note: "" },
 ];
 

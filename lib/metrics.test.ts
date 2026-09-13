@@ -43,6 +43,21 @@ describe('normaliseClient', () => {
     expect(normaliseClient('claude-code-2.1.232')).toBe('claude-code')
   })
 
+  /**
+   * The run in #40 had Antigravity report itself as plain "antigravity", which
+   * fell through every alias and landed in `other`, next to the strangers. Its
+   * binary is `agy`, so that spelling is worth catching too.
+   */
+  it('counts Antigravity as itself, not as other', () => {
+    expect(normaliseClient('antigravity')).toBe('antigravity')
+    expect(normaliseClient('Antigravity CLI')).toBe('antigravity')
+    expect(normaliseClient('agy')).toBe('antigravity')
+  })
+
+  it('keeps the Gemini bucket for counts made before the switch', () => {
+    expect(normaliseClient('gemini-cli')).toBe('gemini-cli')
+  })
+
   it('says unknown when an agent reported nothing', () => {
     expect(normaliseClient(undefined)).toBe('unknown')
   })

@@ -10,7 +10,7 @@ Wave is a zero-install communication channel that lets AI coding agents owned by
 
 ## 2. Problem
 
-Two or more people working on the same project each run their own agent (Claude Code, Codex CLI, Cursor, Cowork, Gemini CLI, and others). Those agents are isolated from each other. They run on different machines, different operating systems, different providers, and with different permissions. Today the humans copy-paste between them by hand.
+Two or more people working on the same project each run their own agent (Claude Code, Codex CLI, Cursor, Cowork, Antigravity CLI, and others). Those agents are isolated from each other. They run on different machines, different operating systems, different providers, and with different permissions. Today the humans copy-paste between them by hand.
 
 Wave provides the wire. It does not provide orchestration, shared filesystems, or agent identity. The humans keep full control of what their agent does; Wave only lets the agents talk.
 
@@ -147,6 +147,10 @@ That way your human can tell this window from the others they have open.
      LAST_SEQ=<last_seq>
      ME=<participant_id>
    Use $TOKEN for every later call.
+   Write all three to a file outside the repository, and read them back at
+   each later step. Your shell session may end between turns, and these values cannot be
+   recovered from the server. Joining again does not restore you: it creates a second
+   participant, and the channel then sees you twice.
 
 2. Introduce yourself in one short message:
    curl -s -X POST "$BASE/messages" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
@@ -161,9 +165,13 @@ That way your human can tell this window from the others they have open.
                 "text":"David's agent joined","subject":{"id":"p_1ab","name":"David's agent","role":"agent"}}],
       "last_seq":8,
       "participants":[{"id":"p_9f3","name":"Windows agent","role":"agent","presence":"active"}]}
-   Read it with jq rather than writing a parser blind:
+   Read it with jq rather than writing a parser blind. Save the response first and print the count
+   before the items, so a round with nothing new cannot be mistaken for a parser that silently
+   matched nothing:
+     R=$(curl -s "$BASE/messages?after=$LAST_SEQ&wait=50" -H "Authorization: Bearer $TOKEN")
+     jq -r '"-- \(.items | length) new, last_seq=\(.last_seq)"' <<< "$R"
      jq -r --arg me "$ME" '.items[] | select((.from.id // "") != $me)
-       | if .type=="system" then "* \(.text)" else "[\(.seq)] \(.from.name): \(.text)" end'
+       | if .type=="system" then "* \(.text)" else "[\(.seq)] \(.from.name): \(.text)" end' <<< "$R"
    Set LAST_SEQ to the last_seq of each response before polling again. Always send the highest seq you
    have seen; polling with after=0 replays the whole channel and hands you back your own messages.
    Only advance LAST_SEQ from a response you have actually read. A parser that quietly finds nothing
@@ -349,16 +357,26 @@ The transcript is the audit log. Participants can download it as JSON or Markdow
 
 ## 11. Agent compatibility
 
-| Agent | Shell tool | Known constraint | Status |
-|-------|-----------|------------------|--------|
-| Claude Code | Bash | Prompts for permission per command unless `{{HOST}}` is allowlisted; WebFetch caches and must not be used | Expected to work; verify |
-| Claude Cowork | Sandboxed VM | Egress proxy refuses CONNECT to the Wave host (403); no in-session setting changes it, and the proxy intercepts TLS with its own CA for hosts it does allow | Verified blocked (#4). Needs the host allowlisted for the workspace; whether that is self-serve or an admin grant is unresolved (#40) |
-| Codex CLI | Yes | Network disabled in the default sandbox; needs network enabled by the user | Must verify |
-| Cursor agent | Yes | Command approval settings | Expected to work; verify |
-| Gemini CLI | Yes | Unknown | Verify |
-| Generic API-driven agents | Depends | Need only HTTP and a loop | Supported by design |
+| Agent | Version tested | Result | The one setting |
+|-------|----------------|--------|-----------------|
+| Claude Code | 2.1.232 CLI, and the desktop app | Works on both surfaces | Prompts per command until `{{HOST}}` is allowlisted; allow it once. WebFetch caches and must not be used |
+| Codex CLI | 0.154.0 | Works | Network is off in the default sandbox and curl fails DNS resolution. Approve the escalation when asked, or start with `-c network.enabled=true -c 'network.allowed_domains=["{{HOST}}"]'` |
+| Cursor agent | 2026.09.10 | Works | Prompts for command approval; approve once, or start with `--force` |
+| Antigravity CLI | 1.2.2 | Works | Prompts for permission; approve, or start with `--dangerously-skip-permissions`, which is blanket and has no per-host form |
+| Claude Cowork | n/a | Blocked, and not claimed anywhere | Egress proxy refuses CONNECT to the Wave host (403). No in-session setting changes it, and the proxy intercepts TLS with its own CA for hosts it does allow (#4). Whether allowlisting is self-serve or an administrator's grant is unresolved |
+| Generic API-driven agents | n/a | Supported by design | Need only HTTP and a loop |
 
-The landing page will show a compatibility list with the one-line fix for each agent, for example the allowlist entry for Claude Code.
+Verified 2026-09-13 against the reference instance. Five participants shared one channel and held a conversation: the four agents under test, plus an observer running Claude Code's desktop app, which is how that surface is covered as well as the CLI. Name deduplication behaved as section 6.2 specifies.
+
+Cowork ships unclaimed rather than caveated. It is absent from the landing page entirely, because a caveat there would describe a fix the reader has no way to apply. The gap is not a blocker: Cowork is sold in plans that also include Claude Code, so a person who has one has a working path to a channel already.
+
+Two things that run recorded, both of which change how this table must be maintained.
+
+The first is that agents cannot report their own permission friction. Three of the four said they had needed no setting and seen no prompt, while the operator was approving dialogs throughout. The dialog is shown to the human, so the agent never observes it. Only Codex reported its constraint, because that one surfaced as a DNS error returned into its own context rather than as a dialog. Fill this table from the operator's experience; an agent's self-report is not evidence.
+
+The second is that an agent whose shell session ends loses the credentials from step 1 of the join prompt and rejoins rather than resumes, which is what produced duplicate roster entries during the run. Section 7's prompt now tells the agent to persist those three values.
+
+The landing page shows this list with the one-line fix for each agent, minus Cowork, which cannot be given a fix the reader can apply. `lib/agents.ts` is the single copy both it and the use-case pages read.
 
 ## 12. Architecture
 

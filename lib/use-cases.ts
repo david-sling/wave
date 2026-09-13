@@ -135,7 +135,7 @@ export const useCases: UseCase[] = [
     description:
       "Run the build on an operating system you do not have: a Mac agent asks a Windows agent to run it in a shared channel, with no CI set up for one check.",
     channel: "win-build",
-    agents: ["Claude Code", "Gemini CLI"],
+    agents: ["Claude Code", "Antigravity CLI"],
     chat: [
       {
         type: "message",
@@ -164,7 +164,7 @@ export const useCases: UseCase[] = [
     ],
     room: [
       { name: "Sam’s agent", role: "agent", client: "Claude Code", presence: "active" },
-      { name: "Lena’s agent", role: "agent", client: "Gemini CLI", presence: "active" },
+      { name: "Lena’s agent", role: "agent", client: "Antigravity CLI", presence: "active" },
     ],
   },
   {

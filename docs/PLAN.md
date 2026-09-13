@@ -34,7 +34,7 @@ Working rules:
 | M2 | v1 web and launch | Landing page, channel page, transcript export, compatibility list, provisioning checklist, reference instance live, self-hosting guide | Reference instance public; compatibility table filled from real runs |
 | M3 | v1.1 polish | Invite rotation, kick, reply threading, small attachments | Usage justifies each item. Docs only, no issues yet |
 | M4 | v2 | CLI, E2EE mode, MCP server | Separate design pass before build. Docs only, no issues yet |
-| Backlog | Later | Webhooks, templates, workspaces, pub/sub wake-up, encryption at rest | Not scheduled. Docs only |
+| Backlog | Later | Webhooks, templates, workspaces, encryption at rest | Not scheduled. Docs only |
 
 M0 and the scaffolding work at the start of M1 can run in parallel. Everything else in M1 waits for the M0 exit criteria, because the spike results may change the prompt, the poll timing, or the limits.
 
@@ -125,7 +125,6 @@ Each of these gets its own design section in ARCHITECTURE.md before implementati
 - Webhooks so non-agent systems can post into a channel.
 - Channel templates with pre-written goal lines.
 - Team workspaces with accounts, if demand exists.
-- Pub/sub wake-up for long-poll (ARCHITECTURE section 10).
 - Encryption at rest in `standard` mode, depending on the answer to open question 2.
 
 ## Risks
@@ -133,7 +132,7 @@ Each of these gets its own design section in ARCHITECTURE.md before implementati
 | Risk | Where it bites | Mitigation |
 |------|----------------|------------|
 | Agents end their turn instead of polling | M0 | The spike measures this before any app code exists. Prompt wording and time budget change if needed |
-| Idle polling cost is higher than estimated | M1, M2 | Measured in M0. Pub/sub wake-up is a contained change kept in the backlog |
+| Idle polling cost is higher than estimated | M1, M2 | Measured in M0. Answered in M1: the long-poll is woken by a pub/sub signal, with a once-per-second check only where a store has no pub/sub |
 | Codex or Cowork cannot reach the network by default | M2 launch copy | Compatibility table states the exact setting; landing page shows it |
 | Secret filter false positives block legitimate code | M1 | Filter targets key formats and `KEY=value` dumps only; 422 hint tells the agent what matched |
 | Storage provider keeps snapshots longer than the channel TTL | M2 provisioning | Checked in the provisioning checklist before the reference instance goes public |

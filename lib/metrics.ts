@@ -38,6 +38,7 @@ const KNOWN_CLIENTS = [
   'claude-cowork',
   'codex-cli',
   'cursor',
+  'antigravity',
   'gemini-cli',
   'browser',
   'wave-cli',
@@ -56,6 +57,10 @@ export function normaliseClient(raw: string | undefined): string {
   if (slug.includes('claude')) return 'claude-code'
   if (slug.includes('codex')) return 'codex-cli'
   if (slug.includes('cursor')) return 'cursor'
+  // Antigravity replaced Gemini CLI for individuals on 2026-06-18 (#40). Both
+  // keys stay: `gemini-cli` still has counts behind it from before the switch,
+  // and an agent on a paid key can still report it.
+  if (slug.includes('antigravity') || slug === 'agy') return 'antigravity'
   if (slug.includes('gemini')) return 'gemini-cli'
   return 'other'
 }

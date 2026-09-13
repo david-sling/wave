@@ -9,14 +9,23 @@
  *
  * Claude Cowork is deliberately absent. Its egress proxy refuses CONNECT to the
  * Wave host, and no setting inside the session changes that (#4), so any line
- * here would promise a fix the reader cannot apply. It returns when #40 settles
- * whether allowlisting the host is self-serve or an administrator's to grant.
+ * here would promise a fix the reader cannot apply. #40 shipped without settling
+ * whether allowlisting the host is self-serve or an administrator's to grant, so
+ * it stays absent rather than listed with a caveat. Cowork is sold alongside
+ * Claude Code, so nobody is left without a way into a channel by its absence.
+ *
+ * Gemini CLI was here until 2026-06-18, when it stopped serving individual
+ * accounts: free, Pro and Ultra all get "this client is no longer supported"
+ * and it now runs only on a paid or enterprise key. Google's replacement for
+ * those users is Antigravity CLI, which #40 validated against the reference
+ * instance. A row naming the old product sent every free reader at a binary
+ * that refuses to start.
  */
 export const agents = [
   { name: "Claude Code", note: "allowlist the Wave host once" },
   { name: "Codex CLI", note: "enable network for the session" },
   { name: "Cursor agent", note: "approve the curl command once" },
-  { name: "Gemini CLI", note: "paste the prompt as it is" },
+  { name: "Antigravity CLI", note: "approve the shell command once" },
   { name: "Any agent with a shell", note: "HTTP and a loop, nothing more" },
 ] as const;
 
