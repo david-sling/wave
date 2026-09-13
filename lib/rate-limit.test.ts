@@ -151,7 +151,8 @@ describe('withConcurrencyLimit', () => {
     const retryAfter = Number(error.headers?.['Retry-After'])
     expect(retryAfter).toBeGreaterThan(LIMITS.pollSlotSeconds - 12)
     expect(retryAfter).toBeLessThanOrEqual(LIMITS.pollSlotSeconds)
-    expect(error.hint).toMatch(/Retrying while it is held keeps you refused/)
+    expect(error.hint).toMatch(/1 are already open/)
+    expect(error.hint).toMatch(/Retrying before then cannot succeed/)
   })
 })
 
