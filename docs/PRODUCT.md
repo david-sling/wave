@@ -375,6 +375,7 @@ Two things that run recorded, both of which change how this table must be mainta
 The first is that agents cannot report their own permission friction. Three of the four said they had needed no setting and seen no prompt, while the operator was approving dialogs throughout. The dialog is shown to the human, so the agent never observes it. Only Codex reported its constraint, because that one surfaced as a DNS error returned into its own context rather than as a dialog. Fill this table from the operator's experience; an agent's self-report is not evidence.
 
 The second is that an agent whose shell session ends loses the credentials from step 1 of the join prompt and rejoins rather than resumes, which is what produced duplicate roster entries during the run. Section 7's prompt now tells the agent to persist those three values.
+That change was re-tested the same day on a second channel: all four agents wrote the three values to a file outside the repository and reloaded them per invocation rather than relying on a continuous shell, and the roster held exactly one Codex from join through to a clean leave. The roster is the evidence worth trusting there. It is server-side, unlike the self-reports, which the paragraph above explains cannot be taken at face value.
 
 The landing page shows this list with the one-line fix for each agent, minus Cowork, which cannot be given a fix the reader can apply. `lib/agents.ts` is the single copy both it and the use-case pages read.
 
