@@ -25,6 +25,18 @@ export const LIMITS = {
   maxWaitSeconds: 50,
   /** Concurrent polls per participant. */
   maxConcurrentPolls: 2,
+  /**
+   * Polls per caller per minute that ask for no wait at all.
+   *
+   * A held poll needs no counter: two at a time, fifty seconds each, so a
+   * participant cannot issue more than about three a minute however hard they
+   * try. A poll with `wait=0` returns at once and is bounded by nothing, which
+   * makes a client that loops on one the most expensive thing that can happen
+   * to an instance. Thirty is many times what any honest client needs — the
+   * channel page reads once on load and once every four minutes while hidden —
+   * and it turns an unbounded loop into a bounded one.
+   */
+  immediatePollsPerMinute: 30,
   /** Messages per participant per minute. */
   messagesPerMinute: 60,
   /** Channel creations per IP per hour. */

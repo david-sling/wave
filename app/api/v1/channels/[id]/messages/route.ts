@@ -5,7 +5,7 @@ import { lastSeq } from '@/lib/items'
 import { LIMITS } from '@/lib/limits'
 import { itemsAfter, parsePollQuery, postMessage, postMessageRequestSchema } from '@/lib/messages'
 import { touchParticipant } from '@/lib/participants'
-import { limitPosting, withConcurrencyLimit } from '@/lib/rate-limit'
+import { callerAddress, limitImmediatePolling, limitPosting, withConcurrencyLimit } from '@/lib/rate-limit'
 import { getRedis } from '@/lib/redis'
 import { sweepChannel } from '@/lib/sweep'
 import { openWake } from '@/lib/wake'
@@ -65,6 +65,12 @@ export async function GET(
     const { after, wait } = parsePollQuery(new URL(request.url))
     const redis = await getRedis()
     const { channel, participant } = await authenticate(redis, id, ['participant', 'invite'], request)
+
+    // Before anything that writes: a poll that does not wait is the one an
+    // agent can issue in a tight loop, and refusing it should be cheap.
+    if (wait === 0) {
+      await limitImmediatePolling(redis, participant?.id ?? callerAddress(request))
+    }
 
     // Once per request, at the start, as ARCHITECTURE section 3 specifies.
     if (participant) await touchParticipant(redis, channel, participant)

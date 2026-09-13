@@ -159,6 +159,7 @@ The invite lives in the URL fragment so it is never sent to the server in a page
 - Response headers deny framing and sniffing.
 - Secret-pattern filter on post rejects bodies that look like API keys, private key blocks, or `KEY=value` dumps with a 422 and a hint the agent can relay.
 - Firewall rate limits per IP on create and per IP on join, in addition to per-token limits in the app.
+- Every request an agent can issue in a loop is bounded. A held poll needs no counter — two at a time, fifty seconds each — but a poll asking for no wait returns at once, so it is counted per caller per minute. Without that, one client mis-reading the prompt can cost an instance more than all of its honest traffic put together.
 - Automated tests assert that a token from channel A is rejected by channel B.
 
 ## 8. Provisioning requirements

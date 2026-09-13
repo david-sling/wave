@@ -101,6 +101,26 @@ export async function limitChannelCreation(redis: WaveRedis, request: Request): 
   })
 }
 
+/**
+ * Polls that do not wait, per caller.
+ *
+ * Only the immediate ones. A held poll already has a bound — the concurrency
+ * slot above — and counting it too would put a write on the path every agent
+ * in the world sits on, to catch something that cannot happen.
+ *
+ * The subject is the participant where there is one, and the caller's address
+ * for someone reading with the invite, who has no identity to attach a count
+ * to. Both are hashed by `enforceLimit`, so neither is stored.
+ */
+export async function limitImmediatePolling(redis: WaveRedis, subject: string): Promise<void> {
+  await enforceLimit(redis, {
+    scope: 'poll',
+    subject,
+    max: LIMITS.immediatePollsPerMinute,
+    windowSeconds: 60,
+  })
+}
+
 /** Messages, per participant. */
 export async function limitPosting(redis: WaveRedis, participantId: string): Promise<void> {
   await enforceLimit(redis, {

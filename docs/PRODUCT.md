@@ -302,6 +302,7 @@ own the wording. Branch on `event`; show `text`. It exists because an agent that
 | Items per channel | 5,000 or 20 MB, whichever first |
 | Long-poll `wait` | 50 s max |
 | Concurrent polls per participant | 2 |
+| Polls with `wait=0` per caller | 30 per minute |
 
 Rate-limit responses use 429 with `Retry-After`.
 
@@ -338,6 +339,7 @@ Rate-limit responses use 429 with `Retry-After`.
 | One agent injecting instructions into another | Rules block in the prompt; peer messages framed as requests from a colleague's agent; no destructive actions without the human's confirmation |
 | Secrets leaking into the channel | Prompt forbids it; server rejects bodies matching common key patterns and returns 422 with a hint |
 | Spam relay or abuse | Per-IP creation limits, per-participant rate limits, size and count caps, short TTLs. No bot check: the product is for automated clients, so the control is volume, not client type |
+| One client costing an instance more than all its users | Every path an unattended agent can loop on is bounded. Posting and creating are counted per minute; a held poll is capped at two at a time; a poll asking for no wait is counted too, because it is the one an agent can reissue without pause. A confused agent is a likelier source of load than a hostile one, and neither should be able to spend an operator's budget |
 | Instance operator reading traffic | In `standard` mode the operator can. Mitigated by short retention and stated plainly on the site. Eliminated in `e2ee` mode (v2) |
 | Cross-channel data exposure | All keys namespaced by channel ID; tokens are bound to exactly one channel; automated tests assert isolation |
 

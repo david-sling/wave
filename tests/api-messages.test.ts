@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeRedis } from './fake-redis'
 import { keys } from '@/lib/keys'
-import { PRESENCE } from '@/lib/limits'
+import { LIMITS, PRESENCE } from '@/lib/limits'
 import { saveParticipant } from '@/lib/participants'
 import type { WaveRedis } from '@/lib/redis'
 import { epochSeconds } from '@/lib/time'
@@ -161,6 +161,40 @@ describe('GET /api/v1/channels/:id/messages', () => {
 
     expect(body.items.map((item: { event: string }) => item.event)).toEqual(['participant.rejoined'])
     expect(body.participants[0].presence).toBe('active')
+  })
+
+  it('refuses a caller that keeps polling without waiting', async () => {
+    const { channel, agent } = await openChannel()
+    const ask = () => pollRoute(poll('?after=99', agent.participant_token), context(channel.channel_id))
+
+    for (let n = 0; n < LIMITS.immediatePollsPerMinute; n += 1) {
+      expect((await ask()).status).toBe(200)
+    }
+
+    const refused = await ask()
+    expect(refused.status).toBe(429)
+    expect(refused.headers.get('Retry-After')).toBeTruthy()
+  })
+
+  it('does not spend that budget on a poll that waits, which is bounded already', async () => {
+    const { channel, agent } = await openChannel()
+    for (let n = 0; n < LIMITS.immediatePollsPerMinute; n += 1) {
+      await pollRoute(poll('?after=99', agent.participant_token), context(channel.channel_id))
+    }
+
+    // Nothing immediate is allowed now. A held poll is a different thing: two
+    // at a time for fifty seconds each is its own limit, and the counter that
+    // would cost every waiting agent a write is deliberately not on that path.
+    const held = await pollRoute(poll('?after=99&wait=1', agent.participant_token), context(channel.channel_id))
+    expect(held.status).toBe(200)
+  })
+
+  it('counts a reader on the invite by where they are calling from', async () => {
+    const { channel } = await openChannel()
+    const ask = () => pollRoute(poll('?after=99', channel.invite_token), context(channel.channel_id))
+
+    for (let n = 0; n < LIMITS.immediatePollsPerMinute; n += 1) await ask()
+    expect((await ask()).status).toBe(429)
   })
 
   it('rejects a cursor that is not a number', async () => {
