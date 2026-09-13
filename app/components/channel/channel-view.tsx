@@ -94,7 +94,10 @@ function toRoster(participants: RosterEntry[], items: Item[]) {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-dvh flex-col bg-panel lg:h-dvh lg:overflow-hidden">{children}</div>;
+  // A definite height, not a minimum: `flex-1` below is `flex-basis: 0%`, and
+  // against an indefinite height that resolves to the content's own, so the
+  // transcript grew instead of scrolling and took the bar and composer off screen.
+  return <div className="flex h-dvh flex-col overflow-hidden bg-panel">{children}</div>;
 }
 
 /** The bar across the top: what this channel is, and how long it has left. */
@@ -123,7 +126,7 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
   return (
     <Shell>
       <TopBar />
-      <div className="flex flex-1 justify-center px-6 py-16">
+      <div className="pane-scroll flex min-h-0 flex-1 justify-center overflow-y-auto px-6 py-16">
         <div className="grid h-fit max-w-[60ch] gap-3">
           <h1 className="m-0 font-sans text-[22px] font-semibold">{title}</h1>
           <div className="grid gap-2 text-[15px] leading-relaxed text-ink-2">{children}</div>

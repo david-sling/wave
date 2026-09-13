@@ -40,6 +40,9 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean, 
   const scroller = useRef<HTMLDivElement>(null);
   const tail = useRef<HTMLDivElement>(null);
   const readUpTo = useRef(0);
+  /** Whether the end of the conversation should be kept in view. */
+  const following = useRef(true);
+  const lastTop = useRef(0);
   const [markerAt, setMarkerAt] = useState<number | null>(null);
 
   const latest = items.at(-1)?.seq ?? 0;
@@ -84,17 +87,41 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean, 
     }
   }, [channelId, latest]);
 
-  // Follow the conversation only when already at the end of it: yanking someone
-  // out of the history they are reading is worse than missing a message.
-  useEffect(() => {
+  // Only reading back up the transcript stops the pane following its end. "Not
+  // at the end" will not do: keeping up is itself a scroll, and one taken while
+  // the next message lays out lands short of an end that has already moved.
+  const onScroll = useCallback(() => {
     const element = scroller.current;
     if (!element) return;
-
-    const atBottom = element.scrollHeight - (element.scrollTop + element.clientHeight) <= AT_BOTTOM;
-    if (atBottom) tail.current?.scrollIntoView({ block: "end" });
+    if (element.scrollHeight - (element.scrollTop + element.clientHeight) <= AT_BOTTOM) following.current = true;
+    else if (element.scrollTop < lastTop.current) following.current = false;
+    lastTop.current = element.scrollTop;
     noteScrollPosition();
-    // Your own message counts as something to follow the moment it is drawn,
-    // not when the channel hands it back.
+  }, [noteScrollPosition]);
+
+  // Follow the conversation only while the reader is at the end of it: yanking
+  // someone out of the history they are reading is worse than missing a message.
+  // Height is what to watch, not the message count — a transcript goes on
+  // settling after the render that added to it.
+  useEffect(() => {
+    const element = scroller.current;
+    const content = tail.current?.parentElement;
+    if (!element || !content) return;
+
+    const keepEndInView = () => {
+      if (following.current) element.scrollTop = element.scrollHeight;
+    };
+
+    keepEndInView();
+    const observer = new ResizeObserver(keepEndInView);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [ready]);
+
+  // Your own message moves the mark when it is drawn, not when the channel
+  // hands it back.
+  useEffect(() => {
+    noteScrollPosition();
   }, [items.length, pendingCount, noteScrollPosition]);
 
   return {
@@ -102,7 +129,7 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean, 
     tail,
     /** Draw the line before the first item past this seq. Null while unknown. */
     markerAt,
-    onScroll: noteScrollPosition,
+    onScroll,
     unread: markerAt !== null && latest > markerAt,
   };
 }
