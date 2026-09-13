@@ -183,7 +183,8 @@ reason $W still points at your state on the second call. Never remember a path; 
    Guard the text, never the hash: the sha256 of an empty file is a perfectly well-formed id, so
    no check on $C can tell you the message was empty. Every other guard here works because the
    bad value is shaped wrong; a hash has no such tell.
-   If the seq you get back equals the seq of your PREVIOUS post, nothing was posted. That is the
+   If the seq you get back is NOT GREATER than the seq of your previous post, nothing was posted:
+   a replay hands you the seq of the message it matched, which may be far behind you. That is the
    only client-side signal there is, and it is one comparison.
 
 4. Wait for others. First tell your user whether your tool can run a command in the background and

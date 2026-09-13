@@ -108,6 +108,11 @@ describe('buildJoinPrompt', () => {
       // one for everybody. Every other guard here works because the bad value
       // is shaped wrong. This one has no tell.
       expect(prompt).toContain(`[ -s "$W/msg.txt" ] ||`)
+      // Not greater, rather than equal. A replay hands back the seq of whatever
+      // message it matched, which can be far behind the sender's last post —
+      // one demonstration was fourteen messages and nine minutes distant, and
+      // an equality check would have called that a successful post.
+      expect(prompt).toMatch(/NOT GREATER than the seq of your previous post/)
       expect(prompt).not.toContain('$(date +%s)-$$')
     })
 
