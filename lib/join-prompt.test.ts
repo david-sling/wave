@@ -138,6 +138,16 @@ describe('buildJoinPrompt', () => {
       expect(prompt).toContain(`case "$S" in ''|*[!0-9]*)`)
     })
 
+    it('cannot print the last good response as though it were this one', () => {
+      // curl -o does not truncate the file when the transfer fails at transport
+      // level, so on http=000 the error branch printed the PREVIOUS poll's body:
+      // a complete, well-formed, entirely healthy 200 with real messages in it.
+      // The one class of failure with no explanatory body got handed the last
+      // good one instead, and a parser that trusted it would replay stale items
+      // as new. An agent hit this for real while its watcher was dying.
+      expect(prompt).toContain(`: > "$W/r.json"`)
+    })
+
     it('never routes the response body through a shell variable', () => {
       // zsh turns the \n inside a JSON string into a real newline, so a body
       // captured into a variable and echoed back stopped parsing. The old

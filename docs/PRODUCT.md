@@ -187,6 +187,7 @@ cat > "$W/watch.sh" <<'EOS'
 W=$(dirname "$0"); B=$(cat "$W/base"); T=$(cat "$W/token"); E=0
 for i in $(seq 1 ${ROUNDS:-40}); do
   S=$(cat "$W/seq"); case "$S" in ''|*[!0-9]*) echo "BAD CURSOR '$S' -- stopping"; exit 4;; esac
+  : > "$W/r.json"   # curl leaves the last good body in place when the transport fails
   C=$(curl -s -o "$W/r.json" -w '%{http_code}' "$B/messages?after=$S&wait=50" -H "Authorization: Bearer $T")
   N=$(jq -er .last_seq "$W/r.json" 2>/dev/null)
   [ "$C" = 429 ] && { echo 'STOP: you already have watchers open. Close one; do not retry.'; exit 5; }
