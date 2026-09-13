@@ -17,7 +17,16 @@ export type SecretMatch = {
   label: string
 }
 
-type Rule = { label: string; pattern: RegExp }
+/**
+ * `structural` rules match formats that do not occur by accident: an issuer's
+ * prefix and a fixed-width random tail. The placeholder word list is not
+ * applied to them, because it was being tested against the matched credential
+ * itself — so AWS's own documentation key, AKIAIOSFODNN7EXAMPLE, passed, and so
+ * would a real key whose random tail happened to contain TEST or SAMPLE. Over
+ * enough keys that is not hypothetical. Refusing a documentation example is the
+ * cheaper mistake.
+ */
+type Rule = { label: string; pattern: RegExp; structural?: true }
 
 /**
  * Values that look like credentials but are placeholders. Checked before a
@@ -27,16 +36,16 @@ const PLACEHOLDER = /^(?:x+|\*+|\.+|-+|_+|<[^>]*>|\$\{?[A-Za-z_][A-Za-z0-9_]*\}?
 const PLACEHOLDER_WORDS = /(?:your|example|placeholder|redacted|changeme|dummy|sample|insert|replace|todo|fake|test)/i
 
 const RULES: Rule[] = [
-  { label: 'a private key block', pattern: /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/ },
-  { label: 'an AWS access key ID', pattern: /\b(?:AKIA|ASIA|AIDA|AROA|AIPA|ANPA|ANVA|ABIA|AGPA)[A-Z0-9]{16}\b/ },
-  { label: 'a GitHub token', pattern: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b/ },
-  { label: 'an Anthropic API key', pattern: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/ },
-  { label: 'an OpenAI API key', pattern: /\bsk-(?:proj-)?[A-Za-z0-9]{32,}\b/ },
-  { label: 'a Slack token', pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/ },
-  { label: 'a Stripe live key', pattern: /\b[rs]k_live_[A-Za-z0-9]{16,}\b/ },
-  { label: 'a Google API key', pattern: /\bAIza[A-Za-z0-9_-]{35}\b/ },
-  { label: 'an npm token', pattern: /\bnpm_[A-Za-z0-9]{36}\b/ },
-  { label: 'a JSON web token', pattern: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/ },
+  { label: 'a private key block', pattern: /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/, structural: true },
+  { label: 'an AWS access key ID', pattern: /\b(?:AKIA|ASIA|AIDA|AROA|AIPA|ANPA|ANVA|ABIA|AGPA)[A-Z0-9]{16}\b/, structural: true },
+  { label: 'a GitHub token', pattern: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b/, structural: true },
+  { label: 'an Anthropic API key', pattern: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/, structural: true },
+  { label: 'an OpenAI API key', pattern: /\bsk-(?:proj-)?[A-Za-z0-9]{32,}\b/, structural: true },
+  { label: 'a Slack token', pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/, structural: true },
+  { label: 'a Stripe live key', pattern: /\b[rs]k_live_[A-Za-z0-9]{16,}\b/, structural: true },
+  { label: 'a Google API key', pattern: /\bAIza[A-Za-z0-9_-]{35}\b/, structural: true },
+  { label: 'an npm token', pattern: /\bnpm_[A-Za-z0-9]{36}\b/, structural: true },
+  { label: 'a JSON web token', pattern: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/, structural: true },
 ]
 
 /** Environment-variable names whose value is a credential by definition. */
@@ -110,7 +119,8 @@ function isPlaceholder(value: string): boolean {
 export function findSecret(text: string): SecretMatch | undefined {
   for (const rule of RULES) {
     const match = rule.pattern.exec(text)
-    if (match && !isPlaceholder(match[0])) return { label: rule.label }
+    if (!match) continue
+    if (rule.structural || !isPlaceholder(match[0])) return { label: rule.label }
   }
 
   for (const match of text.matchAll(ASSIGNMENT)) {
