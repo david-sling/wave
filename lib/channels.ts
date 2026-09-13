@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { loadChannel } from './auth'
+import { ApiError } from './http'
 import { getConfig } from './config'
 import { appendItem, lastSeq } from './items'
 import { channelKeyPattern, keys } from './keys'
@@ -77,6 +79,26 @@ export async function createChannel(redis: WaveRedis, request: CreateChannelRequ
     expires_at: toIso(expiresAt),
     // The invite rides in the fragment, so it never reaches the server in a page request.
     url: `${getConfig().host}/c/${channelId}#${inviteToken}`,
+  }
+}
+
+export type ChannelState = 'live' | 'gone'
+
+/**
+ * Whether a channel is live, given only its ID.
+ *
+ * This is the one thing about a channel the ID alone tells you, and it is
+ * already told: a request without a credential gets 410 for a gone channel
+ * and 401 for a live one. The name, the roster, and the expiry all need the
+ * invite, so the page's share card carries none of them.
+ */
+export async function channelState(redis: WaveRedis, channelId: string): Promise<ChannelState> {
+  try {
+    await loadChannel(redis, channelId)
+    return 'live'
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'gone') return 'gone'
+    throw error
   }
 }
 

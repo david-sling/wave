@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fakeRedis } from '../tests/fake-redis'
 import {
+  channelState,
   channelView,
   closeChannel,
   createChannel,
@@ -179,5 +180,33 @@ describe('closeChannel', () => {
     const deleted = await purgeChannelKeys(redis, created.channel_id)
     expect(deleted).toBeGreaterThanOrEqual(4)
     expect(fake.keys().some((key: string) => key.includes(created.channel_id))).toBe(false)
+  })
+})
+
+describe('channelState', () => {
+  it('is live for a channel that exists, without any credential', async () => {
+    const { redis } = fakeRedis()
+    const created = await createChannel(redis, { ttl: '1h', name: 'Release 4.2', mode: 'standard' })
+    expect(await channelState(redis, created.channel_id)).toBe('live')
+  })
+
+  it('is gone for a channel that was closed', async () => {
+    const { redis } = fakeRedis()
+    const created = await createChannel(redis, { ttl: '1h', mode: 'standard' })
+    await closeChannel(redis, await storedChannel(redis, created.channel_id))
+    expect(await channelState(redis, created.channel_id)).toBe('gone')
+  })
+
+  it('is gone for a channel past its expiry, before the sweep reaches it', async () => {
+    const { redis } = fakeRedis()
+    const created = await createChannel(redis, { ttl: '1h', mode: 'standard' })
+    await redis.hSet(keys.channel(created.channel_id), { expires_at: String(epochSeconds() - 1) })
+    expect(await channelState(redis, created.channel_id)).toBe('gone')
+  })
+
+  it('is gone for an ID that was never issued, malformed or not', async () => {
+    const { redis } = fakeRedis()
+    expect(await channelState(redis, 'A'.repeat(22))).toBe('gone')
+    expect(await channelState(redis, 'not-a-channel')).toBe('gone')
   })
 })

@@ -24,7 +24,8 @@ const skyInk = "#1f4b8f";
 const peachSoft = "#ffede6";
 const peachInk = "#8f3b1f";
 const panelBorder = "rgba(21,22,26,0.06)";
-const shadowSoft = "0 1px 2px rgba(21,22,26,0.05), 0 8px 24px -12px rgba(21,22,26,0.16)";
+const shadowSoft =
+  "0 1px 2px rgba(21,22,26,0.05), 0 8px 24px -12px rgba(21,22,26,0.16)";
 
 export const ogSize = { width: 1200, height: 630 };
 export const ogContentType = "image/png";
@@ -73,7 +74,8 @@ const DISPLAY_ADVANCE = 0.52;
 function headingLines(heading: { regular: string; bold: string }) {
   const perLine = SAFE_WIDTH / (HEADING_SIZE * DISPLAY_ADVANCE);
   return (
-    Math.ceil(heading.regular.length / perLine) + Math.ceil(heading.bold.length / perLine)
+    Math.ceil(heading.regular.length / perLine) +
+    Math.ceil(heading.bold.length / perLine)
   );
 }
 
@@ -92,16 +94,33 @@ const fontFiles = [
  * `next/font` hands the browser WOFF2, which Satori cannot read, so these are
  * committed under `assets/fonts` and read from disk at build time.
  */
-export async function ogFonts() {
-  return Promise.all(
+export function ogFonts(): Promise<OgFont[]> {
+  // Read once per process. The marketing cards are drawn at build, where this
+  // saves nothing; the channel card is drawn on request, where it saves six
+  // file reads per unfurl.
+  fonts ??= Promise.all(
     fontFiles.map(async ({ file, name, weight }) => ({
       name,
-      weight: weight as 400 | 600 | 700 | 800,
+      weight,
       style: "normal" as const,
       data: await readFile(join(process.cwd(), "assets/fonts", file)),
     })),
-  );
+  ).catch((error: unknown) => {
+    // A failed read must not poison every later card.
+    fonts = undefined;
+    throw error;
+  });
+  return fonts;
 }
+
+type OgFont = {
+  name: string;
+  weight: (typeof fontFiles)[number]["weight"];
+  style: "normal";
+  data: Buffer;
+};
+
+let fonts: Promise<OgFont[]> | undefined;
 
 /** The wordmark's mark, inlined: Satori fetches nothing. */
 export async function ogMark() {
@@ -142,7 +161,12 @@ function RoleBadge({ role }: { role: "agent" | "human" }) {
  * and the spaces that touch a chip are re-spent as margin so the chip sits
  * tight against the punctuation after it, the way the page sets it.
  */
-type Token = { code: boolean; text: string; padLeft: boolean; padRight: boolean };
+type Token = {
+  code: boolean;
+  text: string;
+  padLeft: boolean;
+  padRight: boolean;
+};
 
 function tokenize(text: string): Token[] {
   const parts = text.split("`");
@@ -159,9 +183,17 @@ function tokenize(text: string): Token[] {
       return;
     }
     // The spaces either side of a chip became its margin; drop them here.
-    const trimmed = part.replace(i === 0 ? /$^/ : /^ /, "").replace(i === parts.length - 1 ? /$^/ : / $/, "");
+    const trimmed = part
+      .replace(i === 0 ? /$^/ : /^ /, "")
+      .replace(i === parts.length - 1 ? /$^/ : / $/, "");
     for (const word of trimmed.split(/(?<= )/)) {
-      if (word !== "") tokens.push({ code: false, text: word, padLeft: false, padRight: false });
+      if (word !== "")
+        tokens.push({
+          code: false,
+          text: word,
+          padLeft: false,
+          padRight: false,
+        });
     }
   });
 
@@ -239,7 +271,14 @@ function Message({
         {item.from.name.charAt(0).toUpperCase()}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 19 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            fontSize: 19,
+          }}
+        >
           <span style={{ fontWeight: 600, color: ink }}>{item.from.name}</span>
           <RoleBadge role={item.from.role} />
           <span style={{ color: ink3, fontSize: 17 }}>{item.time}</span>
@@ -258,19 +297,20 @@ export type OgCardProps = {
   room: Participant[];
 };
 
-export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
-  const colorFor = identityPalette(room);
-  // Three is what fits, and three is the whole loop: one agent asks, the other
-  // answers, the human overrules them. Two would only show a room.
-  // A heading that wrapped to three lines has taken a message's worth of the
-  // panel with it, so the room shows one fewer rather than clipping the last.
-  const shown = chat
-    .filter((item) => item.type === "message")
-    .slice(0, headingLines(heading) > 2 ? 2 : 3);
-  const clients = room
-    .filter((participant) => participant.role === "agent")
-    .map((participant) => participant.client);
-
+/**
+ * The frame every card shares: ground, wordmark, the paired headline, and a
+ * white panel pinned to the bottom margin. What goes in the panel is the
+ * card's own business.
+ */
+function OgFrame({
+  mark,
+  heading,
+  children,
+}: {
+  mark: string;
+  heading: { regular: string; bold: string };
+  children: React.ReactNode;
+}) {
   return (
     <div
       style={{
@@ -327,9 +367,9 @@ export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
         </div>
 
         {/*
-          The room. `flexGrow` pins its foot to the bottom margin whatever the
-          headline wrapped to, and `overflow` means a long one shortens the
-          transcript rather than pushing it off the card.
+          The panel. `flexGrow` pins its foot to the bottom margin whatever the
+          headline wrapped to, and `overflow` means a long one shortens what is
+          in it rather than pushing it off the card.
         */}
         <div
           style={{
@@ -347,18 +387,120 @@ export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
             boxShadow: shadowSoft,
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 19, color: ink2 }}>
-            <span>
-              <span style={{ fontWeight: 600, color: ink }}>{channel}</span>
-              {"\u00A0· standard · example"}
-            </span>
-            <span style={{ color: ink3 }}>{clients.join(" · ")}</span>
-          </div>
-          {shown.map((item, i) => (
-            <Message key={i} item={item} color={colorFor(item.from.name, item.from.role)} />
-          ))}
+          {children}
         </div>
       </div>
     </div>
+  );
+}
+
+export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
+  const colorFor = identityPalette(room);
+  // Three is what fits, and three is the whole loop: one agent asks, the other
+  // answers, the human overrules them. Two would only show a room.
+  // A heading that wrapped to three lines has taken a message's worth of the
+  // panel with it, so the room shows one fewer rather than clipping the last.
+  const shown = chat
+    .filter((item) => item.type === "message")
+    .slice(0, headingLines(heading) > 2 ? 2 : 3);
+  const clients = room
+    .filter((participant) => participant.role === "agent")
+    .map((participant) => participant.client);
+
+  return (
+    <OgFrame mark={mark} heading={heading}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 19,
+          color: ink2,
+        }}
+      >
+        <span>
+          <span style={{ fontWeight: 600, color: ink }}>{channel}</span>
+          {"\u00A0· standard · example"}
+        </span>
+        <span style={{ color: ink3 }}>{clients.join(" · ")}</span>
+      </div>
+      {shown.map((item, i) => (
+        <Message
+          key={i}
+          item={item}
+          color={colorFor(item.from.name, item.from.role)}
+        />
+      ))}
+    </OgFrame>
+  );
+}
+
+export type OgNoticeCardProps = {
+  mark: string;
+  heading: { regular: string; bold: string };
+  lines: string[];
+};
+
+/**
+ * The card for a page with no room to show: a channel link, fetched by a link
+ * expander that holds no invite (lib/channel-card.ts).
+ *
+ * The panel keeps the transcript's rows, tile then text, so the card is
+ * recognisably the same object as the others in a feed. The tiles carry
+ * numbers in the neutral tone rather than initials in a role's colour, since
+ * these are steps, not speakers, and sky and peach mean agent and human.
+ */
+export function OgNoticeCard({ mark, heading, lines }: OgNoticeCardProps) {
+  return (
+    <OgFrame mark={mark} heading={heading}>
+      {/*
+        Three lines do not fill a panel drawn for three messages, so they are
+        spread through its height rather than stacked at the top of a blank.
+      */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flexGrow: 1,
+          justifyContent: "space-around",
+        }}
+      >
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            style={{ display: "flex", alignItems: "center", gap: TILE_GAP }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: TILE,
+                height: TILE,
+                flexShrink: 0,
+                borderRadius: 10,
+                backgroundColor: panel2,
+                border: `1px solid ${line2}`,
+                color: ink2,
+                fontSize: 17,
+                fontWeight: 600,
+              }}
+            >
+              {i + 1}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                width: BODY_WIDTH,
+                fontSize: 21,
+                lineHeight: 1.4,
+                color: ink,
+              }}
+            >
+              {line}
+            </div>
+          </div>
+        ))}
+      </div>
+    </OgFrame>
   );
 }
