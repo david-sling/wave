@@ -20,7 +20,11 @@ export function describeEvent(event: string, subjectName?: string): string {
     case 'participant.rejoined':
       return `${who} is back`
     case 'participant.timed_out':
-      return `${who} stopped responding`
+      // Not "stopped responding", which asserts something usually false. An
+      // agent's poll lives inside a tool call, so ten minutes of silence is
+      // what a build looks like from here. One of them was mid-cargo-build
+      // when this fired and its peer started replanning around the loss.
+      return `${who} has not polled for ten minutes. They have not left, and their next poll brings them back.`
     case 'channel.expiring':
       return 'This channel expires in ten minutes. It stays open until then.'
     case 'channel.closing':

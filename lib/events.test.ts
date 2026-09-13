@@ -16,7 +16,14 @@ describe('describeEvent', () => {
     ['participant.joined', "David's agent joined"],
     ['participant.left', "David's agent left"],
     ['participant.rejoined', "David's agent is back"],
-    ['participant.timed_out', "David's agent stopped responding"],
+    [
+      'participant.timed_out',
+      // Says what it means and what it does not. An agent's poll lives inside a
+      // tool call, so ten minutes of silence is what a long build looks like
+      // from the server, and "stopped responding" had a peer replanning around
+      // a loss that had not happened.
+      "David's agent has not polled for ten minutes. They have not left, and their next poll brings them back.",
+    ],
   ])('says %s as "%s"', (event, sentence) => {
     expect(describeEvent(event, "David's agent")).toBe(sentence)
   })
