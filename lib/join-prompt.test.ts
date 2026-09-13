@@ -52,13 +52,10 @@ describe('buildJoinPrompt', () => {
     const prompt = buildJoinPrompt({ ...fields, agentName: 'Lighthouse agent' })
     const lines = prompt.split('\n').filter((line) => line.includes('Lighthouse agent'))
 
-    // Two human-facing lines — the title and the session name — and one assignment.
-    expect(lines).toHaveLength(3)
+    // One human-facing line, the title, and one assignment.
+    expect(lines).toHaveLength(2)
     expect(lines[0]).toMatch(/^# Wave: join/)
     expect(lines[1]).toBe('NAME="Lighthouse agent"')
-    expect(lines[2]).toBe(
-      'If your tool can title this session, title it exactly: "\u{1F44B} Lighthouse agent | Release 4.2"',
-    )
 
     // The join body reads the variable, so editing the visible line changes who joins.
     expect(prompt).toContain('\\"name\\":\\"$NAME\\"')
@@ -79,10 +76,66 @@ describe('buildJoinPrompt', () => {
 
   it('keeps the jq example runnable through template escaping', () => {
     const prompt = buildJoinPrompt(fields)
-    expect(prompt).toContain('jq -r --arg me "$ME"')
+    expect(prompt).toContain('jq -r --arg me "$(cat "$W/me")"')
     expect(prompt).toContain('\\(.seq)')
     expect(prompt).toContain('\\(.from.name)')
     expect(prompt).not.toContain('(.seq) (.from.name)')
+  })
+
+  /**
+   * Every assertion here is a bug the prompt itself caused, found by agents in
+   * the channel rather than by us. They are pinned because each one is a line
+   * that reads as fussy detail until it costs someone a session.
+   */
+  describe('the traps it used to teach', () => {
+    const prompt = buildJoinPrompt(fields)
+
+    it('builds message JSON with jq instead of inlining it', () => {
+      // Inline -d died on the first apostrophe, parenthesis or newline. Two
+      // different agents in two different shells lost a message to it.
+      expect(prompt).toContain("jq -Rs '{text: .}'")
+      expect(prompt).not.toContain(`-d '{"text":"..."}'`)
+    })
+
+    it("keeps the '%s' in printf", () => {
+      // printf "$X" eats percent signs and backslashes, silently, exit 0.
+      expect(prompt).toContain(`printf '%s'`)
+    })
+
+    it('guards the poll against an empty body', () => {
+      // A 0-byte body made jq print nothing and exit 0, so last_seq became ""
+      // and the next request went out as after= — the cursor blanked rather
+      // than held, and the agent re-read the channel believing it was polling.
+      expect(prompt).toContain('[ -s "$W/r.json" ] || continue')
+      expect(prompt).toContain('jq -er .last_seq')
+      expect(prompt).toContain('curl -sf')
+    })
+
+    it('advances the cursor only after a response it has read', () => {
+      expect(prompt).toContain('mv "$W/seq.next" "$W/seq"')
+    })
+
+    it('warns off echo, which corrupts the saved response under zsh', () => {
+      expect(prompt).toMatch(/Never write the body out with echo/)
+    })
+
+    it('keeps state in files, since a shell session does not survive a turn', () => {
+      expect(prompt).toContain('W=$(mktemp -d)')
+      expect(prompt).toContain('> "$W/token"')
+    })
+
+    it('does not assume the agent has jq, or a POSIX shell at all', () => {
+      // Use case 3 in PRODUCT section 4 is a Mac agent asking a WINDOWS agent
+      // to run a build. Windows ships neither jq nor these shell builtins, and
+      // every step here is written in both, so the prompt has to say that the
+      // protocol is the HTTP calls rather than the spelling.
+      expect(prompt).toMatch(/Windows does not ship/)
+      expect(prompt).toMatch(/ConvertFrom-Json/)
+    })
+
+    it('says leaving is final, so an agent idles instead of burning its identity', () => {
+      expect(prompt).toMatch(/Leaving is final/)
+    })
   })
 
   it('offers a default agent name', () => {
