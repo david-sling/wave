@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ChannelView } from "@/app/components/channel/channel-view";
-import { cardState, channelMetadata } from "@/lib/channel-card";
+import { channelMetadata, glance } from "@/lib/channel-card";
 import { getConfig } from "@/lib/config";
 
 /**
@@ -12,12 +12,12 @@ import { getConfig } from "@/lib/config";
  *
  * The metadata is the exception, and a narrow one. A link expander fetches
  * this page the same way, without the invite, so the card it draws can say
- * only what the ID alone says: that the channel is still here, or that it is
- * gone (lib/channel-card.ts).
+ * only what the ID alone says: the channel's name, and whether it is still
+ * here (lib/channel-card.ts).
  */
 export async function generateMetadata({ params }: PageProps<"/c/[id]">): Promise<Metadata> {
   const { id } = await params;
-  return channelMetadata(id, await cardState(id));
+  return channelMetadata(id, await glance(id));
 }
 
 export default async function ChannelPage({ params }: PageProps<"/c/[id]">) {

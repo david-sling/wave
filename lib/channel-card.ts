@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import { channelState, type ChannelState } from './channels'
+import { glanceChannel, type ChannelGlance } from './channels'
 import { getRedis } from './redis'
-import { siteOpenGraph } from './site'
+import { siteName, siteOpenGraph } from './site'
 
 /**
  * The channel page as it appears when its link is shared.
@@ -11,10 +11,11 @@ import { siteOpenGraph } from './site'
  * it holds the channel ID and not the invite, and the card is drawn for
  * whoever is about to click: someone whose agent has been asked into a room.
  *
- * Nothing the invite protects is in it. Not the name, not the roster, not how
- * long is left. The one fact the ID alone gives up is whether the channel is
- * still there, and a link shared after the room has closed is better read as
- * "gone" than as an invitation to nothing.
+ * It is drawn from what the ID alone gives up (lib/channels.ts): whether the
+ * channel is still there, and its name, so the card can say which room the
+ * link opens. A link shared after the room has closed is better read as
+ * "gone" than as an invitation to nothing. The roster and the transcript stay
+ * behind the invite, and never appear here.
  */
 
 export type ChannelCard = {
@@ -25,53 +26,73 @@ export type ChannelCard = {
   lines: string[]
 }
 
-export const channelCards: Record<ChannelState, ChannelCard> = {
-  live: {
-    title: 'Your agent is invited · Wave',
-    description:
-      'Someone opened a Wave channel and sent you the link. Open it to watch the room, and paste its prompt into your coding agent to bring it in. Nothing to install.',
-    heading: { regular: 'Your agent is invited', bold: 'to a shared channel.' },
-    lines: [
-      'Open the link to watch the room.',
-      'Paste the prompt into your coding agent.',
-      'Watch the agents talk, and steer when you like.',
-    ],
-  },
-  gone: {
-    title: 'This channel is gone · Wave',
-    description:
-      'It expired or was closed, and every message in it was deleted. Nothing is kept after that, so there is nothing to recover.',
-    heading: { regular: 'This channel is gone,', bold: 'and nothing was kept.' },
-    lines: [
-      'It expired or was closed.',
-      'Every message in it was deleted.',
-      'A new channel takes one click from the home page.',
-    ],
-  },
+const inviteDescription =
+  'Someone opened a Wave channel and sent you the link. Open it to watch the room, and paste its prompt into your coding agent to bring it in. Nothing to install.'
+
+const inviteLines = [
+  'Open the link to watch the room.',
+  'Paste the prompt into your coding agent.',
+  'Watch the agents talk, and steer when you like.',
+]
+
+const goneCard: ChannelCard = {
+  title: `This channel is gone · ${siteName}`,
+  description:
+    'It expired or was closed, and every message in it was deleted. Nothing is kept after that, so there is nothing to recover.',
+  heading: { regular: 'This channel is gone,', bold: 'and nothing was kept.' },
+  lines: ['It expired or was closed.', 'Every message in it was deleted.', 'A new channel takes one click from the home page.'],
 }
 
 /**
- * The state the card is drawn for.
+ * The card for a glance.
+ *
+ * A named channel puts its name where the page puts it, in the title, and
+ * makes it the bold half of the headline. One created without a name is not
+ * called "Unnamed channel" here the way the page's bar calls it: the bar has
+ * to fill a slot, and a card does not.
+ */
+export function channelCard(glance: ChannelGlance): ChannelCard {
+  if (glance.state === 'gone') return goneCard
+  if (glance.name === '') {
+    return {
+      title: `Your agent is invited · ${siteName}`,
+      description: inviteDescription,
+      heading: { regular: 'Your agent is invited', bold: 'to a shared channel.' },
+      lines: inviteLines,
+    }
+  }
+  return {
+    title: `${glance.name} · ${siteName}`,
+    description: inviteDescription,
+    heading: { regular: 'Your agent is invited to', bold: `${glance.name}.` },
+    lines: inviteLines,
+  }
+}
+
+/**
+ * The glance the card is drawn from.
  *
  * Never throws: a card is not worth failing a page over. With the store
  * unreachable, or an instance whose configuration cannot say where it is,
  * the link is treated as what it almost always is, an invitation.
  */
-export async function cardState(channelId: string): Promise<ChannelState> {
+export async function glance(channelId: string): Promise<ChannelGlance> {
   try {
-    return await channelState(await getRedis(), channelId)
+    return await glanceChannel(await getRedis(), channelId)
   } catch {
-    return 'live'
+    return { state: 'live', name: '' }
   }
 }
 
 /** The page's metadata. `openGraph` replaces the layout's wholesale, so the site's defaults are spread back in. */
-export function channelMetadata(channelId: string, state: ChannelState): Metadata {
-  const card = channelCards[state]
+export function channelMetadata(channelId: string, glance: ChannelGlance): Metadata {
+  const card = channelCard(glance)
   return {
     title: card.title,
     description: card.description,
-    // A channel link is a key. Keep it out of search results.
+    // A channel link is a key. Keep it out of search results. This tag, not
+    // robots.txt, is what does it: the bots that draw link cards must be able
+    // to fetch the page (app/robots.ts).
     robots: { index: false, follow: false },
     openGraph: {
       ...siteOpenGraph,

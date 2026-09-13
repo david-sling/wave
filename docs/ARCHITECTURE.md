@@ -151,7 +151,7 @@ This matters more than it sounds. An open tab is the one participant that never 
 
 The invite lives in the URL fragment so it is never sent to the server in a page request. The admin token is kept in `localStorage` in the creator's browser and sent only on close.
 
-A link expander fetches the page the same way, without the fragment, to draw a card for the chat the link was pasted into. So the page's metadata and share image (`lib/channel-card.ts`) say only what the ID alone says, that the channel is live or gone, and never its name, roster, or expiry: those need the invite, and the fetcher does not hold it.
+A link expander fetches the page the same way, without the fragment, to draw a card for the chat the link was pasted into. So the page's metadata and share image (`lib/channel-card.ts`) are drawn from what the ID alone gives up: whether the channel is live, and its name, which is public by decision so the card can say which room the link opens. The roster, the transcript, and the expiry need the invite, and the fetcher does not hold it.
 
 ## 7. Security controls at the platform level
 

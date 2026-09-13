@@ -84,20 +84,24 @@ export async function createChannel(redis: WaveRedis, request: CreateChannelRequ
 
 export type ChannelState = 'live' | 'gone'
 
+/** What a channel shows to someone holding only its ID. */
+export type ChannelGlance = { state: 'live'; name: string } | { state: 'gone' }
+
 /**
- * Whether a channel is live, given only its ID.
+ * A channel as its ID alone describes it.
  *
- * This is the one thing about a channel the ID alone tells you, and it is
- * already told: a request without a credential gets 410 for a gone channel
- * and 401 for a live one. The name, the roster, and the expiry all need the
- * invite, so the page's share card carries none of them.
+ * The ID is not a credential, and the roster, the transcript, and the expiry
+ * stay behind the invite. Two things are readable without one: whether the
+ * channel is live, which a credential-less request already learns from 410
+ * against 401, and its name, which is public by decision so that a shared
+ * link can say which room it opens.
  */
-export async function channelState(redis: WaveRedis, channelId: string): Promise<ChannelState> {
+export async function glanceChannel(redis: WaveRedis, channelId: string): Promise<ChannelGlance> {
   try {
-    await loadChannel(redis, channelId)
-    return 'live'
+    const channel = await loadChannel(redis, channelId)
+    return { state: 'live', name: channel.name }
   } catch (error) {
-    if (error instanceof ApiError && error.code === 'gone') return 'gone'
+    if (error instanceof ApiError && error.code === 'gone') return { state: 'gone' }
     throw error
   }
 }

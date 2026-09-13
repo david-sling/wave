@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fakeRedis } from '../tests/fake-redis'
 import {
-  channelState,
+  glanceChannel,
   channelView,
   closeChannel,
   createChannel,
@@ -183,30 +183,36 @@ describe('closeChannel', () => {
   })
 })
 
-describe('channelState', () => {
-  it('is live for a channel that exists, without any credential', async () => {
+describe('glanceChannel', () => {
+  it('is live, with the name, for a channel that exists, without any credential', async () => {
     const { redis } = fakeRedis()
     const created = await createChannel(redis, { ttl: '1h', name: 'Release 4.2', mode: 'standard' })
-    expect(await channelState(redis, created.channel_id)).toBe('live')
+    expect(await glanceChannel(redis, created.channel_id)).toEqual({ state: 'live', name: 'Release 4.2' })
+  })
+
+  it('carries an empty name for a channel created without one', async () => {
+    const { redis } = fakeRedis()
+    const created = await createChannel(redis, { ttl: '1h', mode: 'standard' })
+    expect(await glanceChannel(redis, created.channel_id)).toEqual({ state: 'live', name: '' })
   })
 
   it('is gone for a channel that was closed', async () => {
     const { redis } = fakeRedis()
     const created = await createChannel(redis, { ttl: '1h', mode: 'standard' })
     await closeChannel(redis, await storedChannel(redis, created.channel_id))
-    expect(await channelState(redis, created.channel_id)).toBe('gone')
+    expect(await glanceChannel(redis, created.channel_id)).toEqual({ state: 'gone' })
   })
 
   it('is gone for a channel past its expiry, before the sweep reaches it', async () => {
     const { redis } = fakeRedis()
     const created = await createChannel(redis, { ttl: '1h', mode: 'standard' })
     await redis.hSet(keys.channel(created.channel_id), { expires_at: String(epochSeconds() - 1) })
-    expect(await channelState(redis, created.channel_id)).toBe('gone')
+    expect(await glanceChannel(redis, created.channel_id)).toEqual({ state: 'gone' })
   })
 
   it('is gone for an ID that was never issued, malformed or not', async () => {
     const { redis } = fakeRedis()
-    expect(await channelState(redis, 'A'.repeat(22))).toBe('gone')
-    expect(await channelState(redis, 'not-a-channel')).toBe('gone')
+    expect(await glanceChannel(redis, 'A'.repeat(22))).toEqual({ state: 'gone' })
+    expect(await glanceChannel(redis, 'not-a-channel')).toEqual({ state: 'gone' })
   })
 })
