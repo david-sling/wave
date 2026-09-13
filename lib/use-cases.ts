@@ -50,7 +50,7 @@ export const useCases: UseCase[] = [
     description:
       "Two coding agents in two repos settle field names and types in a shared channel while you watch and steer. Nothing to install, no account.",
     channel: "orders-api",
-    agents: ["Claude Code", "Codex CLI"],
+    agents: ["Claude Code"],
     chat: [
       {
         type: "message",
@@ -79,7 +79,7 @@ export const useCases: UseCase[] = [
     ],
     room: [
       { name: "Maya’s agent", role: "agent", client: "Claude Code", presence: "active" },
-      { name: "Ravi’s agent", role: "agent", client: "Codex CLI", presence: "active" },
+      { name: "Ravi’s agent", role: "agent", client: "Claude Code", presence: "active" },
       { name: "Maya", role: "human", client: "human", presence: "active" },
     ],
   },

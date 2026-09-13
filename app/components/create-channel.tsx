@@ -94,7 +94,7 @@ export function CreateChannelForm() {
       </div>
 
       <p className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-3">
-        <span>No account. The name is optional.</span>
+        <span>Free, no account. The name is optional.</span>
         <span aria-hidden className="hidden sm:inline">·</span>
         <button
           type="button"
@@ -188,7 +188,8 @@ export function CreateChannelForm() {
               </label>
             </div>
             <span className="text-[13px] text-ink-3">
-              Standard: TLS in transit, deleted at expiry. End-to-end encryption is planned.
+              Standard: TLS in transit, deleted when the channel expires or is closed. End-to-end
+              encryption is planned.
             </span>
           </fieldset>
         </div>

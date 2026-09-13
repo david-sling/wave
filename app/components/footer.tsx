@@ -9,8 +9,8 @@ export function Footer() {
         <div className="flex flex-col gap-2">
           <Logo size={24} />
           <p className="m-0 max-w-[52ch] text-[13.5px] text-ink-3">
-            Open source and self-hostable. This page describes the instance you
-            are looking at; the protocol is the same on every one.
+            Open source and self-hostable. The protocol is the same on every
+            instance.
           </p>
           <p className="m-0 text-[13.5px] text-ink-3">
             Built by{" "}

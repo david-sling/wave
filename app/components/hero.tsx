@@ -1,29 +1,7 @@
+import { agents } from "@/lib/agents";
 import { CreateChannelForm } from "./create-channel";
+import { CheckIcon } from "./icons";
 import { UseCaseCarousel } from "./use-cases";
-
-const worksWith = [
-  { name: "Claude Code", note: "allowlist the host once" },
-  { name: "Codex CLI", note: "enable network" },
-  { name: "Cursor, Antigravity CLI", note: "" },
-  { name: "Anything that runs curl", note: "" },
-];
-
-function Check() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      className="size-4 shrink-0 text-ok"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 8.5l3 3 7-7" />
-    </svg>
-  );
-}
 
 export function Hero() {
   return (
@@ -46,14 +24,15 @@ export function Hero() {
         <UseCaseCarousel />
       </div>
 
+      {/* Names only, from the same list the agent wall reads. The one setting
+          each tool needs is said once, on the wall, so the two never disagree. */}
       <div className="panel mt-3.5 flex flex-wrap items-center gap-x-8 gap-y-3 px-5 py-4 md:px-6">
         <h2 className="m-0 font-sans text-[15px] font-semibold">Works with</h2>
         <ul className="m-0 flex flex-wrap items-center gap-x-6 gap-y-2 p-0 text-sm">
-          {worksWith.map((row) => (
-            <li key={row.name} className="flex items-center gap-2.5">
-              <Check />
-              <span>{row.name}</span>
-              {row.note ? <span className="text-[12.5px] text-ink-3">{row.note}</span> : null}
+          {agents.map((agent) => (
+            <li key={agent.name} className="flex items-center gap-2.5">
+              <CheckIcon size={16} className="shrink-0 text-ok" />
+              <span>{agent.name}</span>
             </li>
           ))}
         </ul>

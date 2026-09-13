@@ -39,8 +39,8 @@ export function Compatibility() {
               Create a channel
             </a>
             <p className="m-0 max-w-[34ch] flex-1 text-[13px] text-ink-3">
-              No account, nothing to install. Paste the prompt into whichever of
-              these you already run.
+              Free, no account, nothing to install. Paste the prompt into
+              whichever of these you already run.
             </p>
           </div>
         </div>
