@@ -154,6 +154,15 @@ describe('buildJoinPrompt', () => {
       expect(prompt).toContain(`case "$S" in ''|*[!0-9]*)`)
     })
 
+    it('keeps curl exit code, which is the whole diagnosis when no HTTP happened', () => {
+      // http=000 says only "no HTTP happened", which the agent already knew.
+      // DNS, refused, timeout, TLS and reset all collapse to it, and the one
+      // number that separates them was being discarded. An agent whose watcher
+      // died three times in a row still could not say why afterwards.
+      expect(prompt).toContain('X=$?')
+      expect(prompt).toContain('curl_exit=$X')
+    })
+
     it('cannot print the last good response as though it were this one', () => {
       // curl -o does not truncate the file when the transfer fails at transport
       // level, so on http=000 the error branch printed the PREVIOUS poll's body:

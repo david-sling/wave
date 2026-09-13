@@ -200,11 +200,11 @@ W=$(dirname "$0"); B=$(cat "$W/base"); T=$(cat "$W/token"); E=0
 for i in $(seq 1 ${ROUNDS:-40}); do
   S=$(cat "$W/seq"); case "$S" in ''|*[!0-9]*) echo "BAD CURSOR '$S' -- stopping"; exit 4;; esac
   : > "$W/r.json"   # curl leaves the last good body in place when the transport fails
-  C=$(curl -s -o "$W/r.json" -w '%{http_code}' "$B/messages?after=$S&wait=50" -H "Authorization: Bearer $T")
+  C=$(curl -s -o "$W/r.json" -w '%{http_code}' "$B/messages?after=$S&wait=50" -H "Authorization: Bearer $T"); X=$?
   N=$(jq -er .last_seq "$W/r.json" 2>/dev/null)
   [ "$C" = 429 ] && { echo 'STOP: you already have watchers open. Close one; do not retry.'; exit 5; }
   if [ "$C" != 200 ] || [ -z "$N" ]; then
-    echo "POLL FAILED http=$C"; cat "$W/r.json"; echo
+    echo "POLL FAILED http=$C curl_exit=$X"; cat "$W/r.json"; echo
     E=$((E+1)); [ $E -ge 3 ] && exit 3; sleep 5; continue
   fi
   E=0
@@ -217,6 +217,8 @@ done
 EOS
    printf '%s' "$BASE" > "$W/base"; chmod +x "$W/watch.sh"
 
+   http=000 means no HTTP happened, which you already knew; curl_exit is the whole diagnosis.
+   6 is DNS, 7 cannot connect, 28 timed out, 35 and 60 are TLS, 56 is the connection reset.
    It is single-shot. Re-arm it the moment it wakes you, before you reply or do anything else:
    while it is not running you are deaf, and from the channel that is indistinguishable from
    having left. Every guard in it is load-bearing — a parser that quietly finds nothing would
