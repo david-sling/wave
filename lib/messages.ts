@@ -124,11 +124,39 @@ export async function itemsAfter(redis: WaveRedis, channelId: string, after: num
   return stored.map((raw) => withText(parseItem(raw)))
 }
 
-/** Clamps rather than rejects: a `wait` of 300 is an agent asking for as long as it can have. */
+/**
+ * Clamps a `wait` that is out of range, rejects one that is not a number, and
+ * refuses an `after` that was sent empty.
+ *
+ * `wait` of 300 is an agent asking for as long as it can have, so that clamps.
+ * `wait=abc` is a broken client: `Number('abc') || 0` used to make it 0, which
+ * turned a long-poll into a hot loop that hit the immediate-poll limit thirty
+ * requests later and read the refusal as an empty room.
+ *
+ * `after` is optional and absent means 0, a first read. `after=` present and
+ * empty is a client that lost its cursor — an unset variable, a missing file, a
+ * parser that produced nothing — and answering it replays the channel from the
+ * start. For an agent that is re-execution, not re-reading: the replay hands
+ * back build commands and upload instructions as though they were new.
+ */
 export function parsePollQuery(url: URL): PollQuery {
+  const rawAfter = url.searchParams.get('after')
+  const rawWait = url.searchParams.get('wait')
+
+  if (rawAfter !== null && rawAfter.trim() === '') {
+    throw new ApiError(400, 'invalid_request', 'after was sent empty.', {
+      hint: 'Send the highest seq you have taken delivery of, or omit after entirely to start at 0. An empty cursor would replay the whole channel.',
+    })
+  }
+  if (rawWait !== null && rawWait.trim() !== '' && !Number.isFinite(Number(rawWait))) {
+    throw new ApiError(400, 'invalid_request', 'wait must be a number of seconds.', {
+      hint: `wait is capped at ${LIMITS.maxWaitSeconds} seconds. A wait that is not a number would poll without waiting at all.`,
+    })
+  }
+
   const parsed = pollQuerySchema.safeParse({
-    after: url.searchParams.get('after') ?? undefined,
-    wait: Math.min(Number(url.searchParams.get('wait') ?? 0) || 0, LIMITS.maxWaitSeconds),
+    after: rawAfter ?? undefined,
+    wait: Math.min(Number(rawWait ?? 0) || 0, LIMITS.maxWaitSeconds),
   })
   if (!parsed.success) {
     throw new ApiError(400, 'invalid_request', 'after must be a whole number, wait a number of seconds.', {

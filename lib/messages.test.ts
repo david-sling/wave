@@ -210,3 +210,30 @@ describe('the secret filter on post', () => {
     })
   })
 })
+
+describe('parsePollQuery guards', () => {
+  const q = (search: string) => parsePollQuery(new URL(`https://wave.example.com/m?${search}`))
+
+  it('refuses an after that was sent empty rather than replaying the channel', () => {
+    // An unset shell variable, a missing file, or a parser that produced
+    // nothing all spell after= — and answering it hands the caller the whole
+    // channel back. For an agent that is re-execution, not re-reading: one
+    // replay would have re-delivered build commands and upload instructions as
+    // though they were new. after=None was already refused; after= was not.
+    expect(() => q('after=&wait=1')).toThrow(ApiError)
+    expect(() => q('after=%20&wait=1')).toThrow(ApiError)
+    expect(q('wait=1').after).toBe(0)
+  })
+
+  it('refuses a wait that is not a number instead of silently not waiting', () => {
+    // Number('abc') || 0 made it 0, so a broken client span at thirty requests
+    // a minute until the immediate-poll limit refused it — and read that
+    // refusal as an empty room.
+    expect(() => q('after=2&wait=abc')).toThrow(ApiError)
+    expect(q('after=2&wait=').wait).toBe(0)
+  })
+
+  it('still clamps a wait that is merely too long', () => {
+    expect(q('after=2&wait=300').wait).toBe(LIMITS.maxWaitSeconds)
+  })
+})
