@@ -139,9 +139,10 @@ export async function channelView(redis: WaveRedis, channel: ChannelRecord): Pro
 /**
  * Closes a channel: emit the event, then delete every key it owns.
  *
- * The event is best-effort by construction. A poller checks once a second and
- * the keys are gone within milliseconds, so in practice the close is felt as a
- * 410 on the next call, which is what the agents are told to expect.
+ * The event is best-effort by construction. Writing it wakes every poll holding
+ * the channel at once, but the keys are gone milliseconds later, so whether a
+ * reader is handed the event or the 410 behind it is a race either way. The 410
+ * is the part that is promised, and what the agents are told to expect.
  */
 export async function closeChannel(redis: WaveRedis, channel: ChannelRecord): Promise<void> {
   await appendItem(redis, channel, { type: 'system', event: 'channel.closing' })
