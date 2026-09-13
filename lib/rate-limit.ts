@@ -49,18 +49,11 @@ export async function enforceLimit(redis: WaveRedis, limit: Limit): Promise<void
  * Holds a slot while `work` runs, so a participant cannot park more than `max`
  * long-polls at once.
  *
- * The slots are a sorted set keyed by start time rather than a counter, because
- * a counter cannot expire one slot. A request that never reaches its `finally`
- * — a function recycled or cut off mid-poll — used to leave its slot counted
- * for as long as the participant kept polling, since every attempt refreshed
- * the key's TTL and none of them could tell whose slot it was. Scored members
- * can be dropped individually: anything older than the route's own ceiling
- * belongs to a request that cannot still be running.
- *
- * Measured before this shape: two polls killed at four seconds refused the next
- * one for another thirty-six, and a client retrying into the refusal held its
- * own door shut. Which is the natural thing for a client to do, so the limit
- * has to heal without its cooperation.
+ * A sorted set keyed by start time rather than a counter, because a counter
+ * cannot expire one slot: a request that never reaches its `finally` stayed
+ * counted for as long as the participant kept polling. Scored members can be
+ * dropped individually, so anything older than the route's own ceiling belongs
+ * to a request that cannot still be running and the limit heals on its own.
  */
 export async function withConcurrencyLimit<T>(
   redis: WaveRedis,
@@ -68,21 +61,21 @@ export async function withConcurrencyLimit<T>(
   max: number,
   work: () => Promise<T>,
 ): Promise<T> {
-  // A scope of its own: the counter this replaced stored a string under
+  // Its own scope: the counter this replaced stored a string under
   // `concurrent`, and a live instance still holding one would fail on ZADD.
   const key = keys.rateLimit('pollslots', fingerprint(subject))
   const slotMs = LIMITS.pollSlotSeconds * 1_000
   const now = Date.now()
 
-  // The start time leads the member so the oldest slot can be read back from
-  // the range alone, without a second call asking for scores.
+  // Start time leads the member, so the oldest slot reads back from the range
+  // alone without a second call asking for scores.
   const slot = `${now}-${randomUUID()}`
   for (const abandoned of await redis.zRangeByScore(key, 0, now - slotMs)) {
     await redis.zRem(key, abandoned)
   }
   await redis.zAdd(key, { score: now, value: slot })
-  // Refreshed on every add, which is safe here in a way it was not before: the
-  // set prunes itself by score, so extending its life cannot extend a slot's.
+  // Safe to refresh on every add, unlike the counter: the set prunes itself by
+  // score, so extending the key's life cannot extend a slot's.
   await redis.expire(key, LIMITS.pollSlotSeconds * 2)
 
   const held = await redis.zCard(key)
@@ -95,12 +88,8 @@ export async function withConcurrencyLimit<T>(
     const retryAfter = Math.max(1, Math.ceil((freeAt - now) / 1_000))
     throw new ApiError(429, 'rate_limited', `At most ${max} requests of this kind can be open at once.`, {
       headers: { 'Retry-After': String(retryAfter) },
-      // Says which room it is, not just that the door is shut. Three agents ran
-      // fourteen experiments across two operating systems to learn a number
-      // this body could have told them, and every wrong turn they took came
-      // from a refusal that looked like a quiet channel.
-      // Reads like it knows: this string exists to stop an agent guessing, so
-      // "1 are already open" would undercut the one thing it is for.
+      // Names the number rather than leaving it to be measured from outside:
+      // a refusal with no detail reads like a quiet channel.
       hint: `${open === 1 ? '1 poll is' : `${open} polls are`} already open, and the oldest frees in about ${retryAfter}s. Retrying before then cannot succeed, so wait rather than loop — a poll you abandoned still holds its slot until the request behind it ends.`,
     })
   }

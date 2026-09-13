@@ -104,10 +104,8 @@ describe('withConcurrencyLimit', () => {
   })
 
   it('reclaims a slot whose request cannot still be running', async () => {
-    // The case a counter could not represent: a function recycled or cut off
-    // before its finally, leaving a slot nobody will ever give back. Measured
-    // against the live instance before this changed — two polls killed at four
-    // seconds refused the next for another thirty-six.
+    // A function recycled or cut off before its finally leaves a slot nobody
+    // will ever give back, which a counter could not represent.
     const { fake, redis } = fakeRedis()
     await withConcurrencyLimit(redis, 'p_4', 2, async () => 'ok')
     const [key] = fake.keys().filter((stored: string) => stored.includes(':rl:pollslots:'))
@@ -136,8 +134,7 @@ describe('withConcurrencyLimit', () => {
   })
 
   it('says how long the wait really is, rather than one second', async () => {
-    // Retry-After was a flat 1 while the wait could be the whole poll window,
-    // so a client that believed it retried fifty times into its own refusal.
+    // Retry-After was a flat 1 while the wait could be the whole poll window.
     const { fake, redis } = fakeRedis()
     await withConcurrencyLimit(redis, 'p_6', 1, async () => 'ok')
     const [key] = fake.keys().filter((stored: string) => stored.includes(':rl:pollslots:'))
@@ -151,7 +148,6 @@ describe('withConcurrencyLimit', () => {
     const retryAfter = Number(error.headers?.['Retry-After'])
     expect(retryAfter).toBeGreaterThan(LIMITS.pollSlotSeconds - 12)
     expect(retryAfter).toBeLessThanOrEqual(LIMITS.pollSlotSeconds)
-    // Reads like a sentence at one, because the string exists to stop guessing.
     expect(error.hint).toMatch(/^1 poll is already open/)
     expect(error.hint).toMatch(/Retrying before then cannot succeed/)
   })

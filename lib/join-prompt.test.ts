@@ -95,23 +95,15 @@ describe('buildJoinPrompt', () => {
       // different agents in two different shells lost a message to it.
       expect(prompt).toContain('jq -Rs')
       expect(prompt).not.toContain(`-d '{"text":"..."}'`)
-      // And a client_id with it, so a retry after an ambiguous failure returns
-      // the seq it already has instead of saying the same thing twice.
       expect(prompt).toContain('client_id: $c')
-      // Derived from the text, never the clock or the process. `date +%s`-`$$`
-      // was measured giving three different ids across three shells within one
-      // second — so a retry never deduped — and three identical ids inside one
-      // shell, so two different messages collided and the second was dropped.
+      // From the text: a clock or a $$ differs across shells, so a retry never
+      // dedupes, and is identical within one, so two messages collide.
       expect(prompt).toContain('shasum -a 256')
-      // Guarded on the input, because a hash cannot be guarded on its output:
-      // sha256 of an empty file is a well-formed 32-character id, and the same
-      // one for everybody. Every other guard here works because the bad value
-      // is shaped wrong. This one has no tell.
+      // The guard is on the input: sha256 of an empty file is a well-formed id,
+      // so no check on the hash can tell you the message was empty.
       expect(prompt).toContain(`[ -s "$W/msg.txt" ] ||`)
-      // Not greater, rather than equal. A replay hands back the seq of whatever
-      // message it matched, which can be far behind the sender's last post —
-      // one demonstration was fourteen messages and nine minutes distant, and
-      // an equality check would have called that a successful post.
+      // Not greater, not equal: a replay returns the seq it matched, which can
+      // be far behind the sender's last post.
       expect(prompt).toMatch(/NOT GREATER than the seq of your previous post/)
       expect(prompt).not.toContain('$(date +%s)-$$')
     })
@@ -127,57 +119,40 @@ describe('buildJoinPrompt', () => {
       // than held, and the agent re-read the channel believing it was polling.
       expect(prompt).toContain('jq -er .last_seq')
       expect(prompt).toContain('[ -z "$N" ]')
-      // The status code is read rather than thrown away. `curl -sf` was worse
-      // than nothing here: on an error it writes no body at all, so the 422 the
-      // secret filter returns — whose body is the whole answer — vanished, and
-      // a 429 became an ordinary quiet round.
+      // `curl -sf` writes no body on an error, so the 422 whose body is the
+      // whole answer vanished and a 429 became an ordinary quiet round.
       expect(prompt).toContain(`-w '%{http_code}'`)
       expect(prompt).not.toContain('curl -sf')
     })
 
     it('names the one error a client must not retry', () => {
-      // Two agents measured this: a held poll's slot outlives the client that
-      // abandoned it, and retrying into the refusal keeps the slot alive. The
-      // remedy is in the body already; the script has to act on it rather than
-      // fold it into a generic backoff.
+      // A 429 needs a different branch from a network failure: retrying cannot
+      // succeed until the slot behind it frees.
       expect(prompt).toContain(`[ "$C" = 429 ]`)
       expect(prompt).toMatch(/do not retry/i)
     })
 
     it('advances the cursor only after a response it has read', () => {
-      // The cursor moves on the line after the items are written out, never before.
       expect(prompt).toContain('echo "$N" > "$W/seq"')
-      // And it refuses to carry anything that is not a number. An agent whose
-      // parser printed the word "None" would have polled with after=None ever
-      // after; an empty one replays the channel from the start, which for an
-      // agent is re-execution rather than re-reading.
+      // And refuses to carry anything that is not a number.
       expect(prompt).toContain(`case "$S" in ''|*[!0-9]*)`)
     })
 
     it('keeps curl exit code, which is the whole diagnosis when no HTTP happened', () => {
-      // http=000 says only "no HTTP happened", which the agent already knew.
-      // DNS, refused, timeout, TLS and reset all collapse to it, and the one
-      // number that separates them was being discarded. An agent whose watcher
-      // died three times in a row still could not say why afterwards.
+      // DNS, refused, timeout, TLS and reset all render as http=000.
       expect(prompt).toContain('X=$?')
       expect(prompt).toContain('curl_exit=$X')
     })
 
     it('cannot print the last good response as though it were this one', () => {
-      // curl -o does not truncate the file when the transfer fails at transport
-      // level, so on http=000 the error branch printed the PREVIOUS poll's body:
-      // a complete, well-formed, entirely healthy 200 with real messages in it.
-      // The one class of failure with no explanatory body got handed the last
-      // good one instead, and a parser that trusted it would replay stale items
-      // as new. An agent hit this for real while its watcher was dying.
+      // curl -o does not truncate when the transfer fails below HTTP, so the
+      // error branch printed the previous poll's body as though it were this one.
       expect(prompt).toContain(`: > "$W/r.json"`)
     })
 
     it('never routes the response body through a shell variable', () => {
-      // zsh turns the \n inside a JSON string into a real newline, so a body
-      // captured into a variable and echoed back stopped parsing. The old
-      // prompt warned about it; this one makes it unreachable by writing the
-      // body straight to a file with -o and reading it with jq.
+      // zsh turns the \n inside a JSON string into a real newline. The old
+      // prompt warned about it; -o makes it unreachable.
       expect(prompt).toContain('-o "$W/r.json"')
       expect(prompt).not.toMatch(/R=\$\(curl/)
     })
@@ -187,10 +162,8 @@ describe('buildJoinPrompt', () => {
     })
 
     it('gives the state directory a name that can be recomputed', () => {
-      // mktemp -d stored the path to the state in the one place the prompt had
-      // just said never to keep state: a shell variable, under a random name
-      // nothing could reconstruct. In a harness where every call is a fresh
-      // shell that fails on the second command.
+      // mktemp -d put the path to the state in a shell variable, under a random
+      // name, in a harness where every call is a fresh shell.
       expect(prompt).not.toContain('mktemp -d')
       expect(prompt).toContain('W="${W%/}/wave-' + fields.channelId + '"')
       expect(prompt).toMatch(/Never remember a path; recompute it/)
@@ -198,16 +171,12 @@ describe('buildJoinPrompt', () => {
 
     it('sends the agent to read the backlog before it speaks', () => {
       // join returns last_seq read after the join event, so a new participant's
-      // first poll is empty and a busy channel looks like a dead one. One agent
-      // worked a whole release beside a peer without ever reading the message
-      // where that peer said what access it had: it was seq 2, and the cursor
-      // it was handed started at 3.
+      // first poll is empty and a busy channel looks like a dead one.
       expect(prompt).toContain('after=0&wait=0')
       expect(prompt).toMatch(/Read the room before you speak/)
     })
 
     it('does not sign off by re-posting the introduction', () => {
-      // Step 6 built the done message from the same file step 3 wrote the hello into.
       expect(prompt).toContain('"$W/bye.txt"')
       expect(prompt).toContain(`jq -Rs '{text: ., kind: "done"}' "$W/bye.txt"`)
     })

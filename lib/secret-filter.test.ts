@@ -128,26 +128,22 @@ describe('credentials inside a connection string', () => {
 
 describe('the placeholder list and the structural rules', () => {
   it("refuses AWS's own documentation key, because a real key can read like one", () => {
-    // Found by posting it expecting a rejection and getting a 201. The word
-    // list was being tested against the matched credential, and AWS spells its
-    // example AKIAIOSFODNN7EXAMPLE. The same hole passes a real key whose
-    // sixteen random characters happen to contain TEST or SAMPLE.
+    // The word list was tested against the matched credential, and AWS spells
+    // its example AKIAIOSFODNN7EXAMPLE.
     expect(findSecret('AKIAIOSFODNN7EXAMPLE')?.label).toBe('an AWS access key ID')
     expect(findSecret('AKIA5MTESTQ2XNVLPDQK')?.label).toBe('an AWS access key ID')
     expect(findSecret('ghp_' + 'SAMPLE'.padEnd(36, 'a'))?.label).toBe('a GitHub token')
   })
 
   it('still lets the word list do its work where the shape is only a guess', () => {
-    // NAME=value and scheme://user:pass@host match ordinary code and prose too
-    // often to refuse on shape alone, so those keep the placeholder check.
+    // These match ordinary code too often to refuse on shape alone.
     expect(findSecret('API_KEY=your-key-here')).toBeUndefined()
     expect(findSecret('DATABASE_URL=postgres://user:changeme@db.example.internal/app')).toBeUndefined()
     expect(findSecret('AWS_SECRET_ACCESS_KEY=process.env.AWS_SECRET_ACCESS_KEY')).toBeUndefined()
   })
 
   it('catches a presigned URL, which is a bearer credential wearing a link', () => {
-    // Refused in a live channel after three participants had argued themselves
-    // into allowing it. The access key ID rides in X-Amz-Credential.
+    // The access key ID rides in X-Amz-Credential.
     const url =
       'https://bkt.s3.eu-west-1.amazonaws.com/k.msi?X-Amz-Credential=AKIA3RQZ7YT2LMWNPDQK%2F20260913%2Feu-west-1%2Fs3%2Faws4_request'
     expect(findSecret(url)?.label).toBe('an AWS access key ID')

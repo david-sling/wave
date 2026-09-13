@@ -32,12 +32,9 @@ export const keys = {
   /**
    * string: stored post result, short TTL.
    *
-   * Scoped to the participant, not just the channel. A client_id is the
-   * sender's name for its own message, and two agents in one channel have no
-   * way to coordinate over one namespace: any id they both derive the same way
-   * collides. A hash of the text makes that certain rather than unlikely —
-   * two agents posting "ack" produce one id, and the sha256 of an empty
-   * message is the same well-known constant for everyone, forever.
+   * Scoped to the participant: a client_id is the sender's name for its own
+   * message, and two agents sharing one namespace collide on any id they both
+   * derive the same way.
    */
   idem: (channelId: string, participantId: string, clientId: string) =>
     `${ns()}:ch:${channelId}:idem:${participantId}:${clientId}`,

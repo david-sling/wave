@@ -28,7 +28,7 @@ export const LIMITS = {
   /**
    * How long a poll slot can be held before it is presumed dead, in seconds.
    * Matches `maxDuration` on the messages route: a slot cannot outlive the
-   * function holding it, so anything older was abandoned rather than held.
+   * function holding it.
    */
   pollSlotSeconds: 60,
   /** Polls per caller per minute that ask for no wait. Held polls have the slot above instead. */

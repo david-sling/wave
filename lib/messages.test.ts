@@ -216,20 +216,16 @@ describe('parsePollQuery guards', () => {
   const q = (search: string) => parsePollQuery(new URL(`https://wave.example.com/m?${search}`))
 
   it('refuses an after that was sent empty rather than replaying the channel', () => {
-    // An unset shell variable, a missing file, or a parser that produced
-    // nothing all spell after= — and answering it hands the caller the whole
-    // channel back. For an agent that is re-execution, not re-reading: one
-    // replay would have re-delivered build commands and upload instructions as
-    // though they were new. after=None was already refused; after= was not.
+    // after=None was already refused; after= was not, and answering it hands
+    // the caller the whole channel back.
     expect(() => q('after=&wait=1')).toThrow(ApiError)
     expect(() => q('after=%20&wait=1')).toThrow(ApiError)
     expect(q('wait=1').after).toBe(0)
   })
 
   it('refuses a wait that is not a number instead of silently not waiting', () => {
-    // Number('abc') || 0 made it 0, so a broken client span at thirty requests
-    // a minute until the immediate-poll limit refused it — and read that
-    // refusal as an empty room.
+    // Number('abc') || 0 made it 0, so a broken client spun until the
+    // immediate-poll limit refused it.
     expect(() => q('after=2&wait=abc')).toThrow(ApiError)
     expect(q('after=2&wait=').wait).toBe(0)
   })
@@ -249,11 +245,7 @@ describe('client_id', () => {
   })
 
   it('refuses a second, different message under the same id rather than dropping it', async () => {
-    // Measured against the live instance: the second message came back 201 with
-    // the FIRST message's seq and never existed. The prompt's own formula made
-    // this reachable — $(date +%s)-$$ is identical for every message a single
-    // shell sends inside one second, so a summary followed by a correction lost
-    // the correction, with a valid-looking seq for both.
+    // The second message used to come back 201 with the first message's seq.
     const { redis } = fakeRedis()
     const { channel, participant } = await channelWithParticipant(redis)
     await postMessage(redis, channel, participant, { text: 'the summary', kind: 'message', client_id: 'c2' })
@@ -263,13 +255,8 @@ describe('client_id', () => {
   })
 
   it('scopes the record to the participant, not just the channel', async () => {
-    // A client_id is the sender's name for its own message. Two agents in one
-    // channel share no namespace to coordinate over, and a hash of the text
-    // makes a collision certain rather than unlikely: both post "ack" and they
-    // are one id. The sha256 of an empty message is worse — a single well-known
-    // constant, the same for every agent on every platform, reachable from a
-    // missing file. An agent raised this and rightly refused to test it live,
-    // because proving it would have destroyed someone else's message.
+    // With ids derived from the text, two agents posting "ack" share one id,
+    // and sha256 of an empty message is the same constant for everybody.
     const { redis } = fakeRedis()
     const { channel, participant } = await channelWithParticipant(redis)
     const [other] = await joinChannel(redis, channel, { name: 'Second agent', role: 'agent' }).then(
@@ -287,18 +274,16 @@ describe('client_id', () => {
   })
 
   it('keeps the window to five minutes, whatever the channel TTL is', async () => {
-    // Every other key is stamped with the channel's EXPIREAT after a write, and
-    // this one was too — overwriting the five minutes with up to seven days of
-    // an id the client had been told it could reuse.
+    // This key was stamped with the channel's EXPIREAT like every other one,
+    // which overwrote the five minutes with the channel's whole life.
     const { fake, redis } = fakeRedis()
     const { channel, participant } = await channelWithParticipant(redis)
     await postMessage(redis, channel, participant, { text: 'once', kind: 'message', client_id: 'ttl' })
-    // ttlOf reports the absolute expiry the fake stored, so compare it to now.
+    // ttlOf reports the absolute expiry, so compare it to now.
     const expiresAt = fake.ttlOf(keys.idem(channel.id, participant.id, 'ttl')) ?? 0
     const seconds = expiresAt - epochSeconds()
     expect(seconds).toBeGreaterThan(0)
     expect(seconds).toBeLessThanOrEqual(LIMITS.idempotencyTtlSeconds)
-    // The channel outlives it by a wide margin, which is the whole point.
     expect(channel.expires_at - epochSeconds()).toBeGreaterThan(LIMITS.idempotencyTtlSeconds)
   })
 

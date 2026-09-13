@@ -18,13 +18,9 @@ export type SecretMatch = {
 }
 
 /**
- * `structural` rules match formats that do not occur by accident: an issuer's
- * prefix and a fixed-width random tail. The placeholder word list is not
- * applied to them, because it was being tested against the matched credential
- * itself — so AWS's own documentation key, AKIAIOSFODNN7EXAMPLE, passed, and so
- * would a real key whose random tail happened to contain TEST or SAMPLE. Over
- * enough keys that is not hypothetical. Refusing a documentation example is the
- * cheaper mistake.
+ * `structural` rules match formats that do not occur by accident, so the
+ * placeholder word list is not applied to them: it tests the matched credential
+ * itself, and a real key whose random tail contains TEST would walk past it.
  */
 type Rule = { label: string; pattern: RegExp; structural?: true }
 

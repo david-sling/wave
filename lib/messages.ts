@@ -20,9 +20,7 @@ export const postMessageRequestSchema = z.object({
   reply_to: z.int().positive().optional(),
   /**
    * Makes a retry safe for five minutes: the same client_id gets the same seq
-   * back. Derive it from the message, not from the clock or the process — an
-   * id that changes between retries never dedupes, and one that is shared by
-   * two different messages loses the second.
+   * back. Derive it from the message text, not from the clock or the process.
    */
   client_id: z.string().trim().min(1).max(128).optional(),
 })
@@ -30,11 +28,7 @@ export type PostMessageRequest = z.infer<typeof postMessageRequestSchema>
 
 export type PostMessageResult = { seq: number; ts: string }
 
-/**
- * What an earlier post under this client_id produced. `text` is a digest of the
- * body, never the body: it is only ever compared, and two posts under one id
- * with different text is a client bug rather than a retry.
- */
+/** An earlier post under this client_id. `text` is a digest, only ever compared. */
 const postResultSchema = z.object({ seq: z.int().positive(), ts: z.string(), text: z.string().optional() })
 type StoredResult = z.infer<typeof postResultSchema>
 
@@ -70,8 +64,8 @@ export async function postMessage(
   if (request.client_id) {
     const earlier = await storedResult(redis, channel.id, participant.id, request.client_id)
     if (earlier) {
-      // A record written before this field existed cannot be checked, and its
-      // window is five minutes, so it is honoured as the retry it claims to be.
+      // A record from before this field existed cannot be checked; its window
+      // is five minutes, so it is honoured as the retry it claims to be.
       if (earlier.text !== undefined && earlier.text !== digest(request.text)) {
         throw new ApiError(409, 'conflict', 'That client_id was already used for a different message.', {
           hint: `It posted seq ${earlier.seq}. A client_id says "this is the same message again", so derive it from the text rather than from the clock or the process id — otherwise a second message sent within the same second is read as a retry of the first and dropped.`,
@@ -128,10 +122,8 @@ export async function postMessage(
   if (request.client_id) {
     const stored: StoredResult = { ...result, text: digest(request.text) }
     const key = keys.idem(channel.id, participant.id, request.client_id)
-    // The channel's expiry is a ceiling on the window, never an extension of
-    // it. Stamping this key with EXPIREAT the way every other key is stamped
-    // overwrote the five minutes with the channel's whole life — up to seven
-    // days of an id that a client was told it could reuse after five minutes.
+    // The channel's expiry is a ceiling here, never an extension: stamping this
+    // key the way every other key is stamped gave it the channel's whole life.
     const seconds = Math.max(1, Math.min(LIMITS.idempotencyTtlSeconds, channel.expires_at - epochSeconds()))
     // A retry is sequential by nature, so a plain write is enough here: the
     // window only has to cover an agent sending the same request twice.
@@ -159,16 +151,10 @@ export async function itemsAfter(redis: WaveRedis, channelId: string, after: num
  * Clamps a `wait` that is out of range, rejects one that is not a number, and
  * refuses an `after` that was sent empty.
  *
- * `wait` of 300 is an agent asking for as long as it can have, so that clamps.
- * `wait=abc` is a broken client: `Number('abc') || 0` used to make it 0, which
- * turned a long-poll into a hot loop that hit the immediate-poll limit thirty
- * requests later and read the refusal as an empty room.
- *
- * `after` is optional and absent means 0, a first read. `after=` present and
- * empty is a client that lost its cursor — an unset variable, a missing file, a
- * parser that produced nothing — and answering it replays the channel from the
- * start. For an agent that is re-execution, not re-reading: the replay hands
- * back build commands and upload instructions as though they were new.
+ * Out of range is an agent asking for as long as it can have. Not a number is a
+ * broken client, and so is an empty `after` — which would replay the whole
+ * channel, and for an agent a replay is re-execution rather than re-reading.
+ * Omitting `after` still means 0.
  */
 export function parsePollQuery(url: URL): PollQuery {
   const rawAfter = url.searchParams.get('after')
