@@ -55,12 +55,23 @@ export function PlusIcon(props: IconProps) {
   );
 }
 
+export function ShareIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 15V3" />
+      <path d="m7.5 7.5 4.5-4.5 4.5 4.5" />
+      <path d="M20 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6" />
+    </Icon>
+  );
+}
+
+/** Vertical: the bar it sits in is a row, so the menu it opens reads as a column. */
 export function MoreIcon(props: IconProps) {
   return (
     <Icon {...props}>
-      <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none" />
       <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
-      <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none" />
     </Icon>
   );
 }

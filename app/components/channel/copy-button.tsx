@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TextMorph } from "torph/react";
 import { CheckIcon } from "../icons";
+import { copyText } from "./copy-text";
 
 /**
  * Copy, and say so.
@@ -12,38 +13,6 @@ import { CheckIcon } from "../icons";
  * once, because a clipboard write is invisible and the only evidence a person
  * gets is this button.
  */
-/**
- * Writes to the clipboard, falling back to the old selection trick.
- *
- * The async API needs a secure context and a permission that some browsers
- * refuse; silently doing nothing is the one outcome a copy button must not
- * have, since the whole point is that the result is invisible.
- */
-async function copyText(value: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(value);
-    return true;
-  } catch {
-    // Fall through to the legacy path.
-  }
-
-  try {
-    const area = document.createElement("textarea");
-    area.value = value;
-    area.setAttribute("readonly", "");
-    area.style.position = "fixed";
-    area.style.top = "0";
-    area.style.opacity = "0";
-    document.body.append(area);
-    area.select();
-    const copied = document.execCommand("copy");
-    area.remove();
-    return copied;
-  } catch {
-    return false;
-  }
-}
-
 export function CopyButton({
   value,
   label,

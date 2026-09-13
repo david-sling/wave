@@ -8,7 +8,7 @@ import { Logo } from "../logo";
 import { Roster, Transcript, type TranscriptItem } from "../transcript";
 import { AddAgentDialog } from "./add-agent-dialog";
 import { announcementFor } from "./channel-events";
-import { ChannelAddButton, ChannelMenu, ChannelMenuButton } from "./channel-menu";
+import { ChannelAddButton, ChannelMenu, ChannelMenuButton, ChannelShareButton } from "./channel-menu";
 import { Compose } from "./compose";
 import { Controls, ExpiryCountdown } from "./controls";
 import { PromptBox } from "./prompt-box";
@@ -220,6 +220,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
       <TopBar
         menu={
           <>
+            <ChannelShareButton url={shareUrl} channelName={channel.name} />
             <ChannelAddButton onOpen={() => setAdding(true)} />
             <ChannelMenuButton onOpen={() => setMenuOpen(true)} />
           </>
@@ -312,7 +313,19 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
         </aside>
       </div>
 
-      <ChannelMenu open={menuOpen} onClose={() => setMenuOpen(false)}>
+      <ChannelMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        meta={
+          <span className="flex min-w-0 items-center gap-2 text-[13px] text-ink-3">
+            <span className="whitespace-nowrap">
+              {participants.length} of {channel.max_participants}
+            </span>
+            <span aria-hidden>·</span>
+            <ExpiryCountdown expiresAt={channel.expires_at} />
+          </span>
+        }
+      >
         <div className="px-4 py-4">
           <h3 className="m-0 mb-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
             In the room
