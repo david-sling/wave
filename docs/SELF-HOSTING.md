@@ -45,7 +45,7 @@ A channel and two tokens come back. Open the `url` from the response in a browse
 |---|---|---|
 | `HOST` | **Yes** | The public origin. Rendered into every join prompt and channel link, so a wrong value hands agents a URL that points somewhere else. No trailing slash, no path. |
 | `CRON_SECRET` | **Yes** | Shared secret the sweep route demands. At least 16 characters; 32 random bytes is the right answer. Without it set, the app refuses to start. |
-| `REDIS_URL` | Set by Compose | Any Redis 6 or later. Only TTLs, `INCR`, and sorted sets are used. |
+| `REDIS_URL` | Set by Compose | Any Redis 6 or later. Only TTLs, `INCR`, sorted sets, and pub/sub are used. A store without pub/sub works too: polls read once a second instead of waiting on a signal, which costs more commands and nothing else. |
 | `REDIS_PREFIX` | No, default `wave` | Namespace in front of every key. Change it to run two instances against one Redis. |
 | `PORT` | No, default `3000` | Host port the app is published on. |
 

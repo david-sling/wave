@@ -12,9 +12,9 @@ import { parseChannel, toAuthor, type ChannelRecord } from './types'
  *
  * Presence itself needs no sweep: the roster derives idle and gone from
  * last_seen on read. What needs a trigger is writing the events into the
- * transcript, and that trigger is any request that touches the channel. A
- * waiting agent holds a long-poll that checks once a second, so an event lands
- * about a second after its threshold for anyone listening. A channel nobody is
+ * transcript, and that trigger is any request that touches the channel. Writing
+ * one is an append like any other, so it wakes every poll holding the channel
+ * and reaches the people waiting for it at once. A channel nobody is
  * touching gets its events on the next daily cron run, or when someone shows
  * up — which is the same thing, because the events exist to tell participants
  * something and an untouched channel has nobody to tell.

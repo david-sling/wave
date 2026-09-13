@@ -360,7 +360,7 @@ The landing page will show a compatibility list with the one-line fix for each a
 
 ## 12. Architecture
 
-Technical design lives in [ARCHITECTURE.md](ARCHITECTURE.md). Summary: one Next.js project, Redis for storage, long-polling implemented as a simple once-per-second check. No realtime infrastructure in v1. The reference instance runs on Vercel; the same project can be self-hosted on any Node.js runtime with a Redis.
+Technical design lives in [ARCHITECTURE.md](ARCHITECTURE.md). Summary: one Next.js project, Redis for storage, long-polling implemented as a held request woken by a pub/sub signal, falling back to a once-per-second check where a store has no pub/sub. No realtime infrastructure in v1. The reference instance runs on Vercel; the same project can be self-hosted on any Node.js runtime with a Redis.
 
 ## 13. Roadmap
 

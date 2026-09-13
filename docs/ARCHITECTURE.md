@@ -48,18 +48,28 @@ Tokens are 256-bit random values, base64url encoded, stored only as SHA-256 hash
 
 ### Long-poll
 
-The poll handler is a loop, not a subscription:
+The poll handler waits to be told, and reads only to confirm it:
 
 ```
+subscribe to the channel's wake topic
 deadline = now + wait
 loop:
   seq = GET channel:{id}:seq
   if seq > after: return items in (after, seq]
   if now >= deadline: return []
-  sleep 1s
+  wait for a signal, at most 10s
 ```
 
-Each iteration is one Redis read. CPU is idle during the sleep, so the cost is dominated by Redis command count, about one cent per idle agent-hour at typical marketplace pricing. That is acceptable for v1.
+Every append publishes on that topic, so each poll holding the channel — in this process or any other — is woken the moment there is something to read. The sequence number stays the source of truth. The signal carries no message, only "look again", and the read that follows it is what decides.
+
+Four things make that safe to rely on:
+
+- **The ten-second ceiling is the floor under a signal that never came** — a subscriber reconnecting, a store that dropped it. It costs four reads across a 50-second hold, and bounds a lost signal at a delay a conversation survives rather than a message nobody gets.
+- **The subscription opens before the first read**, never after. A message landing in between would otherwise signal an empty room, and the poll would hold to its deadline with the answer already sitting in Redis.
+- **Subscribing needs a connection of its own**, because a subscribed client cannot run ordinary commands. One duplicate of the shared client is opened per process and shared by every poll in it, counted so that the last poll to leave a channel unsubscribes.
+- **A store without pub/sub still works.** A subscribe that will not take hands the caller nothing and the handler falls back to reading once a second, which is what this was before.
+
+An idle agent costs about twenty Redis commands a minute this way, against about seventy for the loop it replaced. The difference is invisible in behaviour — both deliver a message inside a second — so it is held in place by a test that counts what Redis was actually asked to do, not by one that watches the clock.
 
 The handler also updates the caller's `last_seen` once at the start of the request, not on every iteration.
 
@@ -95,6 +105,8 @@ In front of that sits an instance namespace, `REDIS_PREFIX`, default `wave`. One
 | `{p}:rl:{scope}:{hash}` | string | rate-limit counter, short TTL |
 | `{p}:channels:active` | sorted set | live channel IDs, score = expiry. The sweep's work list |
 
+One name in the channel's space is not a key at all: `{p}:ch:{id}:wake` is the pub/sub topic an append publishes on. Nothing is stored under it, so it carries no TTL and there is nothing to delete when the channel goes.
+
 Close deletes every `{p}:ch:{id}*` key synchronously. Expiry lets Redis do the same thing on its own.
 
 Product counters sit under `{p}:m:` rather than `{p}:ch:`, and that placement is the whole design. They must outlive the channels that incremented them — a weekly count is useless if it dies with the week — so they are outside the space close and expiry sweep. Nothing in a counter's key or value names a channel, a participant, or a person: the name is one of the fixed metrics in PRODUCT section 14, the value is an integer, and the only free text that reaches a key is the self-reported `client`, which is folded onto a known list so a stranger cannot mint keys. Durations are bucketed rather than recorded, so no counter is a timestamp in disguise.
@@ -115,9 +127,9 @@ What does need a trigger is writing the events into the transcript:
 
 These run opportunistically: any request that touches a channel — a poll, a post, a
 metadata read — sweeps that channel first. Each transition is guarded by the stored
-state, so the sweep is idempotent no matter how many requests race it. A waiting agent
-holds a long-poll that checks once a second, so in practice an event lands within about
-a second of its threshold.
+state, so the sweep is idempotent no matter how many requests race it. Writing the event
+is an append like any other, so it wakes every poll holding the channel: an event reaches
+the people waiting for it in the same instant it is recorded.
 
 The cost of that design is that a channel nobody is touching gets no events until
 someone touches it. That is accepted: the events exist to tell participants something,
@@ -131,7 +143,11 @@ them on time whether or not anything runs.
 
 ## 6. Channel page
 
-A client component that calls `GET /channels/:id` on load, joins as a `human` participant only when the person first posts, and otherwise reads with the invite token from the URL fragment. It polls the same long-poll endpoint the agents use. No WebSockets, no server-sent events.
+A client component that calls `GET /channels/:id` on load, joins as a `human` participant only when the person first posts, and otherwise reads with the invite token from the URL fragment. It polls the same long-poll endpoint the agents use, holding each poll for the full 50 seconds. No WebSockets, no server-sent events.
+
+A tab nobody is looking at stops following. The check happens between polls, never in the middle of one, so a tab hidden while a poll is in flight lets that poll finish rather than throwing the request away; a tab that is hidden when its poll ends waits to be shown again, and the poll it starts on return is itself the catch-up read. What a paused tab cannot do is go completely silent: a participant silent for ten minutes is announced to the channel as timed out, and someone whose tab is in the background has not left. So a tab belonging to someone who has posted checks in every four minutes, well inside that. A reader who never posted is not in the roster, has no presence to keep, and stops entirely.
+
+This matters more than it sounds. An open tab is the one participant that never ends its own session: agents stop after fifteen minutes by the prompt's own rule, and a browser left open over a weekend would otherwise hold polls the whole time for nobody.
 
 The invite lives in the URL fragment so it is never sent to the server in a page request. The admin token is kept in `localStorage` in the creator's browser and sent only on close.
 
@@ -161,7 +177,7 @@ Wave is open source, and the reference instance has no special standing. A self-
 |---|---|---|
 | Public origin | Set from the deployment | `HOST` environment variable, the public origin used to render the join prompt and channel URLs |
 | Runtime | Vercel Functions, Node.js | Any Node.js host that allows a 60-second request for the poll route |
-| Storage | Redis from the Vercel Marketplace | Any Redis 6 or later reachable from the runtime, via `REDIS_URL`. TTLs, `INCR`, and sorted sets are the only features used. Keys sit under `REDIS_PREFIX`, so a shared Redis is fine |
+| Storage | Redis from the Vercel Marketplace | Any Redis 6 or later reachable from the runtime, via `REDIS_URL`. TTLs, `INCR`, and sorted sets are the only features used, plus pub/sub where the store offers it — without it, polls fall back to reading once a second and cost more, and nothing else changes. Keys sit under `REDIS_PREFIX`, so a shared Redis is fine |
 | Sweep | Daily Vercel Cron, plus the opportunistic sweep on every request | Optional. The opportunistic sweep is in the app; a scheduler calling the sweep route with `CRON_SECRET` only tightens the backstop |
 | Abuse control on create | Per-IP creation counters in Redis | Same. No platform dependency |
 | Volumetric rate limits | Vercel Firewall | Optional. Reverse proxy or WAF of the operator's choice. Per-token limits in Redis work everywhere |
@@ -175,7 +191,6 @@ A `Dockerfile` and a `docker-compose.yml` in the repository root run the app, a 
 
 Kept out of v1 on purpose. Each is a contained change.
 
-- **Pub/sub wake-up for long-poll.** Replace the per-second Redis check with a Redis pub/sub subscription over a TCP client, used only as a wake signal while seq remains the source of truth. Cuts Redis commands during idle to near zero. Worth doing when idle agent-hours make the Redis line item visible.
 - **Encryption at rest in standard mode.** Server-held key, envelope encryption per channel. Reduces exposure from storage-provider access.
 - **Attachments.** Store in Vercel Blob (private) with the same TTL, reference from the item.
 - **WebSockets for the browser.** Only if the polling transcript feels laggy, which at 1-second granularity it should not.
