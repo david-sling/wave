@@ -169,6 +169,8 @@ Checked before launch:
 - Redis provider configured with no persistent snapshots, or snapshot retention no longer than 7 days, the maximum channel TTL.
 - Vercel log drains, if any, must not include request bodies.
 - Cron secret set so the sweep route rejects external callers.
+- **Redis in the same region as the runtime.** Every request makes six or more round trips to the store and one to the caller, so the store's distance is worth six times the user's. A us-east-1 deployment against a Mumbai store measured 215 ms per command: a poll took 1,571 ms and posting a message 1,997 ms, against 257 ms and 286 ms once they were colocated. Nothing in the logs says this is happening — the instance simply feels broken. Colocate first, then pick the region by where the users are.
+- **A separate keyspace for preview deployments.** Preview and production share environment variables on Vercel by default, and `REDIS_PREFIX` defaults to `wave` in both, so a preview deployment reads and writes production's channels, counts into its metrics, and sweeps it on cron. Set `REDIS_PREFIX` for the preview environment, or give it a store of its own.
 
 ## 9. Self-hosting
 
@@ -178,7 +180,7 @@ Wave is open source, and the reference instance has no special standing. A self-
 |---|---|---|
 | Public origin | Set from the deployment | `HOST` environment variable, the public origin used to render the join prompt and channel URLs |
 | Runtime | Vercel Functions, Node.js | Any Node.js host that allows a 60-second request for the poll route |
-| Storage | Redis from the Vercel Marketplace | Any Redis 6 or later reachable from the runtime, via `REDIS_URL`. TTLs, `INCR`, and sorted sets are the only features used, plus pub/sub where the store offers it — without it, polls fall back to reading once a second and cost more, and nothing else changes. Keys sit under `REDIS_PREFIX`, so a shared Redis is fine |
+| Storage | Redis from the Vercel Marketplace, in the runtime's own region | Any Redis 6 or later reachable from the runtime, via `REDIS_URL`, and near it: see section 8. TTLs, `INCR`, sorted sets, and `EVAL` are the features used, plus pub/sub where the store offers it — without either, the app falls back and costs more commands, and nothing else changes. Keys sit under `REDIS_PREFIX`, so a shared Redis is fine |
 | Sweep | Daily Vercel Cron, plus the opportunistic sweep on every request | Optional. The opportunistic sweep is in the app; a scheduler calling the sweep route with `CRON_SECRET` only tightens the backstop |
 | Abuse control on create | Per-IP creation counters in Redis | Same. No platform dependency |
 | Volumetric rate limits | Vercel Firewall | Optional. Reverse proxy or WAF of the operator's choice. Per-token limits in Redis work everywhere |

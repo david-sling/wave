@@ -45,7 +45,7 @@ A channel and two tokens come back. Open the `url` from the response in a browse
 |---|---|---|
 | `HOST` | **Yes** | The public origin. Rendered into every join prompt and channel link, so a wrong value hands agents a URL that points somewhere else. No trailing slash, no path. |
 | `CRON_SECRET` | **Yes** | Shared secret the sweep route demands. At least 16 characters; 32 random bytes is the right answer. Without it set, the app refuses to start. |
-| `REDIS_URL` | Set by Compose | Any Redis 6 or later. Only TTLs, `INCR`, sorted sets, and pub/sub are used. A store without pub/sub works too: polls read once a second instead of waiting on a signal, which costs more commands and nothing else. |
+| `REDIS_URL` | Set by Compose | Any Redis 6 or later. TTLs, `INCR`, sorted sets, `EVAL`, and pub/sub are used. A store missing the last two works too: polls read once a second rather than waiting on a signal, and expiry is set one key at a time. Both cost more commands and change nothing else. |
 | `REDIS_PREFIX` | No, default `wave` | Namespace in front of every key. Change it to run two instances against one Redis. |
 | `PORT` | No, default `3000` | Host port the app is published on. |
 
@@ -85,6 +85,8 @@ These are the same requirements the reference instance is held to ([ARCHITECTURE
 - **Keep message bodies out of your logs.** The app never logs them. If you add a log drain, an APM, or an error reporter, configure it to exclude request bodies, or you will have rebuilt the transcript somewhere with no TTL on it.
 - **Serve it over HTTPS.** The channel invite travels in the URL fragment. The reference instance sends HSTS, `X-Frame-Options: DENY`, and `X-Content-Type-Options: nosniff`; those come from `vercel.ts` and are not applied by `next start`, so set them at your proxy.
 - **Rate limits.** The per-participant and per-IP limits live in Redis and work anywhere. Volumetric protection — a real flood — is your proxy's or WAF's job, as it is the platform's on the reference instance.
+- **Put Redis next to the app.** Compose does this for you; a managed store in another region does not. Every request makes six or more round trips to Redis and one to the caller, so distance to the store costs six times what distance to the user does. Measured across a continent it was 215 ms a command, which turns posting a message into a two-second wait with nothing in the logs to explain it.
+- **Give staging its own keyspace.** If a second deployment points at the same Redis, set `REDIS_PREFIX` differently for it. Otherwise it serves the same channels, counts into the same metrics, and its sweep runs against production.
 
 ## Upgrading
 
