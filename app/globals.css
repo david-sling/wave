@@ -358,6 +358,68 @@
     cursor: not-allowed;
   }
 
+  /* A modal and a bottom sheet, opened and closed by `<dialog>`.
+
+     Both sides of the transition are CSS: `@starting-style` gives the browser
+     a frame to animate from, and `allow-discrete` holds `display` and the
+     top layer open long enough for the closing half to be seen. Without them
+     a native dialog appears and vanishes between frames, which on a sheet
+     reads as a jump rather than as something that arrived. The global
+     reduced-motion rule collapses the durations, and the dialog still opens. */
+  .dialog-modal,
+  .dialog-sheet {
+    opacity: 0;
+    transition:
+      opacity 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
+      overlay 260ms allow-discrete,
+      display 260ms allow-discrete;
+  }
+  .dialog-modal {
+    transform: translateY(6px) scale(0.97);
+    box-shadow: var(--shadow-lift);
+  }
+  /* The sheet rises from the edge it is attached to and does not fade: a panel
+     you can see through is a panel that has not arrived. Sliding is the whole
+     of it, so it is opaque from the first frame to the last. */
+  .dialog-sheet {
+    opacity: 1;
+    transform: translateY(100%);
+    box-shadow: var(--shadow-lift);
+  }
+  .dialog-modal[open],
+  .dialog-sheet[open] {
+    opacity: 1;
+    transform: none;
+  }
+  @starting-style {
+    .dialog-modal[open] {
+      opacity: 0;
+      transform: translateY(6px) scale(0.97);
+    }
+    .dialog-sheet[open] {
+      transform: translateY(100%);
+    }
+  }
+  .dialog-modal::backdrop,
+  .dialog-sheet::backdrop {
+    background: rgba(21, 22, 26, 0);
+    transition:
+      background-color 240ms cubic-bezier(0.16, 1, 0.3, 1),
+      overlay 240ms allow-discrete,
+      display 240ms allow-discrete;
+  }
+  .dialog-modal[open]::backdrop,
+  .dialog-sheet[open]::backdrop {
+    background: rgba(21, 22, 26, 0.32);
+  }
+  @starting-style {
+    .dialog-modal[open]::backdrop,
+    .dialog-sheet[open]::backdrop {
+      background: rgba(21, 22, 26, 0);
+    }
+  }
+
   /* Below `sm` six labels only fit as a three-row block, which is taller than
      the panel deserves. The track becomes one scrolling row instead, and the
      scrollbar is the browser's, not part of the control. The ends fade the way

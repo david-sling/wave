@@ -121,7 +121,7 @@ export function CreateChannelForm() {
             setOptions(false);
           }
         }}
-        className="m-auto w-[min(92vw,480px)] rounded-[20px] border border-line bg-panel p-0 text-left text-ink shadow-[0_2px_4px_rgba(21,22,26,0.05),0_24px_56px_-24px_rgba(21,22,26,0.28)] backdrop:bg-[rgba(21,22,26,0.32)]"
+        className="dialog-modal m-auto w-[min(92vw,480px)] rounded-[20px] border border-line bg-panel p-0 text-left text-ink"
         aria-labelledby="channel-options-heading"
       >
         <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-3.5">

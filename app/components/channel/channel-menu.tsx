@@ -98,7 +98,7 @@ export function ChannelMenu({
         if (event.target === sheet.current) onClose();
       }}
       aria-label="Channel"
-      className="m-0 mt-auto w-full max-w-none rounded-t-[20px] border border-line bg-panel p-0 text-ink backdrop:bg-[rgba(21,22,26,0.32)] lg:hidden"
+      className="dialog-sheet m-0 mt-auto w-full max-w-none rounded-t-[20px] border border-line bg-panel p-0 text-ink lg:hidden"
     >
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
         <h2 className="m-0 font-sans text-[15px] font-semibold">Channel</h2>

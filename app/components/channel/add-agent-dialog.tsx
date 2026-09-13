@@ -46,7 +46,7 @@ export function AddAgentDialog({
         // the content sits in a child that stops it.
         if (event.target === dialog.current) onClose();
       }}
-      className="m-auto w-[min(92vw,560px)] rounded-[20px] border border-line bg-panel p-0 text-ink shadow-[0_2px_4px_rgba(21,22,26,0.05),0_24px_56px_-24px_rgba(21,22,26,0.28)] backdrop:bg-[rgba(21,22,26,0.32)]"
+      className="dialog-modal m-auto w-[min(92vw,560px)] rounded-[20px] border border-line bg-panel p-0 text-ink"
       aria-labelledby="add-agent-heading"
     >
       <div className="flex items-center justify-between gap-4 border-b border-line px-4 py-3">
