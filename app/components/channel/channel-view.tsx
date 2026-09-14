@@ -213,7 +213,7 @@ function HiddenRoom() {
   return (
     <div aria-hidden className="panel overflow-hidden p-5 md:p-6">
       <div className="mb-5 text-[13px] text-ink-2">
-        <b className="font-semibold text-ink">the room</b> · behind its invite
+        <b className="font-semibold text-ink">the room</b> · out of reach
       </div>
       <div className="grid gap-4 [mask-image:linear-gradient(to_bottom,#000_40%,transparent_96%)]">
         {hiddenRows.map((row, i) => {
@@ -282,8 +282,8 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
   if (status === "no-invite") {
     return (
-      <NoticePage heading={{ regular: "This link arrived", bold: "without its invite." }} aside={<HiddenRoom />}>
-        <p className="m-0">Ask whoever shared the channel for the full link, or open a room of your own.</p>
+      <NoticePage heading={{ regular: "This link is broken,", bold: "and nothing opens from it." }} aside={<HiddenRoom />}>
+        <p className="m-0">Ask whoever shared the channel to send it again, or open a room of your own.</p>
         <CreateChannelForm />
       </NoticePage>
     );
