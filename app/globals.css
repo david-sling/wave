@@ -543,7 +543,7 @@
   transform-origin: 62% 84%;
 }
 @media (hover: hover) {
-  .numeral-404:hover .big-hand img {
+  .big-hand-host:hover .big-hand img {
     animation: wave-hand 1.15s ease-in-out;
   }
 }
