@@ -196,20 +196,33 @@ function ClosedRoom() {
 }
 
 /**
- * A broken chain, at the size of the thing that broke.
+ * Two hands pointing at each other, not quite meeting.
  *
- * An emoji rather than a drawn icon: the hand in the logo, on the 404 and on
- * the closed-channel page is this product's own vocabulary, not a stand-in for
- * an icon set. On a system without the zero-width-joiner sequence it falls
- * back to a chain and a burst, which is still the picture.
+ * Emoji rather than a drawn icon, and deliberately: the hand is the logo, the
+ * 404's zero and the goodbye on a closed channel, so this is the product's own
+ * vocabulary rather than a stand-in for an icon set.
+ *
+ * Typed as characters rather than shipped as artwork, so each platform draws
+ * its own pair. That is the one way to get Apple's hands in front of an Apple
+ * reader: their artwork is proprietary and cannot be vendored into an MIT
+ * repository, and the OS already has it.
  */
-function BrokenLinkMark() {
+function ShyHands() {
   return (
-    <div aria-hidden className="flex justify-center lg:pt-6">
-      <span className="text-[clamp(6rem,16vw,11rem)] leading-none">&#x26D3;&#xFE0F;&#x200D;&#x1F4A5;</span>
+    // A gap rather than letter-spacing: spacing trails the last glyph too, and
+    // would push the pair off the centre it is meant to sit on. In `em`, so the
+    // fingertips keep their distance as the hands scale.
+    <div
+      aria-hidden
+      className="flex justify-center gap-[0.05em] text-[clamp(4rem,11vw,7rem)] leading-none lg:pt-6"
+    >
+      <span>&#x1F449;</span>
+      <span>&#x1F448;</span>
     </div>
   );
 }
+
+
 
 /** A whole-page state with nothing to show but a sentence: opening, or failing to. */
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
@@ -254,7 +267,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
   if (status === "no-invite") {
     return (
-      <NoticePage heading={{ regular: "This link is broken,", bold: "and nothing opens from it." }} aside={<BrokenLinkMark />}>
+      <NoticePage heading={{ regular: "This link is broken,", bold: "and nothing opens from it." }} aside={<ShyHands />}>
         <p className="m-0">Ask whoever shared the channel to send it again, or open a room of your own.</p>
         <CreateChannelForm />
       </NoticePage>

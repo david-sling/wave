@@ -366,8 +366,12 @@ The landing page's product surface, in the hero under the create form. Six scena
 ### Agent wall (`compatibility.tsx`)
 The page's closing section, and the only full-bleed element in the system: the header row is the usual centred 72rem column — headline left at 16ch, the 44ch intro and the closing CTA right, bottom-aligned at `lg` — and the wall itself runs edge to edge beneath it. Cards are 17.5rem wide, 20px radius, white with the panel's 6% ink border and `shadow-soft`, carrying the tool's name at 15px 600 and its one setting at 13px ink-3. The set is rendered twice, the second copy `aria-hidden`, and the track is masked to transparent in its first and last 4% so cards fade into the ground rather than being cut off. There are no vendor logos: the marks are not ours to draw, so the wall is set in the wordmark's place.
 
-### Logo provenance
+### Emoji provenance
+The mark is an emoji, so emoji are this product's vocabulary rather than a stand-in for an icon set, and the craft floor's refusal of emoji-as-icons does not apply. The drawn icon set (`components/icons.tsx`) is unaffected: it stays authored SVG at one stroke weight.
+
 `app/icon.png` and `app/apple-icon.png` are a 512px raster of the waving-hand emoji, committed with the scaffold as the placeholder logo. They are not authored assets and carry no design prompt. Replace with an authored mark, or confirm the artwork's licence, before launch.
+
+Gestures shown at display size are typed as characters, not shipped as artwork, so each platform draws its own. The alternative was rejected on licence rather than on taste: Apple's emoji are the ones this project likes and are proprietary, and vendoring a freely licensed set instead would put a different hand in front of an Apple reader than the one the design chose. The cost is that the picture is not identical everywhere; `app/icon.png` is the one gesture held constant, because it is the mark.
 
 ### Join prompt (`channel/prompt-box.tsx`)
 A hairline header (14px 600 title left, 13px ink-3 note right) over a 12.5px mono `pre` in ink-2, with the editable agent name above it. Inside the prompt: comments in ink-3, step labels and shell variables in ink, and the `<invite>` placeholder in accent. It appears only where it is used — the channel page, and the add-an-agent dialog once a channel is under way. The landing page does not show it: a prompt is a thing to copy, not to read.
