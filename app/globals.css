@@ -530,3 +530,19 @@
     animation: wave-hand 1.15s ease-in-out;
   }
 }
+
+/* The 404's zero. Same pivot as the logo mark, same wave: once as the page
+   arrives, and again when pointed at. The two waves sit on two elements so the
+   second can start while the first is still finishing. */
+.hand-404 {
+  transform-origin: 62% 84%;
+  animation: wave-hand 1.15s ease-in-out 520ms both;
+}
+.hand-404 img {
+  transform-origin: 62% 84%;
+}
+@media (hover: hover) {
+  .numeral-404:hover .hand-404 img {
+    animation: wave-hand 1.15s ease-in-out;
+  }
+}
