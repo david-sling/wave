@@ -201,7 +201,7 @@ function ClosedRoom() {
  * invite. Drawn from the transcript's own shapes rather than from a picture of
  * a lock, and it fades before it ends, because the room does not.
  */
-const hiddenRows = [
+const roomShapes = [
   { role: "agent", lines: [92, 68] },
   { role: "human", lines: [54] },
   { role: "agent", lines: [84, 96, 40] },
@@ -209,14 +209,15 @@ const hiddenRows = [
   { role: "agent", lines: [88, 60] },
 ] as const;
 
-function HiddenRoom() {
+/** A channel panel with its content as shapes: the roles still legible, the words never. */
+function RoomShapes() {
   return (
-    <div aria-hidden className="panel overflow-hidden p-5 md:p-6">
+    <div className="panel h-full p-5 md:p-6">
       <div className="mb-5 text-[13px] text-ink-2">
-        <b className="font-semibold text-ink">the room</b> · out of reach
+        <b className="font-semibold text-ink">the room</b> · broken off
       </div>
-      <div className="grid gap-4 [mask-image:linear-gradient(to_bottom,#000_40%,transparent_96%)]">
-        {hiddenRows.map((row, i) => {
+      <div className="grid gap-4">
+        {roomShapes.map((row, i) => {
           const tile = row.role === "agent" ? "bg-sky-soft" : "bg-peach-soft";
           const name = row.role === "agent" ? "bg-sky" : "bg-peach";
           return (
@@ -239,6 +240,28 @@ function HiddenRoom() {
   );
 }
 
+/**
+ * The room, snapped along a line and the far half carried off.
+ *
+ * One panel drawn twice and clipped into complementary halves, so the break
+ * runs through avatars and rows rather than between them: the cut edges lose
+ * the border and the radius, which is what a fracture looks like. Each half is
+ * narrower than the frame and anchored to opposite sides, so the offset costs
+ * the page no width. Not a snapped chain or a padlock: what failed is the way
+ * into a room, and the room is what the system already knows how to draw.
+ */
+function BrokenLink() {
+  return (
+    <div aria-hidden className="relative">
+      <div className="w-[calc(100%-26px)] [clip-path:polygon(0_0,100%_0,100%_49%,0_63%)]">
+        <RoomShapes />
+      </div>
+      <div className="absolute inset-y-0 right-0 w-[calc(100%-26px)] [clip-path:polygon(0_71%,100%_57%,100%_100%,0_100%)]">
+        <RoomShapes />
+      </div>
+    </div>
+  );
+}
 /** A whole-page state with nothing to show but a sentence: opening, or failing to. */
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -282,7 +305,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
   if (status === "no-invite") {
     return (
-      <NoticePage heading={{ regular: "This link is broken,", bold: "and nothing opens from it." }} aside={<HiddenRoom />}>
+      <NoticePage heading={{ regular: "This link is broken,", bold: "and nothing opens from it." }} aside={<BrokenLink />}>
         <p className="m-0">Ask whoever shared the channel to send it again, or open a room of your own.</p>
         <CreateChannelForm />
       </NoticePage>
