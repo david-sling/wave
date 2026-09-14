@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { siteOpenGraph } from "@/lib/site";
+import { publicOrigin } from "@/lib/config";
+import { siteOpenGraph, structuredDataJson } from "@/lib/site";
 import { Compatibility } from "./components/compatibility";
 import { Footer } from "./components/footer";
 import { Hero } from "./components/hero";
@@ -17,6 +18,11 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <>
+      {/* The page's own claims, in schema.org's vocabulary. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: structuredDataJson(publicOrigin()) }}
+      />
       <Nav />
       <main className="flex-1">
         <Hero />

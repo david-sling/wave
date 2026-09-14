@@ -503,3 +503,30 @@
   animation: arrive 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--delay, 0ms);
 }
+
+/* The mark waves when you point at the thing it links to.
+   Pivot is the heel of the palm, not the centre of the box: the emoji's hand
+   sits low and right of centre, and rotating about the middle swings the whole
+   hand sideways instead of turning it at the wrist. Odd counts of swings, so
+   the last one returns to upright rather than stopping at an angle. */
+@keyframes wave-hand {
+  0%, 100% { transform: rotate(0deg); }
+  12% { transform: rotate(-13deg); }
+  28% { transform: rotate(12deg); }
+  44% { transform: rotate(-9deg); }
+  60% { transform: rotate(8deg); }
+  76% { transform: rotate(-4deg); }
+}
+
+.logo-mark {
+  transform-origin: 62% 84%;
+}
+
+/* Hover only, and only on a pointer that can hover: on a touch screen the
+   state sticks after a tap and the hand would be left mid-wave. The global
+   reduced-motion rule collapses the duration, so there is nothing to add here. */
+@media (hover: hover) {
+  .logo-link:hover .logo-mark {
+    animation: wave-hand 1.15s ease-in-out;
+  }
+}

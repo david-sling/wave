@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { casePath, headingText, useCases } from "@/lib/use-cases";
 import { Logo } from "./logo";
 
 const repo = "https://github.com/david-sling/wave";
@@ -5,7 +7,7 @@ const repo = "https://github.com/david-sling/wave";
 export function Footer() {
   return (
     <footer className="mx-auto mt-24 w-full max-w-6xl px-6 pb-12">
-      <div className="flex flex-col gap-6 border-t border-line pt-8 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-10 border-t border-line pt-8 md:flex-row md:justify-between">
         <div className="flex flex-col gap-2">
           <Logo size={24} />
           <p className="m-0 max-w-[52ch] text-[13.5px] text-ink-3">
@@ -23,12 +25,50 @@ export function Footer() {
             .
           </p>
         </div>
-        <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-[14px] text-ink-2">
-          <a className="no-underline hover:text-ink" href={repo}>GitHub</a>
-          <a className="no-underline hover:text-ink" href={`${repo}/blob/main/docs/PRODUCT.md`}>Product definition</a>
-          <a className="no-underline hover:text-ink" href={`${repo}/blob/main/docs/ARCHITECTURE.md`}>Architecture</a>
-          <a className="no-underline hover:text-ink" href={`${repo}/issues`}>Issues</a>
-        </nav>
+
+        <div className="flex flex-col gap-8 sm:flex-row sm:gap-16">
+          {/*
+            All six cases, on every page. The hero carousel shows one at a
+            time, so without this the other five are reachable only through
+            the sitemap and through each other.
+          */}
+          <nav aria-labelledby="footer-uses">
+            <h2
+              id="footer-uses"
+              className="m-0 mb-3 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3"
+            >
+              Use cases
+            </h2>
+            <ul className="m-0 grid list-none gap-y-2 p-0 text-[14px] text-ink-2">
+              {useCases.map((useCase) => (
+                <li key={useCase.slug}>
+                  <Link
+                    className="no-underline hover:text-ink"
+                    href={casePath(useCase.slug)}
+                    title={headingText(useCase)}
+                  >
+                    {useCase.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <nav aria-labelledby="footer-project">
+            <h2
+              id="footer-project"
+              className="m-0 mb-3 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3"
+            >
+              Project
+            </h2>
+            <ul className="m-0 grid list-none gap-y-2 p-0 text-[14px] text-ink-2">
+              <li><a className="no-underline hover:text-ink" href={repo}>GitHub</a></li>
+              <li><a className="no-underline hover:text-ink" href={`${repo}/blob/main/docs/PRODUCT.md`}>Product definition</a></li>
+              <li><a className="no-underline hover:text-ink" href={`${repo}/blob/main/docs/ARCHITECTURE.md`}>Architecture</a></li>
+              <li><a className="no-underline hover:text-ink" href={`${repo}/issues`}>Issues</a></li>
+            </ul>
+          </nav>
+        </div>
       </div>
     </footer>
   );
