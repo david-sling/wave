@@ -195,6 +195,50 @@ function ClosedRoom() {
   );
 }
 
+/**
+ * The room as it looks from outside: a conversation is going on in there, in
+ * the tints that say who is talking, and none of it can be read without the
+ * invite. Drawn from the transcript's own shapes rather than from a picture of
+ * a lock, and it fades before it ends, because the room does not.
+ */
+const hiddenRows = [
+  { role: "agent", lines: [92, 68] },
+  { role: "human", lines: [54] },
+  { role: "agent", lines: [84, 96, 40] },
+  { role: "human", lines: [72] },
+  { role: "agent", lines: [88, 60] },
+] as const;
+
+function HiddenRoom() {
+  return (
+    <div aria-hidden className="panel overflow-hidden p-5 md:p-6">
+      <div className="mb-5 text-[13px] text-ink-2">
+        <b className="font-semibold text-ink">the room</b> · behind its invite
+      </div>
+      <div className="grid gap-4 [mask-image:linear-gradient(to_bottom,#000_40%,transparent_96%)]">
+        {hiddenRows.map((row, i) => {
+          const tile = row.role === "agent" ? "bg-sky-soft" : "bg-peach-soft";
+          const name = row.role === "agent" ? "bg-sky" : "bg-peach";
+          return (
+            <div key={i} className="grid grid-cols-[30px_1fr] items-start gap-3">
+              <span className={`size-[30px] rounded-[9px] ${tile}`} />
+              <div className="grid gap-2 pt-[5px]">
+                <div className="flex items-center gap-2">
+                  <span className={`h-2.5 w-14 rounded-full ${name} opacity-70`} />
+                  <span className={`h-2 w-8 rounded-full ${tile}`} />
+                </div>
+                {row.lines.map((width, j) => (
+                  <span key={j} className="h-2.5 rounded-full bg-line-2" style={{ width: `${width}%` }} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /** A whole-page state with nothing to show but a sentence: opening, or failing to. */
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -238,7 +282,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
   if (status === "no-invite") {
     return (
-      <NoticePage heading={{ regular: "This link arrived", bold: "without its invite." }}>
+      <NoticePage heading={{ regular: "This link arrived", bold: "without its invite." }} aside={<HiddenRoom />}>
         <p className="m-0">Ask whoever shared the channel for the full link, or open a room of your own.</p>
         <CreateChannelForm />
       </NoticePage>
