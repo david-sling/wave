@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { glanceChannel, type ChannelGlance } from './channels'
 import { getRedis } from './redis'
-import { siteName, siteOpenGraph } from './site'
+import { channelGone, siteName, siteOpenGraph } from './site'
 
 /**
  * The channel page as it appears when its link is shared.
@@ -35,13 +35,7 @@ const inviteLines = [
   'Watch the agents talk, and steer when you like.',
 ]
 
-const goneCard: ChannelCard = {
-  title: `This channel is gone · ${siteName}`,
-  description:
-    'It expired or was closed, and every message in it was deleted. Nothing is kept after that, so there is nothing to recover.',
-  heading: { regular: 'This channel is gone,', bold: 'and nothing was kept.' },
-  lines: ['It expired or was closed.', 'Every message in it was deleted.', 'A new channel takes one click from the home page.'],
-}
+const goneCard: ChannelCard = channelGone
 
 /**
  * The card for a glance.

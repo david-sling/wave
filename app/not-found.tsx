@@ -46,10 +46,10 @@ export default function NotFound() {
               <p
                 role="img"
                 aria-label="404"
-                className="numeral-404 m-0 flex items-center font-display text-[clamp(5.5rem,13vw,10rem)] font-extrabold leading-none tracking-[-0.04em]"
+                className="big-hand-host m-0 flex items-center font-display text-[clamp(5.5rem,13vw,10rem)] font-extrabold leading-none tracking-[-0.04em]"
               >
                 <span aria-hidden>4</span>
-                <span aria-hidden className="hand-404 mx-[0.03em] inline-block translate-y-[0.03em]">
+                <span aria-hidden className="big-hand mx-[0.03em] inline-block translate-y-[0.03em]">
                   <Image src={mark} alt="" className="h-[0.82em] w-auto" priority />
                 </span>
                 <span aria-hidden>4</span>

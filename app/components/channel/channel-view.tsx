@@ -1,9 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { sileo, Toaster } from "sileo";
 import { identityPalette } from "@/lib/identity-color";
+import { channelGone } from "@/lib/site";
+import mark from "../../icon.png";
+import { ArrowRightIcon } from "../icons";
 import { Logo } from "../logo";
 import { Roster, Transcript, type TranscriptItem } from "../transcript";
 import { AddAgentDialog } from "./add-agent-dialog";
@@ -121,7 +125,76 @@ function TopBar({ children, menu }: { children?: React.ReactNode; menu?: React.R
   );
 }
 
-/** A whole-page state: nothing to show but an explanation. */
+/**
+ * A whole-page state with something to say: the headline in the landing
+ * page's pairing, its explanation, and beside it the evidence. The hand is the
+ * goodbye, and only a channel that has actually gone gets one.
+ */
+function NoticePage({
+  hand = false,
+  heading,
+  children,
+  aside,
+}: {
+  hand?: boolean;
+  heading: { regular: string; bold: string };
+  children: React.ReactNode;
+  aside?: React.ReactNode;
+}) {
+  return (
+    <Shell>
+      <TopBar />
+      <div className="pane-scroll min-h-0 flex-1 overflow-y-auto px-6 py-12 md:py-16">
+        <div
+          className={`mx-auto grid w-full max-w-5xl gap-10 lg:items-start lg:gap-14 ${aside ? "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]" : ""}`}
+        >
+          <div className="grid gap-5">
+            {hand ? (
+              <span aria-hidden className="big-hand-host inline-block w-fit">
+                <span className="big-hand inline-block">
+                  <Image src={mark} alt="" className="size-[72px] md:size-[88px]" priority />
+                </span>
+              </span>
+            ) : null}
+            <h1 className="m-0 max-w-[22ch] text-[clamp(1.875rem,4vw,3rem)] leading-[1.02] tracking-[-0.03em]">
+              <span className="font-normal">{heading.regular}</span>
+              <br />
+              <span className="font-extrabold">{heading.bold}</span>
+            </h1>
+            <div className="grid max-w-[52ch] gap-3 text-[16px] leading-relaxed text-ink-2">{children}</div>
+          </div>
+          {aside}
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+const closedRoom: TranscriptItem[] = [
+  { type: "system", text: "The channel closed" },
+  { type: "system", text: "Every message and key in it was deleted" },
+  { type: "system", text: "Nothing is kept after that" },
+];
+
+/** The room as it is now: its last three lines, and nobody left in it. */
+function ClosedRoom() {
+  return (
+    <div className="panel grid gap-5 p-5 md:p-6">
+      <div className="text-[13px] text-ink-2">
+        <b className="font-semibold text-ink">this channel</b> · closed
+      </div>
+      <Transcript items={closedRoom} />
+      <aside className="border-t border-line-2 pt-5">
+        <h2 className="m-0 mb-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
+          In the channel
+        </h2>
+        <p className="m-0 text-[13px] text-ink-3">Nobody. The keys went with the room.</p>
+      </aside>
+    </div>
+  );
+}
+
+/** A whole-page state with nothing to show but a sentence: opening, or failing to. */
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Shell>
@@ -164,30 +237,38 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
   if (status === "no-invite") {
     return (
-      <Notice title="This link is missing its invite">
+      <NoticePage heading={{ regular: "This link arrived", bold: "without its invite." }}>
         <p className="m-0">
-          A channel link ends with <code className="rounded-[5px] border border-line-2 bg-panel-2 px-1.5 py-px">#</code>{" "}
-          and a long secret. Yours arrived without it, which usually means it was copied from an address bar that had
-          already dropped the part after the hash.
+          A channel link has two halves: the address, and after the hash a long secret that is the key to the room.
+          Yours stops at the address, which usually means it was copied from an address bar that had already dropped
+          the part after the hash.
         </p>
-        <p className="m-0">Ask whoever shared the channel for the full link.</p>
-      </Notice>
+        <p className="m-0">
+          Ask whoever shared the channel for the full link. Nothing here can recover it: the invite never reaches the
+          server, so there is nothing to look it up in.
+        </p>
+        <Link href="/#create" className="link mt-1 inline-block w-fit text-[14px] font-medium">
+          Or create a channel of your own{" "}
+          <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
+        </Link>
+      </NoticePage>
     );
   }
 
   if (status === "gone") {
     return (
-      <Notice title="This channel is gone 👋">
-        <p className="m-0">
-          It expired or was closed, and every message and key in it was deleted. Nothing is kept after that, so there is
-          nothing to recover.
-        </p>
-        <p className="m-0">
-          <Link href="/#create" className="font-semibold text-ink underline-offset-4 hover:underline">
+      <NoticePage hand heading={channelGone.heading} aside={<ClosedRoom />}>
+        <p className="m-0">{channelGone.description}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Link href="/#create" className="btn btn-primary">
             Create a new channel
           </Link>
-        </p>
-      </Notice>
+          <Link href="/" className="link text-[14px] font-medium">
+            Back to the front page{" "}
+            <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
+          </Link>
+        </div>
+      </NoticePage>
     );
   }
 

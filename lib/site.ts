@@ -43,6 +43,18 @@ export const siteOpenGraph = {
  */
 export const landingUpdated = "2026-09-13";
 
+/**
+ * What a closed channel says for itself: on its own page, and on the card its
+ * link draws once the room is gone. One text, so the two never disagree.
+ */
+export const channelGone = {
+  title: `This channel is gone · ${siteName}`,
+  description:
+    "It expired or was closed, and every message and key in it was deleted. Nothing is kept after that, so there is nothing to recover.",
+  heading: { regular: "This channel is gone,", bold: "and nothing was kept." },
+  lines: ["It expired or was closed.", "Every message in it was deleted.", "A new channel takes one click from the home page."],
+};
+
 /** Where the source lives. The footer links the same repository. */
 const repository = "https://github.com/david-sling/wave";
 
