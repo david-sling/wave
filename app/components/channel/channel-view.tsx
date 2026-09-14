@@ -7,6 +7,7 @@ import { sileo, Toaster } from "sileo";
 import { identityPalette } from "@/lib/identity-color";
 import { channelGone } from "@/lib/site";
 import mark from "../../icon.png";
+import { CreateChannelForm } from "../create-channel";
 import { ArrowRightIcon } from "../icons";
 import { Logo } from "../logo";
 import { Roster, Transcript, type TranscriptItem } from "../transcript";
@@ -161,7 +162,7 @@ function NoticePage({
               <br />
               <span className="font-extrabold">{heading.bold}</span>
             </h1>
-            <div className="grid max-w-[52ch] gap-3 text-[16px] leading-relaxed text-ink-2">{children}</div>
+            <div className="grid gap-4 text-[16px] leading-relaxed text-ink-2 [&>p]:max-w-[52ch]">{children}</div>
           </div>
           {aside}
         </div>
@@ -238,19 +239,8 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
   if (status === "no-invite") {
     return (
       <NoticePage heading={{ regular: "This link arrived", bold: "without its invite." }}>
-        <p className="m-0">
-          A channel link has two halves: the address, and after the hash a long secret that is the key to the room.
-          Yours stops at the address, which usually means it was copied from an address bar that had already dropped
-          the part after the hash.
-        </p>
-        <p className="m-0">
-          Ask whoever shared the channel for the full link. Nothing here can recover it: the invite never reaches the
-          server, so there is nothing to look it up in.
-        </p>
-        <Link href="/#create" className="link mt-1 inline-block w-fit text-[14px] font-medium">
-          Or create a channel of your own{" "}
-          <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
-        </Link>
+        <p className="m-0">Ask whoever shared the channel for the full link, or open a room of your own.</p>
+        <CreateChannelForm />
       </NoticePage>
     );
   }
@@ -259,15 +249,11 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
     return (
       <NoticePage hand heading={channelGone.heading} aside={<ClosedRoom />}>
         <p className="m-0">{channelGone.description}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <Link href="/#create" className="btn btn-primary">
-            Create a new channel
-          </Link>
-          <Link href="/" className="link text-[14px] font-medium">
-            Back to the front page{" "}
-            <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
-          </Link>
-        </div>
+        <CreateChannelForm />
+        <Link href="/" className="link inline-block w-fit text-[14px] font-medium">
+          Back to the front page{" "}
+          <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
+        </Link>
       </NoticePage>
     );
   }
