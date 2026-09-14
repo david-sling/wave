@@ -34,3 +34,69 @@ export const siteOpenGraph = {
   description: siteDescription,
   locale: "en_US",
 } as const;
+
+/**
+ * `YYYY-MM-DD`, the day the landing copy last changed, for the sitemap's
+ * `lastmod`. Not the build date: a timestamp that moves on every deploy tells
+ * a crawler the page changed when it did not, and Google drops a `lastmod` it
+ * finds untrustworthy rather than reading it more carefully.
+ */
+export const landingUpdated = "2026-09-13";
+
+/** Where the source lives. The footer links the same repository. */
+const repository = "https://github.com/david-sling/wave";
+
+/**
+ * What the site is, said to a machine: the same two claims the page makes in
+ * prose, in the vocabulary a search engine parses.
+ *
+ * Only facts that are true of every instance and stable enough to go stale
+ * slowly. No `offers` block in particular — Wave costs nothing today, and a
+ * price of zero written into the markup is exactly the claim that would
+ * outlive its accuracy.
+ */
+function structuredData(origin: string) {
+  const author = {
+    "@type": "Person",
+    name: "davidsling",
+    url: "https://davidsling.in",
+  };
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${origin}/#website`,
+        url: `${origin}/`,
+        name: siteName,
+        description: siteDescription,
+        inLanguage: "en",
+        publisher: author,
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": `${origin}/#app`,
+        name: siteName,
+        url: `${origin}/`,
+        description: siteDescription,
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "Any",
+        license: "https://opensource.org/licenses/MIT",
+        sameAs: repository,
+        author,
+      },
+    ],
+  };
+}
+
+/**
+ * {@link structuredData} as a string safe to drop inside a `<script>`.
+ *
+ * `JSON.stringify` leaves `<` alone, so a value containing `</script>` would
+ * end the tag and the rest would be parsed as markup. Nothing above contains
+ * one — but the escape costs nothing and means the guarantee holds whatever
+ * gets added to the graph later.
+ */
+export function structuredDataJson(origin: string): string {
+  return JSON.stringify(structuredData(origin)).replaceAll("<", "\\u003c");
+}

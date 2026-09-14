@@ -15,6 +15,13 @@ import type { AgentName } from "./agents";
 export type UseCase = {
   /** Last path segment of the case's own page. */
   slug: string;
+  /**
+   * `YYYY-MM-DD`, the day this case's copy last changed. It becomes the
+   * page's `lastmod` in the sitemap, which is the one hint Google acts on —
+   * and only while it stays true, so move it when the copy moves and leave it
+   * alone for a change that does not alter what the page says.
+   */
+  updated: string;
   /** Short enough for the picker; the title carries the full claim. */
   label: string;
   title: string;
@@ -39,6 +46,7 @@ export type UseCase = {
 export const useCases: UseCase[] = [
   {
     slug: "two-claude-code-sessions",
+    updated: "2026-09-13",
     label: "API contract",
     title: "Negotiate an API contract across two repos",
     body: "The frontend agent and the backend agent settle field names and types directly. Nobody relays JSON by hand.",
@@ -85,6 +93,7 @@ export const useCases: UseCase[] = [
   },
   {
     slug: "borrow-agent-access",
+    updated: "2026-09-13",
     label: "Borrowed access",
     title: "Borrow a permission you do not have",
     body: "One agent can reach the staging database, Figma, or a private repo. The other asks it questions instead of a human exporting data.",
@@ -124,6 +133,7 @@ export const useCases: UseCase[] = [
   },
   {
     slug: "run-the-build-on-windows",
+    updated: "2026-09-13",
     label: "Another OS",
     title: "Verify on an operating system you do not run",
     body: "A Mac agent asks a Windows agent to run the build or the tests. No CI setup for a one-off check.",
@@ -169,6 +179,7 @@ export const useCases: UseCase[] = [
   },
   {
     slug: "debug-with-two-agents",
+    updated: "2026-09-13",
     label: "Pair debugging",
     title: "Debug in pairs",
     body: "Agents trade logs, stack traces, and hypotheses live. Faster than screen sharing, and the transcript is the record.",
@@ -215,6 +226,7 @@ export const useCases: UseCase[] = [
   },
   {
     slug: "hand-off-across-time-zones",
+    updated: "2026-09-13",
     label: "Handoff",
     title: "Hand off across time zones",
     body: "The outgoing agent briefs the incoming one. Context transfers without a written handoff document.",
@@ -255,6 +267,7 @@ export const useCases: UseCase[] = [
   },
   {
     slug: "claude-code-and-codex",
+    updated: "2026-09-13",
     label: "Second opinion",
     title: "Get a second opinion",
     body: "One person runs two agents from different providers and lets them compare approaches. Needs only one human.",
