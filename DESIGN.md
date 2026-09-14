@@ -190,7 +190,7 @@ Lineage. The world was chosen from three references in the owner's local design 
 - Headlines pair Funnel Display 400 and 800 in the same line; body is Albert Sans; Geist Mono only where an agent reads.
 - Role colour is semantic: sky = agent, peach = human, lilac = the blend. Presence (green, amber, grey) is a separate semantic set.
 - One ink pill is the only primary action; the accent blue is not a button colour.
-- One authored motion: transcript items arrive with a staggered fade-rise.
+- One authored entrance: transcript items arrive with a staggered fade-rise. The logo's hover wave is the only other motion the landing page authors.
 
 ## Colors
 
@@ -346,7 +346,7 @@ The landing page's main call to action, in the hero heading block: a 48px `.inpu
 - **Rail (`.segmented-rail`):** below `sm` a track with more segments than fit becomes one scrolling row instead of stacking into a block — the inner element is a flex scroller with the scrollbar hidden and `scroll-behavior: smooth`, and segments take 14px of side padding so they size to their labels. From `sm` it is `display: contents`, so the labels are the track's own grid items again and nothing about the desktop control changes. Both ends are masked to transparent over 8px, narrower than a segment's padding, so the fade lands on the gap rather than on a word and a half-visible next label reads as a row that continues.
 
 ### Navigation
-- **Style:** logo (24-28px PNG mark plus "Wave" in Funnel Display 19px 700) left, four 15px ink-2 text links centre-right (hidden below `md`), one small ink pill right. Links have no underline and turn ink on hover; there is no active state. Footer nav repeats the pattern at 14px with a `line` rule above.
+- **Style:** logo (24-28px PNG mark plus "Wave" in Funnel Display 19px 700) left, four 15px ink-2 text links centre-right (hidden below `md`), one small ink pill right. Links have no underline and turn ink on hover; there is no active state. The logo is a link too, and its mark waves on hover (see Motion). Footer nav repeats the pattern at 14px with a `line` rule above.
 
 ### Transcript and Roster (`Transcript`, `Roster`, `RoleBadge`, `PresenceDot` in `app/components/transcript.tsx`)
 The signature component. Rendering conventions:
@@ -377,11 +377,12 @@ A hairline header (14px 600 title left, 13px ink-3 note right) over a 12.5px mon
 - **Marquee** (`@keyframes marquee`, 48s linear infinite): the agent wall drifts from `translateX(0)` to `translateX(calc(-50% - 0.4375rem))` — half the doubled track plus half a gap, so the seam lands where the first card started and the loop has no jump. Pauses on hover. Under reduced motion the global rule lands it on its end state, which on a doubled track is the same picture as the start, so it simply stands still.
 - **Dialog** (`.dialog-modal`): 200ms opacity and 260ms transform on `cubic-bezier(0.16,1,0.3,1)`, from `translateY(6px) scale(0.97)`; the backdrop fades its ink over 240ms. Carried by `@starting-style` and `transition-behavior: allow-discrete` on `display` and `overlay`, so the closing half is seen rather than cut: a native dialog otherwise appears and vanishes between frames. Used by the channel options dialog and the add-an-agent dialog.
 - **Sheet** (`.dialog-sheet`): the same timing on transform alone, rising from `translateY(100%)`. It does not fade — sliding is the whole of it, and a panel you can see through is one that has not arrived. Used by the channel sheet on a phone.
+- **Wave** (`@keyframes wave-hand`, 1.15s `ease-in-out`): the logo mark rotates about `62% 84%` — the heel of the palm, because the emoji's hand sits low and right of its box and a centre pivot swings the hand sideways instead of turning it at the wrist. Five swings decaying from 13 degrees to 4, ending upright. Hover only, and gated behind `@media (hover: hover)` so a tap on a phone cannot leave the hand stuck mid-wave. Reduced motion collapses it with everything else.
 - **Button transition:** 180ms on transform, box-shadow, border-color, background-color.
 - **Scroll:** `scroll-behavior: smooth`, anchors offset by `scroll-margin-top: 32px`. The case picker's rail carries the same property, so centring the chosen label glides rather than jumps; it is CSS, so reduced motion turns it off with everything else.
 - **Reduced motion:** `prefers-reduced-motion: reduce` collapses all animation and transition durations to 0.01ms and disables smooth scroll.
 
-**The One Arrival Rule.** Entrance motion belongs to the conversation. New surfaces reuse `.arrive` for transcript items and add no other entrance animation *to the page*. Two things sit outside the rule because neither is a page arriving. The agent wall's drift is ambient: it never moves anything the reader is trying to read, and it stops on hover and under reduced motion. A dialog or sheet animates because it is a surface entering and leaving on demand, and an overlay that appears between frames reads as a glitch rather than as something that opened; the motion belongs to the overlay, not to the content inside it, which never gets its own entrance.
+**The One Arrival Rule.** Entrance motion belongs to the conversation. New surfaces reuse `.arrive` for transcript items and add no other entrance animation *to the page*. Three things sit outside the rule because none of them is a page arriving. The agent wall's drift is ambient: it never moves anything the reader is trying to read, and it stops on hover and under reduced motion. A dialog or sheet animates because it is a surface entering and leaving on demand, and an overlay that appears between frames reads as a glitch rather than as something that opened; the motion belongs to the overlay, not to the content inside it, which never gets its own entrance. The logo's wave answers a hover: the reader asks for it by pointing, it moves nothing but itself, and the mark is a waving hand — the gesture is the name of the product, so the one place it belongs is the one place it is already drawn.
 
 ## Do's and Don'ts
 
