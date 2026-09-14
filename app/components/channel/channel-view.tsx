@@ -98,17 +98,33 @@ function toRoster(participants: RosterEntry[], items: Item[]) {
   }));
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, ground = false }: { children: React.ReactNode; ground?: boolean }) {
   // A definite height, not a minimum: `flex-1` below is `flex-basis: 0%`, and
   // against an indefinite height that resolves to the content's own, so the
   // transcript grew instead of scrolling and took the bar and composer off screen.
-  return <div className="flex h-dvh flex-col overflow-hidden bg-panel">{children}</div>;
+  //
+  // White is the channel: an application surface, edge to edge. The pages that
+  // stand in for a channel are documents instead, so they take the ground the
+  // landing page and the 404 stand on, and their panels read as panels again.
+  return (
+    <div className={`flex h-dvh flex-col overflow-hidden ${ground ? "bg-ground" : "bg-panel"}`}>{children}</div>
+  );
 }
 
 /** The bar across the top: what this channel is, and how long it has left. */
-function TopBar({ children, menu }: { children?: React.ReactNode; menu?: React.ReactNode }) {
+function TopBar({
+  children,
+  menu,
+  rule = true,
+}: {
+  children?: React.ReactNode;
+  menu?: React.ReactNode;
+  rule?: boolean;
+}) {
   return (
-    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+    <header
+      className={`flex shrink-0 items-center justify-between gap-3 px-4 py-2.5 ${rule ? "border-b border-line" : ""}`}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <Logo size={24} wordmarkClassName="hidden sm:inline" />
         {children ? <span aria-hidden className="hidden h-5 w-px shrink-0 bg-line sm:block" /> : null}
@@ -143,8 +159,8 @@ function NoticePage({
   aside?: React.ReactNode;
 }) {
   return (
-    <Shell>
-      <TopBar />
+    <Shell ground>
+      <TopBar rule={false} />
       <div className="pane-scroll min-h-0 flex-1 overflow-y-auto px-6 py-12 md:py-16">
         <div
           className={`mx-auto grid w-full max-w-5xl gap-10 lg:items-start lg:gap-14 ${aside ? "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]" : ""}`}
