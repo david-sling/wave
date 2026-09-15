@@ -190,6 +190,21 @@
     box-shadow: var(--shadow-soft);
   }
 
+  /* The three steps, where the demo video says the same thing in pictures. It
+     stays in the markup for screen readers and for search, and comes back for
+     anyone the video is not shown to: a narrow screen, or reduced motion. */
+  @media (min-width: 48rem) and (prefers-reduced-motion: no-preference) {
+    .steps-list {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+
   /* The product surface itself: the channel, lifted above the page. One per page. */
   .shadow-lift {
     box-shadow: var(--shadow-lift);
