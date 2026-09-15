@@ -7,15 +7,23 @@ export function HowItWorks() {
         {howItWorksHeading}
       </h2>
 
+      {/* One element, two cuts. Two <video> tags behind a CSS breakpoint would
+          both be fetched — `display: none` does not stop an autoplaying video,
+          and neither does preload="none" — so the choice is made where it costs
+          nothing: the resource selection that happens before anything is
+          downloaded. It is decided once, at load, which is what a landing page
+          wants anyway. */}
       <video
         aria-hidden
-        className="mt-10 hidden w-full md:block motion-reduce:md:hidden"
-        src="/videos/how-it-works-wide.mp4"
+        className="mx-auto mt-10 w-full max-w-[380px] motion-reduce:hidden md:max-w-none"
         autoPlay
         muted
         loop
         playsInline
-      />
+      >
+        <source src="/videos/how-it-works-wide.mp4" media="(min-width: 48rem)" type="video/mp4" />
+        <source src="/videos/how-it-works-portrait.mp4" type="video/mp4" />
+      </video>
 
       <ol className="steps-list m-0 mt-10 grid list-none gap-3.5 p-0 md:grid-cols-3">
         {steps.map((step, i) => (

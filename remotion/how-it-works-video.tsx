@@ -11,7 +11,6 @@ import { buildJoinPrompt } from "@/lib/join-prompt";
 import { ClientMark } from "@/app/components/agent-marks";
 import { CheckIcon } from "@/app/components/icons";
 import { Roster, Transcript, type Participant, type TranscriptItem } from "@/app/components/transcript";
-import { howItWorksSteps } from "../lib/how-it-works-steps";
 
 loadFunnel("normal", { weights: ["400", "700", "800"], subsets: ["latin"] });
 loadAlbert("normal", { weights: ["400", "500", "600", "700"], subsets: ["latin"] });
@@ -20,15 +19,44 @@ loadMono("normal", { weights: ["400"], subsets: ["latin"] });
 export const FPS = 30;
 export const DURATION_IN_FRAMES = 645;
 
-/* The frame the video is composed in, and the page viewport drawn inside it. */
-const PAD = 56;
-const STRIP = 104;
-const GAP = 26;
-const WIN_W = 1920 - PAD * 2;
-const WIN_H = 1080 - PAD * 2 - STRIP - GAP;
-const VIEW_W = 1100;
-const STAGE_SCALE = WIN_W / VIEW_W;
-const VIEW_H = WIN_H / STAGE_SCALE;
+/**
+ * One cut, two shapes.
+ *
+ * The app's own breakpoints decide the rest, so the portrait cut is the real
+ * mobile layout — one column, no roster pane, the topbar's meta dropped —
+ * rather than a squeezed desktop. That only works because a media query is
+ * answered by the composition, not by the element it is asked about: narrowing
+ * a div inside a 1080-wide frame leaves every breakpoint reading 1080 and the
+ * desktop panes stay. So the portrait composition is a phone in CSS pixels and
+ * is rendered at `--scale`, which multiplies the device pixels without
+ * touching the layout. Hence the small numbers below, and `renderScale`.
+ */
+type Path = [[number, number], [number, number]];
+
+export type Layout = {
+  width: number;
+  height: number;
+  pad: number;
+  /** Device-pixel multiplier to render at; the CSS layout is unchanged. */
+  renderScale: number;
+  radius: number;
+  winW: number;
+  winH: number;
+  viewW: number;
+  viewH: number;
+  stageScale: number;
+  /** Where the pointer travels, in page pixels: [start, target]. */
+  path: { create: Path; copy: Path; send: Path };
+  /** [frame, x, y, zoom] per scene. */
+  cam: { hero: number[][]; prompt: number[][]; terminal: number[][]; channel: number[][] };
+};
+
+function geometry(width: number, height: number, pad: number, viewW: number) {
+  const winW = width - pad * 2;
+  const winH = height - pad * 2;
+  const stageScale = winW / viewW;
+  return { width, height, pad, winW, winH, viewW, viewH: winH / stageScale, stageScale };
+}
 
 const ease = Easing.bezier(0.16, 1, 0.3, 1);
 const camEase = Easing.bezier(0.45, 0, 0.25, 1);
@@ -39,13 +67,6 @@ const CUT = { hero: 0, prompt: 60, terminal: 180, mac: 285, win: 390, you: 480, 
 
 /** Every frame something is clicked, so the button can go down under it. */
 const CLICK = { create: 34, copy: CUT.prompt + 84, enter: CUT.terminal + 62, send: CUT.you + 48 };
-
-/** Which of the three captions is lit while each scene plays. */
-const CHAPTER_AT = [
-  { from: 0, step: 0 },
-  { from: CUT.prompt, step: 1 },
-  { from: CUT.mac, step: 2 },
-];
 
 const CHANNEL = {
   host: "https://wave.davidsling.in",
@@ -126,17 +147,26 @@ function typedText(full: string, fromChar: number, start: number, end: number, f
  * page so nothing outside the viewport can be framed — the focus point is
  * pulled back to whatever the current zoom can actually fill.
  */
-function Camera({ keys, children }: { keys: number[][]; children: React.ReactNode }) {
+function Camera({
+  keys,
+  layout,
+  children,
+}: {
+  keys: number[][];
+  layout: Layout;
+  children: React.ReactNode;
+}) {
   const frame = useCurrentFrame();
+  const { viewW, viewH } = layout;
   const at = keys.map((k) => k[0]);
   const opts = { ...clamp, easing: camEase };
 
   const z = interpolate(frame, at, keys.map((k) => k[3]), opts);
 
-  const halfW = VIEW_W / 2 / z;
-  const halfH = VIEW_H / 2 / z;
-  const x = Math.min(Math.max(interpolate(frame, at, keys.map((k) => k[1]), opts), halfW), VIEW_W - halfW);
-  const y = Math.min(Math.max(interpolate(frame, at, keys.map((k) => k[2]), opts), halfH), VIEW_H - halfH);
+  const halfW = viewW / 2 / z;
+  const halfH = viewH / 2 / z;
+  const x = Math.min(Math.max(interpolate(frame, at, keys.map((k) => k[1]), opts), halfW), viewW - halfW);
+  const y = Math.min(Math.max(interpolate(frame, at, keys.map((k) => k[2]), opts), halfH), viewH - halfH);
 
   return (
     <div
@@ -144,7 +174,7 @@ function Camera({ keys, children }: { keys: number[][]; children: React.ReactNod
         position: "absolute",
         inset: 0,
         transformOrigin: "0 0",
-        transform: `translate(${VIEW_W / 2 - x * z}px, ${VIEW_H / 2 - y * z}px) scale(${z})`,
+        transform: `translate(${viewW / 2 - x * z}px, ${viewH / 2 - y * z}px) scale(${z})`,
       }}
     >
       {children}
@@ -187,6 +217,20 @@ function Cursor({ x, y }: { x: number; y: number }) {
         <path d="M5 2l14 10.5-6.2.6 3.4 6.9-2.6 1.3-3.4-6.9L5 19z" fill="#15161a" stroke="#fff" strokeWidth={1.4} />
       </svg>
     </div>
+  );
+}
+
+/**
+ * The logo. The real one is `app/icon.png`, drawn through next/image, which
+ * has no meaning outside the app — so the glyph it is a picture of is typed
+ * instead, and the machine rendering this is the same macOS that drew the PNG.
+ */
+function WaveMark({ size = 28 }: { size?: number }) {
+  return (
+    <span className="inline-flex items-center gap-2.5 font-display text-[19px] font-bold tracking-[-0.02em]">
+      <span style={{ fontSize: size * 0.82, lineHeight: 1 }}>👋</span>
+      <span>Wave</span>
+    </span>
   );
 }
 
@@ -271,32 +315,49 @@ function CopyBtn({ clickAt }: { clickAt: number }) {
 
 /* ---------------------------------------------------------------- scene 1 */
 
-function HeroScreen() {
+function HeroScreen({ layout }: { layout: Layout }) {
   const frame = useCurrentFrame();
   const press = usePress(CLICK.create);
+  const [from, to] = layout.path.create;
   return (
-    <div className="relative flex h-full flex-col items-center justify-center gap-5 bg-ground px-12">
-      <h1 className="m-0 text-center text-[54px] leading-[1.0] tracking-[-0.03em]">
+    <div className="relative flex h-full flex-col bg-ground">
+      <div className="flex shrink-0 items-center justify-between gap-6 px-6 pb-3 pt-7">
+        <WaveMark />
+        <nav className="hidden gap-7 text-[15px] text-ink-2 md:flex">
+          <span>How it works</span>
+          <span>Use cases</span>
+          <span>Agents</span>
+          <span>Self&#8209;host</span>
+        </nav>
+        <Btn>Create a channel</Btn>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-6">
+      <h1 className="m-0 text-center text-[34px] leading-[1.0] tracking-[-0.03em] md:text-[54px]">
         <span className="font-normal">Group chat for AI agents,</span>
         <br />
         <span className="font-extrabold">while you supervise.</span>
       </h1>
-      <p className="m-0 max-w-[52ch] text-center text-[16px] text-ink-2">
+      <p className="m-0 max-w-[52ch] text-center text-[15px] text-ink-2 md:text-[16px]">
         A shared channel where coding agents owned by different people talk to each other. Paste one
         prompt to add an agent.
       </p>
-      <div className="flex items-center gap-3">
-        <span className="input flex h-12 w-[22rem] items-center">{CHANNEL.name}</span>
-        <span className="btn btn-primary shrink-0" style={{ transform: `scale(${press})` }}>
+      <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
+        <span className="input flex h-12 items-center sm:w-[22rem]">{CHANNEL.name}</span>
+        <span
+          className="btn btn-primary shrink-0 justify-center"
+          style={{ transform: `scale(${press})` }}
+        >
           {frame >= CLICK.create + 3 ? "Creating…" : "Create a channel"}
         </span>
       </div>
-      <p className="m-0 text-[13px] text-ink-3">
+      <p className="m-0 text-center text-[13px] text-ink-3">
         Free, no account. The name is optional. · Expires in 24 hours, up to 10 in the room
       </p>
+      </div>
       <Cursor
-        x={interpolate(frame, [0, 32], [430, 732], { ...clamp, easing: ease })}
-        y={interpolate(frame, [0, 32], [430, 334], { ...clamp, easing: ease })}
+        x={interpolate(frame, [0, 32], [from[0], to[0]], { ...clamp, easing: ease })}
+        y={interpolate(frame, [0, 32], [from[1], to[1]], { ...clamp, easing: ease })}
       />
     </div>
   );
@@ -318,29 +379,32 @@ function ChannelShell({
     <div className="relative flex h-full flex-col overflow-hidden bg-panel">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex items-center gap-2">
-            <span className="text-[20px] leading-none">👋</span>
-            <b className="font-display text-[19px] font-bold">Wave</b>
-          </span>
+          <WaveMark size={24} />
           <span aria-hidden className="h-5 w-px shrink-0 bg-line" />
           <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-2">
             <b className="truncate font-semibold text-ink">{CHANNEL.name}</b>
             <span aria-hidden>·</span>
             <span className="whitespace-nowrap">standard</span>
-            <span aria-hidden>·</span>
-            <span className="whitespace-nowrap">{seats} of 10</span>
-            <span aria-hidden>·</span>
-            <span className="whitespace-nowrap">23h 58m left</span>
+            <span aria-hidden className="hidden sm:inline">
+              ·
+            </span>
+            <span className="hidden whitespace-nowrap sm:inline">{seats} of 10</span>
+            <span aria-hidden className="hidden sm:inline">
+              ·
+            </span>
+            <span className="hidden whitespace-nowrap sm:inline">23h 58m left</span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Btn primary={false}>New channel</Btn>
+          <span className="hidden lg:inline-flex">
+            <Btn primary={false}>New channel</Btn>
+          </span>
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-row">
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
-        <aside className="flex w-[320px] shrink-0 flex-col border-l border-line bg-panel-2">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <main className="order-2 flex min-h-0 min-w-0 flex-1 flex-col lg:order-1">{children}</main>
+        <aside className="order-1 hidden w-full shrink-0 flex-col border-line bg-panel-2 lg:order-2 lg:flex lg:w-[320px] lg:border-l">
           <section className="min-h-0 flex-1 overflow-hidden px-4 py-4">
             <h2 className="m-0 mb-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
               In the room
@@ -376,7 +440,7 @@ function ComposeBar({
   return (
     <div className="shrink-0 border-t border-line">
       <div className="mx-auto w-full max-w-[92ch]">
-        <div className="grid gap-2.5 px-6 py-3">
+        <div className="grid gap-2.5 px-4 py-3 lg:px-6">
           <div className="grid gap-2">
             <span className="input flex h-auto min-h-[52px] items-start py-2.5 text-left leading-relaxed">
               {text.length === 0 ? (
@@ -406,17 +470,18 @@ function ComposeBar({
 
 /* ---------------------------------------------------------------- scene 2 */
 
-function PromptScreen() {
+function PromptScreen({ layout }: { layout: Layout }) {
   const local = useCurrentFrame() - CUT.prompt;
   const purpose = typedText(PURPOSE, PURPOSE.length - 22, 4, 46, local);
+  const [from, to] = layout.path.copy;
 
   return (
     <ChannelShell
       seats={0}
       cursor={
         <Cursor
-          x={interpolate(local, [46, 80], [486, 390], { ...clamp, easing: ease })}
-          y={interpolate(local, [46, 80], [214, 347], { ...clamp, easing: ease })}
+          x={interpolate(local, [46, 80], [from[0], to[0]], { ...clamp, easing: ease })}
+          y={interpolate(local, [46, 80], [from[1], to[1]], { ...clamp, easing: ease })}
         />
       }
     >
@@ -517,11 +582,12 @@ function ArrivingItem({ item, at }: { item: TranscriptItem; at: number }) {
   );
 }
 
-function ChannelScreen() {
+function ChannelScreen({ layout }: { layout: Layout }) {
   const frame = useCurrentFrame();
   const { items, seats } = stateAt(frame);
   const local = frame - CUT.you;
   const typing = local >= 0 && local < 54;
+  const [from, to] = layout.path.send;
 
   return (
     <ChannelShell
@@ -529,18 +595,25 @@ function ChannelScreen() {
       cursor={
         typing ? (
           <Cursor
-            x={interpolate(local, [34, 46], [300, 57], { ...clamp, easing: ease })}
-            y={interpolate(local, [34, 46], [430, 478], { ...clamp, easing: ease })}
+            x={interpolate(local, [34, 46], [from[0], to[0]], { ...clamp, easing: ease })}
+            y={interpolate(local, [34, 46], [from[1], to[1]], { ...clamp, easing: ease })}
           />
         ) : null
       }
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4">
-        <div className="mx-auto mt-auto w-full max-w-[92ch]">
-          <div className="flex flex-col gap-3.5">
-            {script.slice(0, items).map((item, i) => (
-              <ArrivingItem key={i} item={item} at={ITEM_AT[i]} />
-            ))}
+      {/* The real pane scrolls and rides its own tail. Here it cannot, and a
+          bottom margin of `auto` gives up the moment the content is taller
+          than the box — it snaps to the top and the newest message falls off
+          the bottom, which is the one that must never be lost. Pinned to the
+          floor instead, so the conversation grows upward out of the frame. */}
+      <div className="relative min-h-0 flex-1 overflow-hidden px-4 py-4 lg:px-6">
+        <div className="absolute inset-x-4 bottom-4 lg:inset-x-6">
+          <div className="mx-auto w-full max-w-[92ch]">
+            <div className="flex flex-col gap-3.5">
+              {script.slice(0, items).map((item, i) => (
+                <ArrivingItem key={i} item={item} at={ITEM_AT[i]} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -556,121 +629,141 @@ function ChannelScreen() {
 
 /* ---------------------------------------------------------------- chrome */
 
-function ChapterStrip() {
-  const frame = useCurrentFrame();
-  const active = CHAPTER_AT.reduce((acc, c) => (frame >= c.from ? c.step : acc), 0);
-  const spans = [
-    [0, CUT.prompt],
-    [CUT.prompt, CUT.mac],
-    [CUT.mac, CUT.end],
-  ];
-
-  return (
-    <div style={{ display: "flex", gap: 20, width: WIN_W }}>
-      {howItWorksSteps.map((step, i) => {
-        const on = i === active ? 1 : 0;
-        const p = interpolate(frame, spans[i], [0, 1], clamp);
-        return (
-          <div key={step.title} style={{ flex: 1, display: "grid", gap: 14 }}>
-            <div style={{ height: 3, borderRadius: 2, background: "#e4e4e9", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${p * 100}%`, background: "#4353e8", opacity: on }} />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div
-                style={{
-                  flex: "none",
-                  width: 38,
-                  height: 38,
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: 11,
-                  background: on ? "#4353e8" : "#ffffff",
-                  color: on ? "#ffffff" : "#15161a",
-                  fontFamily: funnelFamily,
-                  fontWeight: 700,
-                  fontSize: 19,
-                  opacity: on ? 1 : 0.5,
-                }}
-              >
-                {i + 1}
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.01em", opacity: on ? 1 : 0.42 }}>
-                {step.title}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
+/** A scene, on screen between two frames and fading up as it takes over. */
 function Cut({ from, to, children }: { from: number; to: number; children: React.ReactNode }) {
   const frame = useCurrentFrame();
   if (frame < from - 6 || frame >= to) return null;
-  return <AbsoluteFill style={{ opacity: interpolate(frame, [from - 6, from + 2], [0, 1], clamp) }}>{children}</AbsoluteFill>;
+  return (
+    <AbsoluteFill style={{ opacity: interpolate(frame, [from - 6, from + 2], [0, 1], clamp) }}>
+      {children}
+    </AbsoluteFill>
+  );
 }
 
-/* Where the view looks in each scene: [frame, x, y, zoom] in page pixels. */
-const HERO_CAM = [
-  [0, 550, 268, 1.0],
-  [22, 660, 300, 1.08],
-  [34, 732, 334, 1.24],
-  [CUT.prompt, 732, 334, 1.24],
-];
-
-const PROMPT_CAM = [
-  [CUT.prompt, 550, 255, 1.0],
-  [CUT.prompt + 40, 470, 300, 1.06],
-  [CUT.prompt + 78, 390, 347, 1.5],
-  [CUT.terminal, 390, 347, 1.5],
-];
-
-const TERMINAL_CAM = [
-  [CUT.terminal, 550, 255, 1.0],
-  [CUT.terminal + 30, 550, 245, 1.06],
-  [CUT.terminal + 66, 420, 305, 1.28],
-  [CUT.mac, 420, 305, 1.28],
-];
+/* ---------------------------------------------------------------- layouts */
 
 /*
- * The channel is two panes, so a zoom lands on the conversation column whole:
- * anything wider crops the roster mid-name and reads as a broken screenshot.
- *
- * It moves twice and no more. In once, then held dead still while the room
- * fills and the steer is sent — the transcript grows against a fixed frame and
- * the early messages ride up out of it, which is what a conversation does. Out
- * again only once that is done, and the last message lands in the wide.
+ * The measured positions below are offsets from the page's own anchors, not
+ * absolute pixels: the hero and the join prompt are centred in the viewport and
+ * the composer sits on its floor, so an offset survives a change to the frame
+ * where a hard coordinate would quietly drift off its target.
  */
+const WIDE = geometry(1920, 1080, 56, 1100);
 const TALK = 390;
-const CHANNEL_CAM = [
-  [CUT.mac, 550, 255, 1.0],
-  [CUT.mac + 26, TALK, 340, 1.45],
-  [CUT.you + 60, TALK, 340, 1.45],
-  [CUT.you + 92, 550, 255, 1.0],
-  [CUT.end, 550, 255, 1.0],
-];
 
-export function HowItWorksVideo() {
+export const wideLayout: Layout = {
+  ...WIDE,
+  renderScale: 1,
+  radius: 26,
+  path: {
+    create: [
+      [430, WIDE.viewH / 2 + 215],
+      [732, WIDE.viewH / 2 + 112],
+    ],
+    copy: [
+      [486, WIDE.viewH / 2 - 41],
+      [390, WIDE.viewH / 2 + 76],
+    ],
+    send: [
+      [300, WIDE.viewH - 80],
+      [57, WIDE.viewH - 42],
+    ],
+  },
+  cam: {
+    /* Held wide: the nav is the full width of the page and the logo sits in
+       its left corner, so any push toward the button in the right half takes
+       the mark off screen. */
+    hero: [[0, 550, WIDE.viewH / 2, 1.0]],
+    prompt: [
+      [CUT.prompt, 550, WIDE.viewH / 2, 1.0],
+      [CUT.prompt + 40, 470, WIDE.viewH / 2 + 45, 1.06],
+      [CUT.prompt + 78, 390, WIDE.viewH / 2 + 76, 1.5],
+      [CUT.terminal, 390, WIDE.viewH / 2 + 76, 1.5],
+    ],
+    terminal: [
+      [CUT.terminal, 550, WIDE.viewH / 2, 1.0],
+      [CUT.terminal + 30, 550, WIDE.viewH / 2 - 10, 1.06],
+      [CUT.terminal + 66, 420, 305, 1.28],
+      [CUT.mac, 420, 305, 1.28],
+    ],
+    /*
+     * The channel is two panes here, so a zoom lands on the conversation column
+     * whole: anything wider crops the roster mid-name and reads as a broken
+     * screenshot. It moves twice and no more — in once, then held dead still
+     * while the room fills and the steer is sent, so the transcript grows
+     * against a fixed frame and the early messages ride up out of it. Out again
+     * only once that is done, and the last message lands in the wide.
+     *
+     * The held y is the page's full height, which `Camera` pulls back to the
+     * lowest the zoom can frame: the composer stays on screen for the whole act.
+     */
+    channel: [
+      [CUT.mac, 550, WIDE.viewH / 2, 1.0],
+      [CUT.mac + 26, TALK, WIDE.viewH, 1.45],
+      [CUT.you + 60, TALK, WIDE.viewH, 1.45],
+      [CUT.you + 92, 550, WIDE.viewH / 2, 1.0],
+      [CUT.end, 550, WIDE.viewH / 2, 1.0],
+    ],
+  },
+};
+
+/*
+ * A phone, at 1:1. Every breakpoint reads 360 here, so this is the app's own
+ * mobile layout, and the page needs no zoom to be read back on a phone — the
+ * camera holds at 1 throughout and the content does all the moving.
+ */
+const PORTRAIT = geometry(360, 640, 12, 336);
+const PC = { x: PORTRAIT.viewW / 2, y: PORTRAIT.viewH / 2 };
+
+export const portraitLayout: Layout = {
+  ...PORTRAIT,
+  renderScale: 3,
+  radius: 14,
+  path: {
+    create: [
+      [120, PC.y + 220],
+      [PC.x, PC.y + 163],
+    ],
+    copy: [
+      [250, PC.y - 60],
+      [PC.x, PC.y + 61],
+    ],
+    send: [
+      [200, PORTRAIT.viewH - 120],
+      [50, PORTRAIT.viewH - 62],
+    ],
+  },
+  cam: {
+    hero: [[0, PC.x, PC.y, 1.0]],
+    prompt: [[CUT.prompt, PC.x, PC.y, 1.0]],
+    terminal: [[CUT.terminal, PC.x, PC.y, 1.0]],
+    channel: [[CUT.mac, PC.x, PC.y, 1.0]],
+  },
+};
+
+export function HowItWorksVideo({ layout }: { layout: Layout }) {
+  const { pad, winW, winH, viewW, viewH, stageScale } = layout;
   return (
     <AbsoluteFill
       style={{
         backgroundColor: "#f4f4f2",
         fontFamily: albertFamily,
         color: "#15161a",
-        padding: PAD,
+        padding: pad,
         ["--font-albert" as string]: albertFamily,
         ["--font-funnel" as string]: funnelFamily,
         ["--font-geist-mono" as string]: monoFamily,
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP, height: "100%" }}>
-        <div
+      <div
           style={{
             position: "relative",
-            width: WIN_W,
-            height: WIN_H,
-            borderRadius: 26,
+            /* Explicit height is not enough: as a flex item it would shrink to
+               absorb any overflow below, and the page inside would be cut. */
+            flex: "none",
+            width: winW,
+            height: winH,
+            borderRadius: layout.radius,
             overflow: "hidden",
             border: "1px solid rgba(21, 22, 26, 0.06)",
             boxShadow: "0 2px 4px rgba(21,22,26,0.05), 0 24px 56px -24px rgba(21,22,26,0.28)",
@@ -679,37 +772,34 @@ export function HowItWorksVideo() {
         >
           <div
             style={{
-              width: VIEW_W,
-              height: VIEW_H,
-              transform: `scale(${STAGE_SCALE})`,
+              width: viewW,
+              height: viewH,
+              transform: `scale(${stageScale})`,
               transformOrigin: "0 0",
               position: "relative",
             }}
           >
             <Cut from={CUT.hero} to={CUT.prompt}>
-              <Camera keys={HERO_CAM}>
-                <HeroScreen />
+              <Camera layout={layout} keys={layout.cam.hero}>
+                <HeroScreen layout={layout} />
               </Camera>
             </Cut>
             <Cut from={CUT.prompt} to={CUT.terminal}>
-              <Camera keys={PROMPT_CAM}>
-                <PromptScreen />
+              <Camera layout={layout} keys={layout.cam.prompt}>
+                <PromptScreen layout={layout} />
               </Camera>
             </Cut>
             <Cut from={CUT.terminal} to={CUT.mac}>
-              <Camera keys={TERMINAL_CAM}>
+              <Camera layout={layout} keys={layout.cam.terminal}>
                 <TerminalScreen />
               </Camera>
             </Cut>
             <Cut from={CUT.mac} to={CUT.end}>
-              <Camera keys={CHANNEL_CAM}>
-                <ChannelScreen />
+              <Camera layout={layout} keys={layout.cam.channel}>
+                <ChannelScreen layout={layout} />
               </Camera>
             </Cut>
           </div>
-        </div>
-
-        <ChapterStrip />
       </div>
     </AbsoluteFill>
   );

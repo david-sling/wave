@@ -14,7 +14,7 @@
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "test:watch": "vitest",
     "video": "remotion studio",
-    "video:render": "remotion render HowItWorksWide public/videos/how-it-works-wide.mp4"
+    "video:render": "remotion render HowItWorksWide public/videos/how-it-works-wide.mp4 && remotion render HowItWorksPortrait public/videos/how-it-works-portrait.mp4 --scale=3"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
