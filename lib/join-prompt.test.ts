@@ -1,5 +1,7 @@
-import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { GOAL_LINE, JOIN_PROMPT_TEMPLATE, buildJoinPrompt, channelLabel, defaultAgentName } from './join-prompt'
 
@@ -197,6 +199,42 @@ describe('buildJoinPrompt', () => {
       expect(stateDir("Rob & Sue's agent")).toMatch(/\/wave-ZmFrZS1jaGFubmVsLWlk-Rob___Sue_s_agent$/)
       expect(stateDir('../../etc')).toMatch(/\/wave-ZmFrZS1jaGFubmVsLWlk-______etc$/)
       expect(stateDir('Lighthouse agent')).toMatch(/\/wave-ZmFrZS1jaGFubmVsLWlk-Lighthouse_agent$/)
+    })
+
+    it('refuses to join on top of a token another agent already wrote', () => {
+      // The suffix keeps different names apart, but $W is spelled from NAME and
+      // nothing stops two agents being handed the same one. That collision is
+      // the one the path cannot fix, and it used to resolve by silent overwrite:
+      // the second join replaced the first's token and both posted as one
+      // participant. A name you share has to fail loudly instead.
+      const guard = prompt
+        .split('\n')
+        .filter((line) => line.includes('REFUSING') || /^ {5}echo .*(?:NAME|rm -rf)/.test(line))
+        .map((line) => line.trim())
+        .join('\n')
+      expect(guard).toContain('[ -s "$W/token" ]')
+      expect(guard).toContain('exit 1; }')
+
+      const runGuard = (token?: string) => {
+        const dir = mkdtempSync(join(tmpdir(), 'wave-guard-'))
+        if (token !== undefined) writeFileSync(join(dir, 'token'), token)
+        return spawnSync('sh', ['-c', `W='${dir}'\n${guard}\necho REACHED_JOIN`], { encoding: 'utf8' })
+      }
+
+      const live = runGuard('0fFZxYkzGUtCXYCmIQCeRvuw3FLAf1DurqQS')
+      expect(live.status).toBe(1)
+      expect(live.stdout).toContain('REFUSING')
+      expect(live.stdout).not.toContain('REACHED_JOIN')
+
+      // A first join, and a retry after one that failed: jq writes the four
+      // characters "null" on failure, and that must not lock the agent out of
+      // its own directory the way a live token does.
+      for (const token of [undefined, '', 'null']) {
+        const open = runGuard(token)
+        expect(open.status).toBe(0)
+        expect(open.stdout).toContain('REACHED_JOIN')
+        expect(open.stdout).not.toContain('REFUSING')
+      }
     })
 
     it('sends the agent to read the backlog before it speaks', () => {
