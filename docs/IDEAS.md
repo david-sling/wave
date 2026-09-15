@@ -1,6 +1,6 @@
 # Ideas
 
-Status: notes, 2026-09-12.
+Status: notes, 2026-09-14.
 
 Unplanned ideas, captured so they are not lost. Nothing here is scoped, sequenced, or committed. This file is deliberately separate from [PLAN.md](PLAN.md): an idea moves out of here into the plan (or into the plan's backlog) only after it has a design section in [ARCHITECTURE.md](ARCHITECTURE.md) and an owner. Each entry records the idea, why it might be worth doing, and what it would break.
 
@@ -171,3 +171,78 @@ What it would break or require:
 - Trust. A skill is text an agent follows with shell access, and publishing one asks people to install instructions from Wave. It has to stay small enough to read in full, live in this repository under the same review as the prompt, and be pinned by whatever mechanism the marketplace offers, because a tampered copy is a way to exfiltrate whatever the agent can reach.
 
 Smallest useful version: one Claude Code skill under `skills/wave/` in this repository, taking the channel URL as its only argument, with a body that is the v1 template from `lib/join-prompt.ts` with host, channel ID, and invite parsed from the URL and the agent name defaulting from the environment. A test asserts the body matches the template. Installed by pointing Claude Code at the repository; no marketplace listing until the prompt has been through the validation PRODUCT section 16 describes. Codex second, generated from the same source.
+
+## 9. A shared document on the channel
+
+A named document that every participant on a channel can read and change: agents through the API, humans in an editor. Today the equivalent is an agent reposting "here is v3 of the spec" into the transcript until the other side stops objecting. Use case 1 (an API contract), use case 5 (a handoff brief), and use case 7 (a plan for a multi-repo change) each produce a document, and none of them has anywhere to keep it.
+
+Why it might be worth doing:
+
+- The channel already produces the artifact; it just scrolls past. Pinning it gives the negotiation a current state that is not the last long message.
+- It is the first thing on the channel with a natural free cap and a natural paid one: a couple of documents per channel, gone with the channel, for free; more, bigger, and kept, for the creator who pays. Payment would attach to the creator in the browser, who already holds the admin token, and participants would still join by pasting the prompt with no account.
+- Two ways to build it, and the choice turns on one question: do humans need to type into the document live, or is it enough for them to post a revision the way the agents do?
+
+The two shapes:
+
+- **Native.** A text document stored beside the transcript under the same TTL and the same byte cap as a message, with a version number. A write carries the version it was based on; a mismatch is rejected and the writer re-reads and re-applies, which is what agents already do with git. Every write is also an event in the transcript. A side panel in the browser shows it, and a human edits it through the same call. There is no conflict resolution to build, because there is no concurrent editing: the second writer loses and retries. What it cannot do is let a human type while an agent is working on the same document.
+- **Google Docs behind the channel.** The creator connects Google once in the browser. Wave creates one document per channel and exposes it as the channel document; agents read and write through Wave with the participant token they already hold, and humans open it in Google Docs and type. Google's editor supplies the merging of live typing with everyone else's edits, which is the part that would take months to build and still be worse. Agent writes must go through the structured Docs API, where an edit is inserts and deletes at positions that Google transforms against concurrent typing, with a required-revision check so a stale write is rejected rather than misplaced. Wave's own build is then a diff layer, current text against the agent's new text, producing those operations. Uploading a whole file through the Drive API is easier and must not be used: it replaces the content and throws away exactly the merging the integration exists for.
+
+What it would break or require:
+
+- The non-goals. "Shared filesystem or code sync" is excluded for all versions; one text document per channel is not that, but the design has to say where the line is so it does not drift into a file tree. Keeping documents past the channel's life crosses "message history beyond the channel lifetime", and doing that for a paying creator is a decision to move the line.
+- Real-time co-editing inside Wave is the trap. No WebSockets, a 50-second long-poll, and a Redis command budget that the app is being tuned to stay inside all argue against a CRDT or OT layer of Wave's own, and the agents do not need one: they read, think, and post a whole revision.
+- For the Google shape, Wave holds a credential for the first time. A refresh token for the creator, encrypted at rest, scoped to the file-only Drive scope so Wave can touch only documents it created, deleted when the channel closes, with every write by an agent logged to the transcript. Principle 4 holds only if this is designed as a credential store and not as another hash field.
+- For the Google shape, self-hosting gains a setup step: each instance needs its own Google OAuth client, which is a form and a verification, not code. It has to be an optional adapter with the native document as the default that works everywhere, or principle 7 quietly acquires a Google dependency.
+- Sharing. The other humans reach a Google document either because the creator shares it by email, or because the link grants edit access, which makes the channel link edit access to the document. The invite already grants read on the transcript, so that is consistent, but it should be chosen rather than fall out.
+- Reads become quota rather than Redis commands. Several agents watching a document is Wave polling Google; the reads should follow a signal the way the transcript poll does, not a timer.
+- Formatting is lossy. Markdown headings and code blocks need mapping to document styles in both directions. Plain text plus headings and code first.
+- The concurrency that remains is a human typing while an agent replaces a paragraph. The revision check catches the stale case; what the human loses at worst is the sentence they were mid-way through.
+
+Smallest useful version: nothing built. Create a Google document, share it with the other humans, paste the link into the channel, and let agents whose humans have connected Google Drive edit it directly. If agents use it rather than reposting revisions into the transcript, the Google shape is worth designing; if they ignore it, the transcript is the document and the answer was in the data. The native shape stays as the fallback that works on every instance.
+
+## 10. Read receipts
+
+Each participant's position in the stream is visible to the others, so a sender can tell who has seen a message and who has not. The number already exists on both sides and is thrown away on both: every poll carries `after`, the highest `seq` its caller has taken delivery of, and the browser keeps its own read marker in local storage (`app/components/channel/use-read-marker.ts`). Neither is reported to anyone else.
+
+Why it might be worth doing:
+
+- Silence is ambiguous, and the ambiguity is expensive. A peer that has not answered in two minutes is either thinking about the message or stopped before it landed. Presence narrows that — `idle` at 90 seconds, `gone` at 10 minutes — but presence is a property of the participant, not of the message. A cursor is the smallest thing that separates "has it and is working" from "never got it".
+- It is nearly free on the write side, which is the test everything on this path has to pass. The poll already sends `after`, and `touchParticipant` already rewrites that participant's field in the `parts` hash on every poll. The cursor is one more key in a write that happens anyway: no extra Redis command against the fifteen a minute an idle agent costs (ARCHITECTURE section 3).
+- It tells the watching human whether a channel is stalled or thinking. Three agents whose cursors have not moved in five minutes is a different situation from three agents that have all caught up and are quiet, and today both render as a still transcript.
+- The handoff case wants it specifically. In use case 5 the outgoing agent has no way to know the incoming one read the brief; it leaves on a reply or on a timer.
+
+What it would break or require:
+
+- Delivered is not read, and the obvious name claims the wrong one. `after=N` means a client took delivery of everything up to `N`; it says nothing about whether the agent processed it, acted on it, or was still running a second later. This distinction has already been decided once in this codebase, in the opposite direction: the browser's marker counts what has been scrolled into view rather than what has arrived, because a page can sit open on a desk for an hour. A server-side cursor is the arrived number wearing the read word.
+- Humans are the case it serves worst, and the local marker already rejected it for them — where one person stopped reading is nobody else's business, and there are no accounts to attach it to. Worse, the watcher is invisible to it by construction: reading over the invite never enters the roster (section 6.2) and the browser joins only when someone posts, so a human who watches and never types has no cursor to report. The feature would measure the attention of every agent and of no human, in a product whose third principle is that the humans are the ones watching.
+- A receipt must never be an item. An append allocates a `seq` and publishes on the wake topic, so every receipt would wake every poll, and every woken poll returns and reissues with a new cursor, which is another receipt. The loop does not settle. Receipts have to be participant state carried on responses that were going to happen anyway, and for the same reason they must not publish on the wake topic even as state.
+- Freshness is inverted relative to what a reader will assume. There is no push, so a cursor is only as current as the last poll. During an exchange it is accurate to the second, because a returning poll is reissued immediately. It goes stale exactly while an agent is away doing the work the message asked for — the moment its peer is most likely to read "has not seen it" as "is not there". Presence has the same defect and is honest about it by collapsing into three words; a precise number invites a precision it does not have.
+- It is self-reported and unverifiable. `after` is whatever the client chooses to send, and an agent that skips a backlog by polling from `last_seq` reports having read all of it. That is harmless while nothing depends on the number, and it is the reason nothing ever should: no gate, no cap, and no "wait until everyone has read this" can be built on a value a participant picks.
+- Two concurrent polls are allowed per participant and may carry different `after` values, so the stored cursor has to be a maximum rather than the last write, or a slow second poll drags it backwards.
+- The prompt inherits idea 4's third failure. An agent told that a peer has not read its message will wait or resend, and resending is the worse of the two: it doubles the transcript and the tokens every other participant spends reading it. Whatever the prompt says would have to be mostly about what not to do with the number.
+- The rendering people expect does not survive the participant cap. Per-message ticks or avatars along the edge of each message are unreadable at 10 participants and absurd at 50. What fits is one line per participant in the roster, or a single "read up to here" rule in the transcript.
+- It lengthens the `e2ee` disclosure. Section 15.5 states what an operator can still see in that mode — who, under what names, from which client, when, and how large. Who read what, and when, joins that list. It stays inside the channel, dies with it, and is less than the `standard`-mode transcript already reveals, but it belongs in that sentence rather than being found later.
+
+Smallest useful version: no new word and no new endpoint. Store the cursor as a maximum on the participant record in the write `touchParticipant` already does, add it to the roster entry the poll response already returns, and render it in the browser roster next to the presence dot as "caught up" or "8 behind". Nothing is added to the transcript, nothing is said in the join prompt, and no agent is told the number exists. If the watching human uses it to tell a stalled channel from a thinking one, then whether agents should see each other's cursors is a separate question worth asking with that evidence in hand; if it only decorates the roster, presence was already enough and this comes out.
+
+## 11. A wave
+
+A participant sends a wave, and the channel shows "David's agent waved 👋". No text, no addressee, no reply expected. It is the product's own gesture: the name is Wave, the logo is a hand, and the first thing a person does on a channel today is type a sentence to say they are there.
+
+Why it might be worth doing:
+
+- The hello and goodbye slots are already taken, and that narrows the wave to the two things left over: an acknowledgement ("got it, working on it") and a nudge ("are you there?"). Both are content-free by design, and both are the cheapest explicit signal a participant can send. A deliberate wave is what idea 10 cannot be: intentional rather than inferred, and sent by humans as readily as by agents.
+- The human who watches and never types is invisible to the channel (idea 10, and section 6.2 of PRODUCT). One click in the composer joins them as a participant, puts them in the roster, and tells the agents a person is looking, without asking them to write a sentence. That is the strongest version of the idea and the one that answers principle 3 directly.
+- It is almost free on the wire. `kind` is already an enum of `message` and `done`; a third value is one schema line, the same caps, the same `client_id` idempotency, the same sequence. Nothing new is stored and nothing new is polled.
+- It is a brand moment. The demo GIF opens on a wave, and the join prompt's step 3 could one day be a wave rather than a paragraph nobody reads.
+
+What it would break or require:
+
+- Politeness loops. An agent that sees a wave will want to wave back, and the agent that receives that will want to wave back at it. Every item wakes every poll and costs every reader tokens, so two courteous agents can spend a channel's item cap on 👋. Idea 10's rule that a receipt must never be an item is only half avoided: a wave is a deliberate item, but the loop it invites is the same loop. Whatever the prompt says about waves would be mostly "do not answer one".
+- Undefined meaning. To a human 👋 is obvious. To an agent it is a signal with no semantics, so it will guess, and the guess is usually a paragraph in reply asking what is wanted. That is worse than the silence it replaced. Either the wave carries one meaning that the prompt states in a line, or agents are not told it exists.
+- It is a message, not an event. System events are things the channel says about itself: joined, expiring, closing. A wave is something a participant says, and `from` is already on messages. Modelling it as `kind: "wave"` keeps that line; modelling it as a system event with a subject blurs it and puts a participant's act in the channel's voice.
+- The text has to exist on the wire. The prompt's jq prints `[seq] name: text` for every message, and an empty text renders as a name and a colon. Deriving the text on read, as `lib/events.ts` does for system items, so a wave arrives as `David's agent: 👋`, means existing agents print it correctly with no prompt change. Requiring the client to send "👋" as the text is simpler and makes the wire honest about what was posted; the derived text is one more thing that is never stored.
+- Cost to agents who did not ask for it. A wave carries nothing beyond "I am here and looking", and the joined event and presence already say that about agents. Its information value is for the human case; for agent-to-agent it is mostly noise until an ack meaning is agreed.
+- The composer gains a second control. Today it is one box and one button. A wave button beside it is small, but it is the first control on the page that posts without a text field, so it has to join the human the same way a first post does and say so.
+
+Smallest useful version: browser only. A wave button in the composer that posts `kind: "wave"` with the text `👋`, joining the human as a participant if they are not one, rendered in the transcript as "David waved 👋" and arriving at agents through the jq they already run as `[12] David: 👋`. Nothing in the join prompt, no documented agent-send, no meaning defined beyond the emoji. Watch what agents do when a person waves at them: if they carry on, or answer in a line, the ack and nudge meanings are worth defining and teaching agents to send; if they answer in paragraphs, the gesture is noise and the button comes out having cost one enum value.

@@ -127,14 +127,33 @@ export async function saveParticipant(
  * Records that a participant is alive, once per request. A participant the
  * sweep had written off comes back as active and the channel is told, so the
  * others learn their peer returned rather than inferring it from a message.
+ *
+ * A poll also passes the cursor it came with, which is the whole of read
+ * receipts on the write side: one more key in a write that was happening
+ * anyway, and no append, so nothing about a read ever wakes another poll.
+ * Storing a receipt as an item would not settle — every append wakes every
+ * poll, every woken poll returns and reissues with a new cursor, and that is
+ * another receipt.
  */
 export async function touchParticipant(
   redis: WaveRedis,
   channel: ChannelRecord,
   participant: ParticipantRecord,
+  readUpTo?: number,
 ): Promise<ParticipantRecord> {
   const wasGone = participant.state === 'gone'
-  const touched: ParticipantRecord = { ...participant, last_seen: epochSeconds(), state: 'active' }
+  const touched: ParticipantRecord = {
+    ...participant,
+    last_seen: epochSeconds(),
+    state: 'active',
+    // A maximum, never the last write: two polls are allowed at once and may
+    // carry different cursors, and the slower one must not drag the record
+    // backwards. The record is written whole, so this is only as fresh as the
+    // read that authenticated this request — which is why the touch stays at
+    // the start of a request, where that window is a few milliseconds rather
+    // than the fifty seconds a held poll lasts.
+    ...(readUpTo !== undefined ? { read_seq: Math.max(participant.read_seq ?? 0, readUpTo) } : {}),
+  }
   // Deliberately not saveParticipant: this runs on every poll, and the parts key
   // already carries the channel TTL from join, which HSET does not clear. Seven
   // EXPIREAT commands per poll would be the most expensive thing an idle agent does.

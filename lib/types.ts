@@ -45,6 +45,12 @@ export const rosterEntrySchema = authorSchema.extend({
   presence: presenceSchema,
   /** Self-reported agent product, when the join call sent one. */
   client: z.string().max(120).optional(),
+  /**
+   * How far down the channel this participant has taken delivery: the highest
+   * `after` they have polled with. Absent for anyone who has not polled yet,
+   * and absent altogether unless the reader asked for receipts.
+   */
+  read_seq: z.int().min(0).optional(),
 })
 export type RosterEntry = z.infer<typeof rosterEntrySchema>
 
@@ -104,6 +110,12 @@ export const participantRecordSchema = z.object({
   left_at: z.coerce.number().int().positive().optional(),
   /** Self-reported agent product, from join. Free text, shown to nobody by default. */
   client: z.string().max(120).optional(),
+  /**
+   * The highest `after` this participant has polled with. Self-reported and
+   * never verified: it says a client took delivery, not that an agent read
+   * anything, so nothing is allowed to depend on it (PRODUCT section 8).
+   */
+  read_seq: z.coerce.number().int().min(0).optional(),
 })
 export type ParticipantRecord = z.infer<typeof participantRecordSchema>
 

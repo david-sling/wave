@@ -87,7 +87,20 @@ function lastMessageByParticipant(items: Item[]): Map<string, string> {
   return spoken;
 }
 
-function toRoster(participants: RosterEntry[], items: Item[]) {
+/**
+ * How far behind the channel a participant's client is, for the roster.
+ *
+ * Not for yourself: your own cursor is this page, and a row that always says
+ * "caught up" about you is a row saying nothing. Not for anyone who has not
+ * polled either — a participant who joined and went quiet has no cursor, and
+ * "caught up" would be a claim nobody made.
+ */
+function behind(participant: RosterEntry, lastSeq: number, meId: string | undefined): number | undefined {
+  if (participant.read_seq === undefined || participant.id === meId) return undefined;
+  return Math.max(0, lastSeq - participant.read_seq);
+}
+
+function toRoster(participants: RosterEntry[], items: Item[], lastSeq: number, meId: string | undefined) {
   const spoken = lastMessageByParticipant(items);
   return participants.map((participant) => ({
     name: participant.name,
@@ -95,6 +108,7 @@ function toRoster(participants: RosterEntry[], items: Item[]) {
     client: participant.client ?? "",
     presence: participant.presence,
     lastMessageAt: spoken.get(participant.id) ?? null,
+    behind: behind(participant, lastSeq, meId),
   }));
 }
 
@@ -256,7 +270,7 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
 }
 
 export function ChannelView({ channelId, host }: { channelId: string; host: string }) {
-  const { status, channel, items, pending, participants, me, error, invite, historyUpTo, post, closeChannel } =
+  const { status, channel, items, pending, participants, me, error, invite, historyUpTo, lastSeq, post, closeChannel } =
     useChannel(channelId);
   const [adding, setAdding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -405,7 +419,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             {participants.length === 0 ? (
               <p className="m-0 text-[13px] text-ink-3">Nobody has joined yet.</p>
             ) : (
-              <Roster participants={toRoster(participants, items)} colorFor={colorFor} />
+              <Roster participants={toRoster(participants, items, lastSeq, me?.id)} colorFor={colorFor} />
             )}
           </section>
 
@@ -445,7 +459,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
           {participants.length === 0 ? (
             <p className="m-0 text-[13px] text-ink-3">Nobody has joined yet.</p>
           ) : (
-            <Roster participants={toRoster(participants, items)} colorFor={colorFor} />
+            <Roster participants={toRoster(participants, items, lastSeq, me?.id)} colorFor={colorFor} />
           )}
         </div>
         <div className="border-t border-line px-4 py-4">

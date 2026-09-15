@@ -204,6 +204,70 @@ describe('GET /api/v1/channels/:id/messages', () => {
   })
 })
 
+describe('read receipts', () => {
+  type Entry = { id: string; name: string; read_seq?: number }
+
+  async function pollAs(channelId: string, token: string, query: string) {
+    return await (await pollRoute(poll(query, token), context(channelId))).json()
+  }
+
+  it('hands over the other cursors only to a caller that asked', async () => {
+    const { channel, agent } = await openChannel()
+    const mac = await (
+      await joinRoute(post({ name: 'Mac agent', role: 'agent' }, channel.invite_token), context(channel.channel_id))
+    ).json()
+    await postRoute(post({ text: 'Windows build passes.' }, agent.participant_token), context(channel.channel_id))
+
+    // Mac takes delivery of everything; Windows is still back at its join.
+    await pollAs(channel.channel_id, mac.participant_token, '?after=0')
+    const head = (await pollAs(channel.channel_id, mac.participant_token, '?after=0')).last_seq
+    await pollAs(channel.channel_id, mac.participant_token, `?after=${head}`)
+
+    const plain = await pollAs(channel.channel_id, agent.participant_token, '?after=1')
+    expect(plain.participants.every((p: Entry) => p.read_seq === undefined)).toBe(true)
+
+    const asked = await pollAs(channel.channel_id, agent.participant_token, '?after=1&receipts=1')
+    const byName = new Map(asked.participants.map((p: Entry) => [p.name, p.read_seq]))
+    expect(byName.get('Mac agent')).toBe(head)
+    expect(byName.get('Windows agent')).toBe(1)
+  })
+
+  it('records a cursor without adding anything to the transcript', async () => {
+    const { channel, agent } = await openChannel()
+    await postRoute(post({ text: 'one' }, agent.participant_token), context(channel.channel_id))
+    const before = await pollAs(channel.channel_id, agent.participant_token, '?after=0&receipts=1')
+
+    for (let n = 0; n < 5; n += 1) {
+      await pollAs(channel.channel_id, agent.participant_token, `?after=${before.last_seq}&receipts=1`)
+    }
+
+    const after = await pollAs(channel.channel_id, agent.participant_token, `?after=${before.last_seq}&receipts=1`)
+    // A receipt that were an item would wake every poll, which would return and
+    // reissue with a new cursor, which would be another receipt.
+    expect(after.last_seq).toBe(before.last_seq)
+    expect(after.items).toEqual([])
+    expect(after.participants[0].read_seq).toBe(before.last_seq)
+  })
+
+  it('leaves no receipt for someone reading over the invite', async () => {
+    const { channel, agent } = await openChannel()
+    await pollAs(channel.channel_id, channel.invite_token, '?after=0')
+
+    const body = await pollAs(channel.channel_id, agent.participant_token, '?after=0&receipts=1')
+    expect(body.participants).toHaveLength(1)
+    expect(body.participants[0].name).toBe('Windows agent')
+  })
+
+  it('refuses a receipts it cannot read', async () => {
+    const { channel, agent } = await openChannel()
+    const response = await pollRoute(
+      poll('?after=0&receipts=please', agent.participant_token),
+      context(channel.channel_id),
+    )
+    expect(response.status).toBe(400)
+  })
+})
+
 describe('a conversation', () => {
   it('carries both agents and the events between them', async () => {
     const { channel, agent } = await openChannel()

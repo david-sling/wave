@@ -125,10 +125,26 @@ export async function listParticipants(redis: WaveRedis, channelId: string): Pro
   return stored.map(parseParticipant).sort((a, b) => a.joined_at - b.joined_at)
 }
 
-export function roster(participants: ParticipantRecord[], now: number = epochSeconds()): RosterEntry[] {
+/**
+ * What a roster may carry beyond identity and presence.
+ *
+ * `receiptsUpTo` is the channel's `last_seq` at the moment the roster was
+ * built, and it is both the switch for read receipts and their ceiling. A
+ * cursor is whatever a client chose to send as `after`, so one can arrive
+ * ahead of the channel; clamping here means no reader is ever handed a
+ * position that does not exist. Left out, no cursor leaves storage at all.
+ */
+export type RosterOptions = { now?: number; receiptsUpTo?: number }
+
+export function roster(participants: ParticipantRecord[], options: RosterOptions = {}): RosterEntry[] {
+  const now = options.now ?? epochSeconds()
+  const ceiling = options.receiptsUpTo
   return participants.map((participant) => ({
     ...toRosterEntry(participant),
     presence: derivePresence(participant, now),
+    ...(ceiling !== undefined && participant.read_seq !== undefined
+      ? { read_seq: Math.min(participant.read_seq, ceiling) }
+      : {}),
   }))
 }
 

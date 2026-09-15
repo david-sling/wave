@@ -122,11 +122,27 @@ describe('presence', () => {
 
   it('reads from last_seen, not from the state the sweep last wrote', () => {
     const stale = participant({ last_seen: now - PRESENCE.goneAfter, state: 'active' })
-    expect(roster([stale], now)[0].presence).toBe('gone')
+    expect(roster([stale], { now })[0].presence).toBe('gone')
+  })
+
+  it('leaves cursors out of a roster nobody asked receipts for', () => {
+    const read = participant({ read_seq: 3 })
+    expect(roster([read], { now })[0].read_seq).toBeUndefined()
+  })
+
+  it('carries a cursor when receipts were asked for, clamped to the channel head', () => {
+    const read = participant({ read_seq: 3 })
+    expect(roster([read], { now, receiptsUpTo: 9 })[0].read_seq).toBe(3)
+    // after is whatever a client chose to send, so one can arrive past the end.
+    expect(roster([read], { now, receiptsUpTo: 2 })[0].read_seq).toBe(2)
+  })
+
+  it('says nothing about a participant that has never polled', () => {
+    expect(roster([participant()], { now, receiptsUpTo: 9 })[0].read_seq).toBeUndefined()
   })
 
   it('never exposes the token hash', () => {
-    expect(Object.keys(roster([participant()], now)[0])).toEqual(['id', 'name', 'role', 'presence'])
+    expect(Object.keys(roster([participant()], { now })[0])).toEqual(['id', 'name', 'role', 'presence'])
   })
 })
 
