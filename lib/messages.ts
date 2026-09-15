@@ -135,9 +135,15 @@ export async function postMessage(
   return result
 }
 
+/** What `receipts` accepts. Spelled out, so a typo is a 400 rather than a silent no. */
+const RECEIPTS_ON = new Set(['1', 'true', 'yes'])
+const RECEIPTS_VALUES = new Set([...RECEIPTS_ON, '', '0', 'false', 'no'])
+
 export const pollQuerySchema = z.object({
   after: z.coerce.number().int().min(0).default(0),
   wait: z.coerce.number().int().min(0).max(LIMITS.maxWaitSeconds).default(0),
+  /** Whether the roster on the response carries each participant's cursor. */
+  receipts: z.boolean().default(false),
 })
 export type PollQuery = z.infer<typeof pollQuerySchema>
 
@@ -155,10 +161,18 @@ export async function itemsAfter(redis: WaveRedis, channelId: string, after: num
  * broken client, and so is an empty `after` — which would replay the whole
  * channel, and for an agent a replay is re-execution rather than re-reading.
  * Omitting `after` still means 0.
+ *
+ * `receipts` is asked for rather than given. Every poll's cursor is recorded
+ * either way, because it costs nothing, but the roster only carries the other
+ * participants' cursors for a caller that said it wanted them: an agent handed
+ * a number it did not ask about will act on it, and the two things it does with
+ * "my peer has not read this" — wait, or say it again — are both worse than
+ * what it would have done otherwise.
  */
 export function parsePollQuery(url: URL): PollQuery {
   const rawAfter = url.searchParams.get('after')
   const rawWait = url.searchParams.get('wait')
+  const rawReceipts = url.searchParams.get('receipts')
 
   if (rawAfter !== null && rawAfter.trim() === '') {
     throw new ApiError(400, 'invalid_request', 'after was sent empty.', {
@@ -171,9 +185,16 @@ export function parsePollQuery(url: URL): PollQuery {
     })
   }
 
+  if (rawReceipts !== null && !RECEIPTS_VALUES.has(rawReceipts.trim())) {
+    throw new ApiError(400, 'invalid_request', 'receipts must be 1 or 0.', {
+      hint: 'receipts=1 adds each participant\'s read_seq to the roster on the response. Anything else is read as a client that meant to ask and did not, so it is refused rather than answered without them.',
+    })
+  }
+
   const parsed = pollQuerySchema.safeParse({
     after: rawAfter ?? undefined,
     wait: Math.min(Number(rawWait ?? 0) || 0, LIMITS.maxWaitSeconds),
+    receipts: rawReceipts !== null && RECEIPTS_ON.has(rawReceipts.trim()),
   })
   if (!parsed.success) {
     throw new ApiError(400, 'invalid_request', 'after must be a whole number, wait a number of seconds.', {

@@ -139,11 +139,24 @@ describe('poll query', () => {
   const parse = (query: string) => parsePollQuery(new URL(`https://wave.example.com/x${query}`))
 
   it('defaults to the whole channel and no waiting', () => {
-    expect(parse('')).toEqual({ after: 0, wait: 0 })
+    expect(parse('')).toEqual({ after: 0, wait: 0, receipts: false })
   })
 
   it('reads after and wait', () => {
-    expect(parse('?after=12&wait=50')).toEqual({ after: 12, wait: 50 })
+    expect(parse('?after=12&wait=50')).toEqual({ after: 12, wait: 50, receipts: false })
+  })
+
+  it('leaves read receipts off unless they are asked for', () => {
+    expect(parse('?after=1').receipts).toBe(false)
+    expect(parse('?after=1&receipts=0').receipts).toBe(false)
+    expect(parse('?after=1&receipts=1').receipts).toBe(true)
+    expect(parse('?after=1&receipts=true').receipts).toBe(true)
+  })
+
+  it('refuses a receipts it cannot read rather than quietly answering without them', () => {
+    // Silently off would look like a server that does not have the feature,
+    // and the caller would go looking for that instead of at its own spelling.
+    expect(() => parse('?after=1&receipts=yes-please')).toThrow(ApiError)
   })
 
   it('clamps a wait beyond the cap rather than failing the call', () => {

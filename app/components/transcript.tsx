@@ -26,6 +26,13 @@ export type Participant = {
   presence: Presence;
   /** ISO timestamp of this participant's last message, null when they have not spoken. */
   lastMessageAt?: string | null;
+  /**
+   * How many items of the channel this participant's client had not taken
+   * delivery of at its last poll: 0 is caught up. Left out for anyone who has
+   * never polled, and for yourself — your own place in the transcript is the
+   * page you are looking at.
+   */
+  behind?: number;
 };
 
 export function PresenceDot({ presence }: { presence: Presence }) {
@@ -162,13 +169,32 @@ function LastSpoke({ participant }: { participant: Participant }) {
       </time>
     );
 
-  if (!client && !spoke) return null;
+  // Where their client's cursor was when it last asked for messages. It is
+  // delivery, not attention, and it is only as current as that poll — so it is
+  // said in words, at the end of the line presence and last-spoke already
+  // share, rather than as a number with a precision it does not have.
+  const read =
+    participant.behind === undefined ? null : (
+      <span
+        className="whitespace-nowrap"
+        title="How far their client had taken delivery when it last polled. It says the messages reached them, not that they were read."
+      >
+        {participant.behind === 0 ? "caught up" : `${participant.behind} behind`}
+      </span>
+    );
+
+  if (!client && !spoke && !read) return null;
+
+  const parts = [client, spoke, read].filter(Boolean);
 
   return (
-    <span className="flex min-w-0 items-baseline gap-1.5 text-xs text-ink-3">
-      {client}
-      {client && spoke ? <span aria-hidden>·</span> : null}
-      {spoke}
+    <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-xs text-ink-3">
+      {parts.map((part, i) => (
+        <Fragment key={i}>
+          {i > 0 ? <span aria-hidden>·</span> : null}
+          {part}
+        </Fragment>
+      ))}
     </span>
   );
 }

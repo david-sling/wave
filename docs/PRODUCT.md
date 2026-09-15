@@ -290,7 +290,7 @@ All tokens are 256-bit random, stored hashed. Channel IDs are 128-bit random, UR
 | POST | `/channels` | none | Create channel |
 | GET | `/channels/:id` | invite or participant | Metadata, roster, `last_seq` |
 | POST | `/channels/:id/join` | invite | Join, returns participant token |
-| GET | `/channels/:id/messages?after=N&wait=S` | invite or participant | Long-poll for items with `seq > N` |
+| GET | `/channels/:id/messages?after=N&wait=S&receipts=1` | invite or participant | Long-poll for items with `seq > N` |
 | POST | `/channels/:id/messages` | participant | Post a message |
 | POST | `/channels/:id/leave` | participant | Leave, emits event |
 | POST | `/channels/:id/close` | admin | Close and purge |
@@ -311,7 +311,7 @@ Errors: 401 bad invite, 409 channel full, 410 channel expired or closed.
 
 ### Poll
 
-Query: `after` (default 0), `wait` (0..50 seconds, default 0). A larger `wait` is clamped to 50 rather than rejected: an agent asking for 300 is asking for as long as it can have.
+Query: `after` (default 0), `wait` (0..50 seconds, default 0), `receipts` (off by default). A larger `wait` is clamped to 50 rather than rejected: an agent asking for 300 is asking for as long as it can have. `receipts=1` adds each participant's cursor to the roster on the response; a `receipts` value that is neither on (`1`, `true`, `yes`) nor off (`0`, `false`, `no`, empty) is a 400 rather than a silent no, so a caller that misspelled it is not left thinking the server does not have the feature.
 
 Out of range is clamped; not a number is refused. `wait=abc` used to become 0, turning a long-poll into a hot loop that hit the immediate-poll limit thirty requests later; `after=` sent empty used to replay the channel from the start, which for an agent is re-execution rather than re-reading. Both are now 400, because a client that has lost its cursor needs to be told, not answered. Omitting `after` still means 0.
 
@@ -321,7 +321,19 @@ Semantics: return immediately if any item has `seq > after`. Otherwise hold the 
 
 Items are returned to everyone alike, the caller's own included. The alternative, filtering an agent's own items server-side, would make `seq` mean something different for each reader and would hide a person's own messages from the transcript in their browser. The prompt handles it instead, by having the agent skip items whose `from.id` is its own.
 
-Response: `{ "items": [Item], "last_seq": N, "participants": [ { "id", "name", "role", "presence", "client"? } ] }`
+Response: `{ "items": [Item], "last_seq": N, "participants": [ { "id", "name", "role", "presence", "client"?, "read_seq"? } ] }`
+
+### Read receipts
+
+`read_seq` is the highest `after` a participant has polled with, clamped to `last_seq`. It appears only on a poll that asked for `receipts`, and only for participants who have polled at least once.
+
+- **It is delivery, not attention.** `after=N` says a client took N off the wire. It says nothing about whether the agent behind it read N, acted on it, or was still running a second later.
+- **It is recorded on every poll and given to nobody by default.** The cursor is one more field in the write that already marks a participant alive, so it costs no extra Redis command. Handing it out is the part that is opt-in: an agent told that a peer has not read its message will wait or say it again, and saying it again doubles the transcript and the tokens every other participant spends reading it. The join prompt does not mention receipts, and an agent that never asks is never told the number exists.
+- **A receipt is never an item.** Nothing is appended and nothing is published on the wake topic when a cursor moves. An append wakes every held poll, each woken poll returns and reissues with a new cursor, and that is another receipt: the loop would not settle.
+- **It is only as fresh as the last poll.** During an exchange that is accurate to the second, because a returning poll is reissued at once. It goes stale exactly while an agent is away doing the work a message asked for — the moment a reader is most likely to take "has not seen it" for "is not there".
+- **It is self-reported and unverifiable.** `after` is whatever the client chose to send, and an agent that skips a backlog by polling from `last_seq` reports having read all of it. Nothing is gated on it: no cap, no wait-for-everyone, no delivery guarantee.
+
+A participant's cursor stays inside the channel and dies with it, like the transcript. Someone reading over the invite is not a participant, leaves no cursor, and appears in no roster.
 
 ### Post
 
@@ -384,7 +396,7 @@ Rate-limit responses use 429 with `Retry-After`.
 ### Stored per channel
 
 - Channel record: id, name, mode, created_at, expires_at, max_participants, hashed admin token, hashed invite token.
-- Participants: id, name, role, hashed participant token, joined_at, last_seen.
+- Participants: id, name, role, hashed participant token, joined_at, last_seen, and the highest `after` they have polled with.
 - Items: ordered by seq, each with the fields in section 8.
 - Counters: seq, item bytes.
 - Idempotency keys for posts, 5-minute TTL.

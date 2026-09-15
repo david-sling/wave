@@ -46,7 +46,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
  * Takes a participant token, and also the invite, so the channel page can
  * follow the conversation before anyone has typed into it. Only a participant
  * is marked alive by polling; a reader watching over the invite is not in the
- * roster and has no presence to update.
+ * roster, has no presence to update, and leaves no read receipt behind.
  */
 export async function GET(
   request: Request,
@@ -54,7 +54,7 @@ export async function GET(
 ): Promise<Response> {
   try {
     const { id } = await context.params
-    const { after, wait } = parsePollQuery(new URL(request.url))
+    const { after, wait, receipts } = parsePollQuery(new URL(request.url))
     const redis = await getRedis()
     const { channel, participant } = await authenticate(redis, id, ['participant', 'invite'], request)
 
@@ -63,8 +63,10 @@ export async function GET(
       await limitImmediatePolling(redis, participant?.id ?? callerAddress(request))
     }
 
-    // Once per request, at the start, as ARCHITECTURE section 3 specifies.
-    if (participant) await touchParticipant(redis, channel, participant)
+    // Once per request, at the start, as ARCHITECTURE section 3 specifies. The
+    // cursor rides along with it: taking delivery is a fact about this request,
+    // not about how long the poll that made it ends up holding.
+    if (participant) await touchParticipant(redis, channel, participant, after)
     await sweepChannel(redis, channel)
 
     const poll = async (): Promise<Response> => {
@@ -81,7 +83,13 @@ export async function GET(
             return Response.json({
               items: seq > after ? await itemsAfter(redis, channel.id, after) : [],
               last_seq: seq,
-              participants: roster(await listParticipants(redis, channel.id)),
+              // Receipts are as fresh as this read and no fresher. Nothing
+              // publishes when a cursor moves, so a held poll is not woken by
+              // one — it carries whatever the roster says at the moment it
+              // returns for a reason of its own.
+              participants: roster(await listParticipants(redis, channel.id), {
+                ...(receipts ? { receiptsUpTo: seq } : {}),
+              }),
             })
           }
           // Never past the deadline: the caller asked for at most `wait`

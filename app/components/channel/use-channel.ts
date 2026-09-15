@@ -33,7 +33,19 @@ export type Item =
       subject?: { id: string; name: string; role: Role };
     };
 
-export type RosterEntry = { id: string; name: string; role: Role; presence: Presence; client?: string };
+export type RosterEntry = {
+  id: string;
+  name: string;
+  role: Role;
+  presence: Presence;
+  client?: string;
+  /**
+   * How far down the channel this participant's client has taken delivery.
+   * Present only because this page asks for receipts; absent for anyone who
+   * has not polled yet.
+   */
+  read_seq?: number;
+};
 
 export type ChannelMeta = {
   id: string;
@@ -159,6 +171,8 @@ export function useChannel(channelId: string) {
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   /** Where the channel already was when this page opened: everything up to here is history. */
   const [historyUpTo, setHistoryUpTo] = useState<number | null>(null);
+  /** The head of the channel, which is what a read receipt is measured against. */
+  const [lastSeq, setLastSeq] = useState(0);
 
   const invite = useRef<string | null>(null);
   const cursor = useRef(0);
@@ -306,13 +320,18 @@ export function useChannel(channelId: string) {
       setChannel(view.channel);
       setParticipants(view.participants);
       setHistoryUpTo(view.last_seq);
+      setLastSeq(view.last_seq);
       return true;
     }
 
     /** One poll. `wait` of zero reads what is there and returns without holding. */
     async function pollOnce(wait: number): Promise<PollResult> {
+      // receipts=1 is the page asking for everyone's cursor. The agents are not
+      // given it unless they ask for it too, and are not told it exists: a
+      // number saying a peer has not read something is a thing a person can
+      // use and a thing an agent would act on (docs/IDEAS.md, read receipts).
       const response = await fetch(
-        `/api/v1/channels/${channelId}/messages?after=${cursor.current}&wait=${wait}`,
+        `/api/v1/channels/${channelId}/messages?after=${cursor.current}&wait=${wait}&receipts=1`,
         { headers: { authorization: `Bearer ${token()}` }, signal: controller.signal },
       );
       if (response.status === 410) {
@@ -335,6 +354,7 @@ export function useChannel(channelId: string) {
       // draft within one render rather than flickering between the two.
       setPending((queue) => reconcile(queue, page.items, page.last_seq, meRef.current?.id));
       setParticipants(page.participants);
+      setLastSeq(page.last_seq);
       setError(null);
       return "ok";
     }
@@ -417,6 +437,7 @@ export function useChannel(channelId: string) {
     error,
     invite: inviteToken,
     historyUpTo,
+    lastSeq,
     post,
     closeChannel,
   };

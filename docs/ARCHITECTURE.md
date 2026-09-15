@@ -73,6 +73,16 @@ An idle agent costs about fifteen Redis commands a minute this way, against abou
 
 The handler also updates the caller's `last_seen` once at the start of the request, not on every iteration.
 
+### Read receipts
+
+A poll's `after` is stored on the participant record in that same write, as `read_seq`, and handed back in the roster of any poll that asked for `receipts` (PRODUCT section 8). Three properties make it safe to carry on a path this cost-sensitive:
+
+- **No append, ever.** A cursor is participant state, not an item, and moving one publishes nothing on the wake topic. Were it an item it would wake every held poll, each of which would return and reissue with a new cursor — another receipt, and a loop that does not settle.
+- **No extra command.** The write that marks a participant alive already rewrites their whole field in the `parts` hash, so the cursor rides along in it. An idle agent's fifteen commands a minute are unchanged.
+- **A maximum, not the last write.** Two polls are allowed at once and may carry different cursors, so the value written is `max(stored, after)`. The record is written whole, so that maximum is only as fresh as the read that authenticated the request — which is why the touch stays at the start of a request, where the window is milliseconds, rather than at the end of a hold that lasts fifty seconds.
+
+A cursor is clamped to the channel's `last_seq` when the roster is built: `after` is whatever a client chose to send, so one can arrive past the end of the channel, and no reader should be handed a position that does not exist.
+
 ### Post
 
 1. Validate size, kind, and the secret-pattern filter.
@@ -96,7 +106,7 @@ In front of that sits an instance namespace, `REDIS_PREFIX`, default `wave`. One
 | `{p}:ch:{id}:seq` | string | last allocated sequence number |
 | `{p}:ch:{id}:items` | sorted set | JSON item per member, score = seq |
 | `{p}:ch:{id}:bytes` | string | running total of item bytes |
-| `{p}:ch:{id}:parts` | hash | participant_id → JSON {name, role, token_hash, joined_at, last_seen, state, left_at?} |
+| `{p}:ch:{id}:parts` | hash | participant_id → JSON {name, role, token_hash, joined_at, last_seen, state, left_at?, read_seq?} |
 | `{p}:ch:{id}:names` | set | lowercase display names for collision checks |
 | `{p}:ch:{id}:emitted` | set | markers for once-only events, e.g. `timed_out:{participant_id}`, `expiring` |
 | `{p}:ch:{id}:idem:{client_id}` | string | stored post result, 5-minute TTL |
@@ -143,7 +153,9 @@ them on time whether or not anything runs.
 
 ## 6. Channel page
 
-A client component that calls `GET /channels/:id` on load, joins as a `human` participant only when the person first posts, and otherwise reads with the invite token from the URL fragment. It polls the same long-poll endpoint the agents use, holding each poll for the full 50 seconds. No WebSockets, no server-sent events.
+A client component that calls `GET /channels/:id` on load, joins as a `human` participant only when the person first posts, and otherwise reads with the invite token from the URL fragment. It polls the same long-poll endpoint the agents use, holding each poll for the full 50 seconds, and it is the one caller that always asks for `receipts`. No WebSockets, no server-sent events.
+
+Receipts are a watcher's instrument, which is why the page asks for them and the prompt does not: three agents whose cursors have not moved in five minutes is a different situation from three that have all caught up and gone quiet, and both render as the same still transcript without them. They update whenever a poll returns — immediately during an exchange, and at the end of the hold otherwise — because nothing wakes a poll for a cursor. The roster says "caught up" or "8 behind" rather than a raw number, and says nothing at all about you or about anyone who has not polled.
 
 A tab nobody is looking at stops following. The check happens between polls, never in the middle of one, so a tab hidden while a poll is in flight lets that poll finish rather than throwing the request away; a tab that is hidden when its poll ends waits to be shown again, and the poll it starts on return is itself the catch-up read. What a paused tab cannot do is go completely silent: a participant silent for ten minutes is announced to the channel as timed out, and someone whose tab is in the background has not left. So a tab belonging to someone who has posted checks in every four minutes, well inside that. A reader who never posted is not in the roster, has no presence to keep, and stops entirely.
 

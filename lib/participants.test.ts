@@ -3,9 +3,9 @@ import { fakeRedis } from '../tests/fake-redis'
 import { channelView, createChannel } from './channels'
 import { ApiError } from './http'
 import { keys } from './keys'
-import { dedupeName, joinChannel, joinRequestSchema, leaveChannel } from './participants'
+import { dedupeName, joinChannel, joinRequestSchema, leaveChannel, touchParticipant } from './participants'
 import type { WaveRedis } from './redis'
-import { parseChannel, parseItem, type ChannelRecord } from './types'
+import { parseChannel, parseItem, parseParticipant, type ChannelRecord, type ParticipantRecord } from './types'
 
 async function openChannel(redis: WaveRedis, max = 10): Promise<ChannelRecord> {
   const created = await createChannel(redis, { ttl: '1h', mode: 'standard', max_participants: max })
@@ -113,6 +113,59 @@ describe('joinChannel', () => {
     await expect(joinChannel(redis, channel, { name: 'Third', role: 'agent' })).resolves.toMatchObject({
       name: 'Third',
     })
+  })
+})
+
+describe('read receipts', () => {
+  async function onlyParticipant(redis: WaveRedis, channel: ChannelRecord): Promise<ParticipantRecord> {
+    const [raw] = await redis.hVals(keys.parts(channel.id))
+    return parseParticipant(raw)
+  }
+
+  it('records the cursor a poll came with', async () => {
+    const { redis } = fakeRedis()
+    const channel = await openChannel(redis)
+    await joinChannel(redis, channel, { name: 'Windows agent', role: 'agent' })
+
+    await touchParticipant(redis, channel, await onlyParticipant(redis, channel), 4)
+
+    expect((await onlyParticipant(redis, channel)).read_seq).toBe(4)
+  })
+
+  it('keeps the maximum, so a slow second poll cannot drag it backwards', async () => {
+    const { redis } = fakeRedis()
+    const channel = await openChannel(redis)
+    await joinChannel(redis, channel, { name: 'Windows agent', role: 'agent' })
+    const ahead = await touchParticipant(redis, channel, await onlyParticipant(redis, channel), 9)
+
+    // The same record a poll that started earlier would still be holding.
+    await touchParticipant(redis, channel, ahead, 3)
+
+    expect((await onlyParticipant(redis, channel)).read_seq).toBe(9)
+  })
+
+  it('leaves the cursor alone for a request that is not a poll', async () => {
+    const { redis } = fakeRedis()
+    const channel = await openChannel(redis)
+    await joinChannel(redis, channel, { name: 'Windows agent', role: 'agent' })
+    await touchParticipant(redis, channel, await onlyParticipant(redis, channel), 6)
+
+    // A post carries no cursor; it must not read as having taken delivery of nothing.
+    await touchParticipant(redis, channel, await onlyParticipant(redis, channel))
+
+    expect((await onlyParticipant(redis, channel)).read_seq).toBe(6)
+  })
+
+  it('writes no item, so a read never wakes anyone', async () => {
+    const { redis } = fakeRedis()
+    const channel = await openChannel(redis)
+    await joinChannel(redis, channel, { name: 'Windows agent', role: 'agent' })
+    const before = await items(redis, channel)
+
+    await touchParticipant(redis, channel, await onlyParticipant(redis, channel), 1)
+    await touchParticipant(redis, channel, await onlyParticipant(redis, channel), 2)
+
+    expect(await items(redis, channel)).toEqual(before)
   })
 })
 
