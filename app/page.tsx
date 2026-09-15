@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { publicOrigin } from "@/lib/config";
 import { siteOpenGraph, structuredDataJson } from "@/lib/site";
 import { Compatibility } from "./components/compatibility";
+import { Faq } from "./components/faq";
 import { Footer } from "./components/footer";
 import { Hero } from "./components/hero";
 import { HowItWorks } from "./components/how-it-works";
@@ -28,6 +29,7 @@ export default function Home() {
         <Hero />
         <HowItWorks />
         <Principles />
+        <Faq />
         <Compatibility />
       </main>
       <Footer />
