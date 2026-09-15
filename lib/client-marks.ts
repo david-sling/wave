@@ -19,12 +19,11 @@
  * mark that existed only as JSX would have to be written twice and would drift.
  *
  * Colour: Claude keeps its coral, since that hue is most of how the mark is
- * recognised. The rest are ink. For OpenAI and Cursor that is their own brand
- * black. Antigravity's brand colour is a multicolour gradient rather than a
- * flat value — its published colour asset is a mask over eleven blurred blobs,
- * which turns to mush at the sizes we draw and would need its filter ids
- * scoped per instance — so it is used in the monochrome form the same set
- * publishes, which is ordinary practice for a mark this small.
+ * recognised. The rest are ink, except Antigravity, whose brand mark is drawn
+ * in its own aurora colours by `ANTIGRAVITY_COLOR` below and the
+ * `ClientMark` component that reads it. This flat, single-colour entry stays
+ * on the page's ink for the one renderer that cannot draw the aurora: Satori,
+ * which has no `<mask>` or `<filter>` and draws the share cards (`lib/og.tsx`).
  */
 
 /** This page's ink, for the marks whose own colour is black or unavailable. */
@@ -44,6 +43,31 @@ const MARKS = {
   cursor: { d: "M11.503.131 1.891 5.678a.84.84 0 0 0-.42.726v11.188c0 .3.162.575.42.724l9.609 5.55a1 1 0 0 0 .998 0l9.61-5.55a.84.84 0 0 0 .42-.724V6.404a.84.84 0 0 0-.42-.726L12.497.131a1.01 1.01 0 0 0-.996 0M2.657 6.338h18.55c.263 0 .43.287.297.515L12.23 22.918c-.062.107-.229.064-.229-.06V12.335a.59.59 0 0 0-.295-.51l-9.11-5.257c-.109-.063-.064-.23.061-.23", brand: INK },
   antigravity: { d: "M21.751 22.607c1.34 1.005 3.35.335 1.508-1.508C17.73 15.74 18.904 1 12.037 1 5.17 1 6.342 15.74.815 21.1c-2.01 2.009.167 2.511 1.507 1.506 5.192-3.517 4.857-9.714 9.715-9.714 4.857 0 4.522 6.197 9.714 9.715z", brand: INK, fillRule: "evenodd" },
 } as const satisfies Record<string, ClientMark>;
+
+/**
+ * Antigravity's brand mark as Lobe Icons' `Color` variant draws it: the same
+ * outline above, used as a mask, over eleven blurred, coloured blobs — the
+ * aurora look Google gives it. Kept as data rather than JSX because the
+ * `<mask>` and each blob's `<filter>` need ids scoped to one render, and only
+ * the browser component in `agent-marks.tsx` can call `useId` for that.
+ */
+export const ANTIGRAVITY_COLOR = {
+  /** The mask every blob is clipped to; identical to `MARKS.antigravity.d`. */
+  mask: MARKS.antigravity.d,
+  blobs: [
+    { d: "M-1.018-3.992c-.408 3.591 2.686 6.89 6.91 7.37 4.225.48 7.98-2.043 8.387-5.633.408-3.59-2.686-6.89-6.91-7.37-4.225-.479-7.98 2.043-8.387 5.633z", fill: "#FFE432", blur: 1.117, x: -3.288, y: -11.917, width: 19.838, height: 17.587 },
+    { d: "M15.269 7.747c1.058 4.557 5.691 7.374 10.348 6.293 4.657-1.082 7.575-5.653 6.516-10.21-1.058-4.556-5.691-7.374-10.348-6.292-4.657 1.082-7.575 5.653-6.516 10.21z", fill: "#FC413D", blur: 5.4, x: 4.251, y: -13.493, width: 38.9, height: 38.565 },
+    { d: "M-12.443 10.804c1.338 4.703 7.36 7.11 13.453 5.378 6.092-1.733 9.947-6.95 8.61-11.652C8.282-.173 2.26-2.58-3.833-.848-9.925.884-13.78 6.1-12.443 10.804z", fill: "#00B95C", blur: 4.591, x: -21.889, y: -10.592, width: 40.955, height: 36.517 },
+    { d: "M-12.443 10.804c1.338 4.703 7.36 7.11 13.453 5.378 6.092-1.733 9.947-6.95 8.61-11.652C8.282-.173 2.26-2.58-3.833-.848-9.925.884-13.78 6.1-12.443 10.804z", fill: "#00B95C", blur: 4.591, x: -21.889, y: -10.592, width: 40.955, height: 36.517 },
+    { d: "M-7.608 14.703c3.352 3.424 9.126 3.208 12.896-.483 3.77-3.69 4.108-9.459.756-12.883C2.69-2.087-3.083-1.871-6.853 1.82c-3.77 3.69-4.108 9.458-.755 12.883z", fill: "#00B95C", blur: 4.591, x: -19.099, y: -10.278, width: 36.632, height: 36.595 },
+    { d: "M9.932 27.617c1.04 4.482 5.384 7.303 9.7 6.3 4.316-1.002 6.971-5.448 5.93-9.93-1.04-4.483-5.384-7.304-9.7-6.301-4.316 1.002-6.971 5.448-5.93 9.93z", fill: "#3186FF", blur: 4.363, x: 0.981, y: 8.758, width: 33.533, height: 34.087 },
+    { d: "M2.572-8.185C.392-3.329 2.778 2.472 7.9 4.771c5.122 2.3 11.042.227 13.222-4.63 2.18-4.855-.205-10.656-5.327-12.955-5.122-2.3-11.042-.227-13.222 4.63z", fill: "#FBBC04", blur: 3.954, x: -6.143, y: -21.659, width: 35.978, height: 35.276 },
+    { d: "M-3.267 38.686c-5.277-2.072 3.742-19.117 5.984-24.83 2.243-5.712 8.34-8.664 13.616-6.592 5.278 2.071 11.533 13.482 9.29 19.195-2.242 5.713-23.613 14.298-28.89 12.227z", fill: "#3186FF", blur: 3.531, x: -11.96, y: -0.46, width: 45.114, height: 46.523 },
+    { d: "M28.71 17.471c-1.413 1.649-5.1.808-8.236-1.878-3.135-2.687-4.531-6.201-3.118-7.85 1.412-1.649 5.1-.808 8.235 1.878s4.532 6.2 3.119 7.85z", fill: "#749BFF", blur: 3.159, x: 10.485, y: 0.58, width: 25.094, height: 24.054 },
+    { d: "M18.163 9.077c5.81 3.93 12.502 4.19 14.946.577 2.443-3.612-.287-9.727-6.098-13.658-5.81-3.931-12.502-4.19-14.946-.577-2.443 3.612.287 9.727 6.098 13.658z", fill: "#FC413D", blur: 2.669, x: 5.833, y: -12.467, width: 33.508, height: 30.007 },
+    { d: "M-.915 2.684c-1.44 3.473-.97 6.967 1.05 7.804 2.02.837 4.824-1.3 6.264-4.772 1.44-3.473.97-6.967-1.05-7.804-2.02-.837-4.824 1.3-6.264 4.772z", fill: "#FFEE48", blur: 3.303, x: -8.355, y: -8.876, width: 22.194, height: 26.151 },
+  ],
+} as const;
 
 /**
  * The mark for a client string an agent reported, or null when there is none.
