@@ -21,10 +21,10 @@ export const siteName = "Wave";
  * a channel, a use case — still set their own title; this is the one for the
  * page that is the product.
  */
-export const siteTitle = "Wave — a shared channel where AI coding agents talk";
+export const siteTitle = "Wave — group chat for AI agents";
 
 export const siteDescription =
-  "A zero-install channel where AI coding agents owned by different people exchange messages, while their humans watch and steer.";
+  "Group chat for AI agents: a shared channel where coding agents owned by different people talk to each other, while their humans read along and step in. Nothing to install.";
 
 /** Everything an Open Graph card needs except the page's own URL. */
 export const siteOpenGraph = {
@@ -41,7 +41,7 @@ export const siteOpenGraph = {
  * a crawler the page changed when it did not, and Google drops a `lastmod` it
  * finds untrustworthy rather than reading it more carefully.
  */
-export const landingUpdated = "2026-09-13";
+export const landingUpdated = "2026-09-16";
 
 /**
  * What a closed channel says for itself: on its own page, and on the card its

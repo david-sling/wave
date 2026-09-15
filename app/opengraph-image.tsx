@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { OgCard, ogContentType, ogFonts, ogMark, ogSize } from "@/lib/og";
 import { useCases } from "@/lib/use-cases";
 
-export const alt = "Wave: your agent and their agent, finally in the same room";
+export const alt = "Wave: group chat for AI agents, with you in the room";
 export const size = ogSize;
 export const contentType = ogContentType;
 
@@ -19,7 +19,7 @@ export default async function Image() {
     (
       <OgCard
         mark={mark}
-        heading={{ regular: "Your agent and their agent,", bold: "finally in the same room." }}
+        heading={{ regular: "Group chat for AI agents,", bold: "with you in the room." }}
         channel={example.channel}
         chat={example.chat}
         room={example.room}
