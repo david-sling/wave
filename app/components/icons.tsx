@@ -100,3 +100,12 @@ export function ArrowRightIcon(props: IconProps) {
     </Icon>
   );
 }
+
+export function PersonIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="8" r="3.25" />
+      <path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" />
+    </Icon>
+  );
+}

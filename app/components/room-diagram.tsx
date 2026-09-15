@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { identityPalette } from "@/lib/identity-color";
+import { ClaudeMark, CursorMark, OpenAIMark } from "./agent-marks";
+import { PersonIcon } from "./icons";
 import mark from "../icon.png";
 
 /**
@@ -16,10 +17,13 @@ import mark from "../icon.png";
  * the real channel. This says the shape of the thing before the reader has
  * scrolled: different people, different tools, one room, and you in it.
  *
- * There are no vendor logos, for the reason the agent wall gives: the marks
- * are not ours to draw. Each node is a roster row lifted out of the panel, so
- * a name, an identity tile, and the client the agent reported are the whole of
- * it — the same three facts the room shows inside a channel.
+ * Each seat is a roster row lifted out of the panel: a name, a tile, and the
+ * client the agent reported. The tile carries that client's mark rather than
+ * the roster's identity letter, because this surface is selling the fact that
+ * the agents are different products and a reader recognises a logo faster than
+ * they read a line of mono. Inside a channel the letter comes back: there the
+ * question is who is talking, not what they are running. See `agent-marks.tsx`
+ * for how the marks are used and where they come from.
  *
  * Decorative: the headline and lead already make the claim in words, so the
  * whole figure is hidden from assistive technology rather than read out as a
@@ -39,15 +43,17 @@ type Seat = {
   /** What the agent runs on, or where the human is. Mono only for the agents. */
   under: string;
   role: "agent" | "human";
+  /** The client's mark; the human gets the drawn person from our own set. */
+  Mark: (props: { size?: number; className?: string }) => React.ReactElement;
   /** Degrees clockwise from east. */
   angle: number;
 };
 
 const seats: Seat[] = [
-  { name: "Maya’s agent", under: "Claude Code", role: "agent", angle: 240 },
-  { name: "Ravi’s agent", under: "Codex CLI", role: "agent", angle: 330 },
-  { name: "You", under: "this browser", role: "human", angle: 60 },
-  { name: "Lena’s agent", under: "Cursor", role: "agent", angle: 150 },
+  { name: "Maya’s agent", under: "Claude Code", role: "agent", Mark: ClaudeMark, angle: 240 },
+  { name: "Ravi’s agent", under: "Codex CLI", role: "agent", Mark: OpenAIMark, angle: 330 },
+  { name: "You", under: "this browser", role: "human", Mark: PersonIcon, angle: 60 },
+  { name: "Lena’s agent", under: "Cursor", role: "agent", Mark: CursorMark, angle: 150 },
 ];
 
 function seatPoint(angle: number) {
@@ -83,10 +89,6 @@ const messages = seats.map((seat, index) => {
 });
 
 export function RoomDiagram() {
-  // The same hash the roster uses, so a name is the same colour here as it
-  // would be inside a channel.
-  const colorFor = identityPalette(seats);
-
   return (
     <div aria-hidden className="relative mx-auto aspect-square w-full max-w-[28rem]">
       <svg
@@ -127,8 +129,8 @@ export function RoomDiagram() {
       </div>
 
       {seats.map((seat) => {
-        const color = colorFor(seat.name, seat.role);
         const point = seatPoint(seat.angle);
+        const isHuman = seat.role === "human";
         return (
           <div
             key={seat.name}
@@ -137,16 +139,17 @@ export function RoomDiagram() {
           >
             <div className="flex items-center gap-2">
               <span
-                className="grid size-[18px] shrink-0 place-items-center rounded-[6px] text-[10px] font-bold"
-                style={{ backgroundColor: color.fill, color: color.ink }}
+                className={`grid size-6 shrink-0 place-items-center rounded-[7px] ${
+                  isHuman ? "bg-peach-soft text-peach-ink" : "bg-panel-2 text-ink"
+                }`}
               >
-                {seat.name.charAt(0).toUpperCase()}
+                <seat.Mark size={isHuman ? 14 : 16} />
               </span>
               <span className="whitespace-nowrap text-[13.5px] font-medium">{seat.name}</span>
             </div>
             <p
-              className={`m-0 mt-0.5 pl-[26px] text-[11px] leading-[1.3] text-ink-3 ${
-                seat.role === "agent" ? "font-mono" : ""
+              className={`m-0 mt-0.5 pl-8 text-[11px] leading-[1.3] text-ink-3 ${
+                isHuman ? "" : "font-mono"
               }`}
             >
               {seat.under}
