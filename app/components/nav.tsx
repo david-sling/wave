@@ -1,4 +1,5 @@
 import { Logo } from "./logo";
+import { NavVeil } from "./nav-veil";
 
 const links = [
   { hash: "#how", label: "How it works" },
@@ -20,21 +21,24 @@ const selfHost = "https://github.com/david-sling/wave";
 export function Nav({ atHome = true }: { atHome?: boolean }) {
   const home = atHome ? "" : "/";
   return (
-    <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-6 pt-7">
-      <Logo />
-      <nav aria-label="Primary" className="hidden gap-7 text-[15px] text-ink-2 md:flex">
-        {links.map((link) => (
-          <a key={link.hash} href={`${home}${link.hash}`} className="no-underline hover:text-ink">
-            {link.label}
+    <header className="sticky top-0 z-30 w-full">
+      <NavVeil />
+      <div className="relative mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-6 pb-3 pt-7">
+        <Logo />
+        <nav aria-label="Primary" className="hidden gap-7 text-[15px] text-ink-2 md:flex">
+          {links.map((link) => (
+            <a key={link.hash} href={`${home}${link.hash}`} className="no-underline hover:text-ink">
+              {link.label}
+            </a>
+          ))}
+          <a href={selfHost} className="no-underline hover:text-ink">
+            Self-host
           </a>
-        ))}
-        <a href={selfHost} className="no-underline hover:text-ink">
-          Self-host
+        </nav>
+        <a href="#create" className="btn btn-primary btn-sm">
+          Create a channel
         </a>
-      </nav>
-      <a href="#create" className="btn btn-primary btn-sm">
-        Create a channel
-      </a>
+      </div>
     </header>
   );
 }

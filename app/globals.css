@@ -315,12 +315,18 @@
     border-color: var(--color-accent);
   }
 
+  /* The track is translucent because the hero's ring passes behind the whole
+     page now: a solid fill would punch a hole in it. Blur is doing a specific
+     job here — holding the label legible over whatever the ring is doing
+     behind it — and the chosen segment stays solid white, so the choice still
+     reads as a solid object sitting on a soft one. */
   .segmented {
     display: grid;
     gap: 0.375rem;
     padding: 0.25rem;
     border-radius: var(--radius-control);
-    background: var(--color-panel-2);
+    background: color-mix(in oklab, var(--color-panel-2) 34%, transparent);
+    backdrop-filter: blur(7px);
     border: 1px solid var(--color-line);
   }
   .segmented label {
@@ -580,5 +586,79 @@
   .strand-pulse {
     animation-name: none;
     stroke: none;
+  }
+}
+
+@layer components {
+  /* The nav reads over the hero's ring, so it blurs what is behind it rather
+     than covering it. Faded at both ends and full width, because a band that
+     simply stopped would draw a horizontal edge across the ring. It comes in
+     below the top of the page, so the ring stays crisp where it enters and
+     softens only where it runs behind the nav's own words. */
+  /* Two layers cross-faded, not one layer changing. `mask-image` cannot
+     interpolate between two different gradients, so a single layer snapped
+     between the resting band and the stuck one however long the transition
+     said it was. Opacity always animates.
+
+     Both masks are many-stop rather than two-stop: a linear ramp between two
+     stops still shows its ends, because the eye finds the point where the
+     slope changes. Stepping the alpha along an ease curve puts that corner
+     below the threshold and the band simply stops existing. */
+  /* The hairline that says the header has left the top. It sits at the
+     header's own foot rather than the veil's, and takes no mask: a rule that
+     faded out would be the thing it is there to avoid. */
+  .nav-rule {
+    transition: opacity 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .nav-veil-layer {
+    position: absolute;
+    inset: 0;
+    transition: opacity 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .nav-veil-rest {
+    backdrop-filter: blur(8px);
+    background: color-mix(in oklab, var(--color-ground) 24%, transparent);
+    mask-image: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.04) 10%,
+      rgba(0, 0, 0, 0.16) 19%,
+      rgba(0, 0, 0, 0.38) 27%,
+      rgba(0, 0, 0, 0.66) 35%,
+      rgba(0, 0, 0, 0.89) 43%,
+      rgba(0, 0, 0, 1) 52%,
+      rgba(0, 0, 0, 1) 60%,
+      rgba(0, 0, 0, 0.89) 68%,
+      rgba(0, 0, 0, 0.66) 76%,
+      rgba(0, 0, 0, 0.38) 84%,
+      rgba(0, 0, 0, 0.16) 91%,
+      rgba(0, 0, 0, 0.04) 96%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
+  /* Off the top of the page it has the whole page passing under it rather than
+     one thin arc, so it thickens and starts at the top edge — content must not
+     appear crisp above the band that is meant to be holding it back.
+
+     The whiteness alone cannot carry this. The ground is already #f4f4f2, so
+     even a nearly opaque white veil moves it about ten values out of 255 and
+     the eye does not register it as a change of surface. What does register is
+     an edge, so the stuck state also draws the system's own hairline at the
+     foot of the header — see `.nav-rule`. */
+  .nav-veil-stuck {
+    backdrop-filter: blur(20px);
+    background: color-mix(in oklab, var(--color-panel) 88%, transparent);
+    mask-image: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 1) 0%,
+      rgba(0, 0, 0, 1) 46%,
+      rgba(0, 0, 0, 0.96) 56%,
+      rgba(0, 0, 0, 0.86) 65%,
+      rgba(0, 0, 0, 0.68) 73%,
+      rgba(0, 0, 0, 0.45) 81%,
+      rgba(0, 0, 0, 0.24) 88%,
+      rgba(0, 0, 0, 0.09) 94%,
+      rgba(0, 0, 0, 0) 100%
+    );
   }
 }

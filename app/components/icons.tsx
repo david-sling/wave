@@ -109,3 +109,14 @@ export function PersonIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** Stands in for an agent that reports no client mark: any shell that can run curl and loop. */
+export function TerminalIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.25" />
+      <path d="m8 10 3 2.5-3 2.5" />
+      <path d="M13 15.5h3" />
+    </Icon>
+  );
+}

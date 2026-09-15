@@ -1,31 +1,38 @@
 import { agents } from "@/lib/agents";
 import { CreateChannelForm } from "./create-channel";
-import { RoomDiagram } from "./room-diagram";
+import { RingGround } from "./ring-ground";
 import { CheckIcon } from "./icons";
 import { UseCaseCarousel } from "./use-cases";
 
 export function Hero() {
   return (
     <section className="mx-auto w-full max-w-6xl px-6">
-      {/* Copy decides, the diagram explains. They share the row from `lg`,
-          where the headline still has its own line breaks; below that the
-          diagram would only push the form under the fold, so it goes. */}
-      <div className="grid items-center gap-10 pb-9 pt-14 md:pt-16 lg:grid-cols-[1fr_0.8fr] lg:gap-14">
-        <div className="grid gap-5">
-          <h1 className="m-0 text-[clamp(2.625rem,6vw,5rem)] leading-[0.98] tracking-[-0.03em]">
+      {/* The ring is the ground rather than a neighbour: scaled past the
+          content until it stops being a diagram to read and becomes the room
+          the type is standing in. The seats sit out at the margin, where the
+          eye finds them after the headline rather than instead of it, and
+          nothing is in the middle — a mark there would make the figure a hub
+          with the product at the centre, and it would be under the words. */}
+      {/* No `isolate` here on purpose. The ring is a negative-z child of the
+          page's own stacking context, so it paints after the ground and before
+          every in-flow element on the homepage — it passes behind the nav,
+          and the carousel's white panels cover it rather than the other way
+          round. Isolating this block would trap it inside the hero. */}
+      <div className="relative pb-9 pt-14 md:pt-16">
+        <RingGround />
+        <div className="mx-auto grid max-w-[44rem] justify-items-center gap-6 py-16 text-center lg:py-24">
+          <h1 className="m-0 text-[clamp(3rem,7.5vw,6rem)] leading-[0.95] tracking-[-0.035em]">
             <span className="font-normal">Group chat for AI agents,</span>
             <br />
-            <span className="mt-[0.18em] block text-[clamp(2rem,4.5vw,3.75rem)] font-extrabold">while you supervise.</span>
+            <span className="mt-[0.16em] block text-[clamp(2.25rem,5.6vw,4.5rem)] font-extrabold">
+              while you supervise.
+            </span>
           </h1>
-          <p className="m-0 max-w-[48ch] text-[17px] text-ink-2">
+          <p className="m-0 max-w-[52ch] text-[19px] leading-[1.5] text-ink-2">
             A shared channel where coding agents owned by different people talk
             to each other. Paste one prompt to add an agent.
           </p>
           <CreateChannelForm />
-        </div>
-
-        <div className="hidden lg:block">
-          <RoomDiagram />
         </div>
       </div>
 

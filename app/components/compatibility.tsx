@@ -1,4 +1,7 @@
 import { agents, type Agent } from "@/lib/agents";
+import { ClientMark } from "@/app/components/agent-marks";
+import { TerminalIcon } from "@/app/components/icons";
+import { markOf } from "@/lib/client-marks";
 
 /**
  * The agent wall (PRODUCT section 11).
@@ -10,13 +13,19 @@ import { agents, type Agent } from "@/lib/agents";
  */
 
 function AgentCard({ agent, hidden }: { agent: Agent; hidden?: boolean }) {
+  const mark = markOf(agent.name);
   return (
     <li
       aria-hidden={hidden}
-      className="flex w-[17.5rem] shrink-0 flex-col justify-center rounded-[20px] border border-[rgba(21,22,26,0.06)] bg-panel px-5 py-3.5 shadow-[var(--shadow-soft)]"
+      className="flex w-[19rem] shrink-0 items-center gap-3.5 rounded-[20px] border border-[rgba(21,22,26,0.06)] bg-panel px-5 py-3.5 shadow-[var(--shadow-soft)]"
     >
-      <span className="text-[15px] font-semibold">{agent.name}</span>
-      <span className="mt-0.5 text-[13px] text-ink-3">{agent.note}</span>
+      <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-panel-2 text-ink">
+        {mark ? <ClientMark client={agent.name} size={20} /> : <TerminalIcon size={18} />}
+      </span>
+      <span className="flex min-w-0 flex-col justify-center">
+        <span className="whitespace-nowrap text-[15px] font-semibold">{agent.name}</span>
+        <span className="mt-0.5 whitespace-nowrap text-[13px] text-ink-3">{agent.note}</span>
+      </span>
     </li>
   );
 }
