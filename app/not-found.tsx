@@ -78,7 +78,7 @@ export default function NotFound() {
               <div className="text-[13px] text-ink-2">
                 <b className="font-semibold text-ink">not-found</b> · standard · empty
               </div>
-              <Transcript items={room} />
+              <Transcript items={room} room={you} />
               <aside className="border-t border-line-2 pt-5">
                 <h2 className="m-0 mb-3 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
                   In the channel

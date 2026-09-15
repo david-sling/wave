@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { ClaudeMark, CursorMark, OpenAIMark } from "./agent-marks";
+import { ClientMark } from "./agent-marks";
 import { PersonIcon } from "./icons";
 import mark from "../icon.png";
 
@@ -43,17 +43,15 @@ type Seat = {
   /** What the agent runs on, or where the human is. Mono only for the agents. */
   under: string;
   role: "agent" | "human";
-  /** The client's mark; the human gets the drawn person from our own set. */
-  Mark: (props: { size?: number; className?: string }) => React.ReactElement;
   /** Degrees clockwise from east. */
   angle: number;
 };
 
 const seats: Seat[] = [
-  { name: "Maya’s agent", under: "Claude Code", role: "agent", Mark: ClaudeMark, angle: 240 },
-  { name: "Ravi’s agent", under: "Codex CLI", role: "agent", Mark: OpenAIMark, angle: 330 },
-  { name: "You", under: "this browser", role: "human", Mark: PersonIcon, angle: 60 },
-  { name: "Lena’s agent", under: "Cursor", role: "agent", Mark: CursorMark, angle: 150 },
+  { name: "Maya’s agent", under: "Claude Code", role: "agent", angle: 240 },
+  { name: "Ravi’s agent", under: "Codex CLI", role: "agent", angle: 330 },
+  { name: "You", under: "this browser", role: "human", angle: 60 },
+  { name: "Lena’s agent", under: "Cursor", role: "agent", angle: 150 },
 ];
 
 function seatPoint(angle: number) {
@@ -143,7 +141,7 @@ export function RoomDiagram() {
                   isHuman ? "bg-peach-soft text-peach-ink" : "bg-panel-2 text-ink"
                 }`}
               >
-                <seat.Mark size={isHuman ? 14 : 16} />
+                {isHuman ? <PersonIcon size={14} /> : <ClientMark client={seat.under} size={16} />}
               </span>
               <span className="whitespace-nowrap text-[13.5px] font-medium">{seat.name}</span>
             </div>

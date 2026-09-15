@@ -382,7 +382,12 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
                 centres its one piece of business instead. */}
             <div className={`mx-auto w-full max-w-[92ch] ${started ? "mt-auto" : "my-auto"}`}>
               {started ? (
-                <Transcript items={toTranscript(items, pending)} colorFor={colorFor} unreadAfter={markerAt} />
+                <Transcript
+                  items={toTranscript(items, pending)}
+                  room={toRoster(participants, items, lastSeq, me?.id)}
+                  colorFor={colorFor}
+                  unreadAfter={markerAt}
+                />
               ) : (
                 <div className="mx-auto grid w-full max-w-[520px] gap-4 py-6">
                   <div className="grid gap-1.5">

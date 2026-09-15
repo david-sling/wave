@@ -139,7 +139,7 @@ export function UseCaseCarousel() {
           </div>
           {/* Keyed on the case, so the new conversation arrives the way a real
               one does rather than swapping in place. */}
-          <Transcript key={current.label} items={current.chat} animate />
+          <Transcript key={current.label} items={current.chat} room={current.room} animate />
         </div>
 
         <aside className="border-t border-line-2 pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">

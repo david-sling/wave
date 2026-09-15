@@ -1,7 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Participant, TranscriptItem } from "@/app/components/transcript";
+import { markOf } from "./client-marks";
 import { identityPalette } from "./identity-color";
+import { seatingOf, type Seat } from "./seating";
 
 /**
  * The share card.
@@ -239,15 +241,36 @@ function Body({ text }: { text: string }) {
   );
 }
 
-function Message({
-  item,
-  color,
-}: {
-  item: Extract<TranscriptItem, { type: "message" }>;
-  color: { fill: string; ink: string };
-}) {
+/**
+ * A client's mark, drawn the way Satori can take it: explicit size, and the
+ * fill on the path rather than inherited, since there is no cascade here.
+ */
+function OgMark({ client, size }: { client: string | undefined; size: number }) {
+  const mark = markOf(client);
+  if (!mark) return null;
   return (
-    <div style={{ display: "flex", gap: TILE_GAP }}>
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      <path d={mark.d} fill={mark.brand} fillRule={mark.fillRule} />
+    </svg>
+  );
+}
+
+/**
+ * The same tile rule the channel uses (`lib/seating.ts`): the client's mark
+ * alone while it is the only one of its kind in the room, and the identity
+ * tile with the mark on its corner once two agents share a client.
+ */
+function OgTile({
+  name,
+  color,
+  seat,
+}: {
+  name: string;
+  color: { fill: string; ink: string };
+  seat: Seat;
+}) {
+  if (seat.soloMark) {
+    return (
       <div
         style={{
           display: "flex",
@@ -256,15 +279,83 @@ function Message({
           width: TILE,
           height: TILE,
           flexShrink: 0,
-          borderRadius: 12,
-          backgroundColor: color.fill,
-          color: color.ink,
-          fontSize: 20,
-          fontWeight: 600,
         }}
       >
-        {item.from.name.charAt(0).toUpperCase()}
+        <OgMark client={seat.client} size={30} />
       </div>
+    );
+  }
+
+  const tile = (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: TILE,
+        height: TILE,
+        borderRadius: 12,
+        backgroundColor: color.fill,
+        color: color.ink,
+        fontSize: 20,
+        fontWeight: 600,
+      }}
+    >
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+
+  if (!seat.shared || !markOf(seat.client)) {
+    return <div style={{ display: "flex", flexShrink: 0 }}>{tile}</div>;
+  }
+
+  // Satori stretches a flex child to the row, so the badge's containing block
+  // is pinned to the tile's own box or it lands at the foot of the message.
+  return (
+    <div
+      style={{
+        display: "flex",
+        position: "relative",
+        width: TILE,
+        height: TILE,
+        flexShrink: 0,
+        alignSelf: "flex-start",
+      }}
+    >
+      {tile}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "absolute",
+          bottom: -4,
+          right: -4,
+          width: 21,
+          height: 21,
+          borderRadius: 21,
+          backgroundColor: panel,
+          border: `2px solid ${panel}`,
+        }}
+      >
+        <OgMark client={seat.client} size={15} />
+      </div>
+    </div>
+  );
+}
+
+function Message({
+  item,
+  color,
+  seat,
+}: {
+  item: Extract<TranscriptItem, { type: "message" }>;
+  color: { fill: string; ink: string };
+  seat: Seat;
+}) {
+  return (
+    <div style={{ display: "flex", gap: TILE_GAP }}>
+      <OgTile name={item.from.name} color={color} seat={seat} />
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <div
           style={{
@@ -390,6 +481,7 @@ function OgFrame({
 
 export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
   const colorFor = identityPalette(room);
+  const seatOf = seatingOf(room);
   // Three is what fits, and three is the whole loop: one agent asks, the other
   // answers, the human overrules them. Two would only show a room.
   // A heading that wrapped to three lines has taken a message's worth of the
@@ -397,9 +489,13 @@ export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
   const shown = chat
     .filter((item) => item.type === "message")
     .slice(0, headingLines(heading) > 2 ? 2 : 3);
-  const clients = room
-    .filter((participant) => participant.role === "agent")
-    .map((participant) => participant.client);
+  // One entry per tool. A room with two Claude Code agents was saying
+  // "Claude Code · Claude Code", which reads as a mistake rather than a fact.
+  const clients = [
+    ...new Set(
+      room.filter((participant) => participant.role === "agent").map((participant) => participant.client),
+    ),
+  ];
 
   return (
     <OgFrame mark={mark} heading={heading}>
@@ -422,6 +518,7 @@ export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
           key={i}
           item={item}
           color={colorFor(item.from.name, item.from.role)}
+          seat={seatOf(item.from.name)}
         />
       ))}
     </OgFrame>

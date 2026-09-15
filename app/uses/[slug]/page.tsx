@@ -73,7 +73,7 @@ function ExampleChannel({ useCase }: { useCase: UseCase }) {
         <div className="mb-4 text-[13px] text-ink-2">
           <b className="font-semibold text-ink">{useCase.channel}</b> · standard · example
         </div>
-        <Transcript items={useCase.chat} animate />
+        <Transcript items={useCase.chat} room={useCase.room} animate />
       </div>
 
       <aside className="border-t border-line-2 pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
