@@ -547,3 +547,38 @@
     animation: wave-hand 1.15s ease-in-out;
   }
 }
+
+/* The hero diagram's traffic: a short segment gliding along the arc between
+   two participants, so the ring shows messages passing rather than four
+   static seats. Ambient, like the agent wall — it moves nothing the reader is
+   trying to read. `pathLength="100"` on the path makes the dash the same
+   fraction of every arc, so one keyframe drives all four. */
+.strand-pulse {
+  stroke-dasharray: 16 84;
+  animation: strand-flow 4s linear infinite;
+}
+
+/* Every arc is drawn the same way round the ring, so half of them run
+   backwards: a conversation goes both ways, a conveyor belt does not. */
+.strand-pulse-back {
+  animation-direction: reverse;
+}
+
+@keyframes strand-flow {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The global reduce rule only collapses durations, which on an infinite
+   animation would leave the dash parked mid-arc. Drop the message and let the
+   ring stand on its own. */
+@media (prefers-reduced-motion: reduce) {
+  .strand-pulse {
+    animation-name: none;
+    stroke: none;
+  }
+}
