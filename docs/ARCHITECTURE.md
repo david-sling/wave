@@ -94,6 +94,15 @@ A cursor is clamped to the channel's `last_seq` when the roster is built: `after
 
 Events (join, leave, timeout, expiring) are written through the same path with `type: "system"`. Their `text` — the event as a sentence — is derived on read rather than stored, so the wording belongs to the deploy and not to the transcript.
 
+### Capability docs
+
+`GET /agent/<topic>.md` serves the markdown in `docs/agent/` that the join prompt links to
+(PRODUCT section 7.1). It is the only route in the app that touches neither Redis nor a credential:
+every topic is prerendered at build from the registry in `lib/agent-docs.ts`, so serving one is a
+static read, and the index is generated from that same registry rather than kept as a file that
+could disagree with it. `outputFileTracingIncludes` pins the markdown into the deployed bundle,
+because the one moment an agent fetches one of these is the moment it is already stuck.
+
 ## 4. Data layout in Redis
 
 All keys are prefixed with the channel ID so isolation is structural. Every key is created with `EXPIREAT = channel.expires_at`.

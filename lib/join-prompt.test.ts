@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { GOAL_LINE, JOIN_PROMPT_TEMPLATE, buildJoinPrompt, channelLabel, defaultAgentName } from './join-prompt'
@@ -165,8 +166,37 @@ describe('buildJoinPrompt', () => {
       // mktemp -d put the path to the state in a shell variable, under a random
       // name, in a harness where every call is a fresh shell.
       expect(prompt).not.toContain('mktemp -d')
-      expect(prompt).toContain('W="${W%/}/wave-' + fields.channelId + '"')
+      expect(prompt).toContain('W="${W%/}/wave-' + fields.channelId + '-$(printf %s "$NAME"')
       expect(prompt).toMatch(/Never remember a path; recompute it/)
+    })
+
+    it('keeps two agents on one machine out of the same state directory', () => {
+      // Keyed by channel alone, a second agent in the same channel inherited the
+      // first one's token file and the two polled as one participant, sharing
+      // its concurrency slots until neither could hold a poll.
+      //
+      // The W= line is the same text for every agent — it has to be, to stay
+      // recomputable from a pasted preamble — so the only way to see the paths
+      // diverge is to let a shell expand them.
+      const stateDir = (agentName: string) => {
+        const preamble = buildJoinPrompt({ ...fields, agentName })
+          .split('\n')
+          // Not a bare W=: watch.sh sets its own from $0 and would come along.
+          .filter((line) => line.startsWith('NAME=') || line.startsWith('W="${TMPDIR'))
+          .join('\n')
+        expect(preamble.split('\n')).toHaveLength(2)
+        return execFileSync('sh', ['-c', `${preamble.replace('mkdir -p "$W"', '')}\nprintf %s "$W"`], {
+          encoding: 'utf8',
+        })
+      }
+
+      expect(stateDir('Lighthouse agent')).not.toBe(stateDir('Beacon agent'))
+      // NAME reaches the path through the shell, so a name carrying a space, a
+      // quote or an operator has to land as inert characters in one directory
+      // rather than splitting the command or walking out of $TMPDIR.
+      expect(stateDir("Rob & Sue's agent")).toMatch(/\/wave-ZmFrZS1jaGFubmVsLWlk-Rob___Sue_s_agent$/)
+      expect(stateDir('../../etc')).toMatch(/\/wave-ZmFrZS1jaGFubmVsLWlk-______etc$/)
+      expect(stateDir('Lighthouse agent')).toMatch(/\/wave-ZmFrZS1jaGFubmVsLWlk-Lighthouse_agent$/)
     })
 
     it('sends the agent to read the backlog before it speaks', () => {
@@ -183,11 +213,16 @@ describe('buildJoinPrompt', () => {
 
     it('does not assume the agent has jq, or a POSIX shell at all', () => {
       // Use case 3 in PRODUCT section 4 is a Mac agent asking a WINDOWS agent
-      // to run a build. Windows ships neither jq nor these shell builtins, and
-      // every step here is written in both, so the prompt has to say that the
-      // protocol is the HTTP calls rather than the spelling.
+      // to run a build. Windows ships neither jq nor these shell builtins, so
+      // the prompt has to say that the protocol is the HTTP calls rather than
+      // the spelling — and then hand over the spelling on request. The
+      // translation itself is a fetched doc, so what is pinned here is that the
+      // prompt points at it and that it is still the thing it points at.
       expect(prompt).toMatch(/Windows does not ship/)
-      expect(prompt).toMatch(/ConvertFrom-Json/)
+      expect(prompt).toContain('/agent/windows.md')
+      expect(readFileSync(new URL('../docs/agent/windows.md', import.meta.url), 'utf8')).toMatch(
+        /ConvertFrom-Json/,
+      )
     })
 
     it('says leaving is final, so an agent idles instead of burning its identity', () => {
