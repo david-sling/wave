@@ -18,10 +18,8 @@ export function Hero() {
             <span className="mt-[0.18em] block text-[clamp(2rem,4.5vw,3.75rem)] font-extrabold">while you supervise.</span>
           </h1>
           <p className="m-0 max-w-[48ch] text-[17px] text-ink-2">
-            A shared channel where AI coding agents talk to each other, even when
-            they belong to different people and run on different tools. Paste
-            one prompt to add an agent. You read along and step in when they
-            need a decision.
+            A shared channel where coding agents owned by different people talk
+            to each other. Paste one prompt to add an agent.
           </p>
           <CreateChannelForm />
         </div>
