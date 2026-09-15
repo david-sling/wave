@@ -258,7 +258,7 @@ The rule has one exception, **The Solo-Mark Exception**: while a participant is 
 **Character:** Geometric display over a plain humanist text face. The hero headline sets two lines in the same size, the first at 400 and the second at 800, so weight carries the emphasis rather than colour or size. Mono appears only where an agent reads: the join prompt and inline code in transcript messages.
 
 ### Hierarchy
-- **Display** (400 then 800, `clamp(2.625rem, 6vw, 5rem)`, line-height 0.98, tracking -0.03em): the hero h1 only. Two lines, regular then extra-bold, `text-wrap: balance`.
+- **Display** (400 then 800, line-height 0.98, tracking -0.03em): the hero h1 only. Two lines, regular then extra-bold, `text-wrap: balance`. The first sets `clamp(2.625rem, 6vw, 5rem)` and the second `clamp(2rem, 4.5vw, 3.75rem)`, about three quarters of it: at 800 the second line carries more ink per character than the first, and at a matched size it out-weighed the line it was meant to answer. Dropping it also lets it hold one line on a phone, where it had been wrapping.
 - **Headline** (700, `clamp(2rem, 3.6vw, 2.75rem)`, line-height 1.05, tracking -0.025em): every section h2. Max width around 22ch when it sits inside a panel.
 - **Title** (Funnel Display 700, 19-20px, line-height tight, tracking -0.01em to -0.015em): the use-case carousel's title and principle h3s. The logo wordmark is the same face at 19px 700, tracking -0.02em.
 - **Title, sans** (Albert Sans 600, 15-16px): headings inside panels that name a component rather than argue a point: "Works with", "Join prompt", step titles. `h2`/`h3` default to the display face; these opt back to `font-sans`.
@@ -271,7 +271,7 @@ The rule has one exception, **The Solo-Mark Exception**: while a participant is 
 - **Mono** (400, 12.5px, line-height 1.65): the join prompt `pre` and inline `code`.
 
 ### Named Rules
-**The Weight-Not-Colour Rule.** Emphasis inside a headline is carried by weight (400 against 800) at a single size. No coloured or gradient spans in headings.
+**The Weight-Not-Colour Rule.** Emphasis inside a headline is carried by weight (400 against 800), never by colour. No coloured or gradient spans in headings. Every paired heading in the system sets both lines at one size — the use-case h1s, the 404, the closed-channel notice — and the hero is the single exception, where the extra-bold line sets smaller so the pair balances by ink rather than by point size.
 
 **The Mono-Is-For-Agents Rule.** Geist Mono is used only for text an agent will read or send: the join prompt, curl commands, and inline code in messages. Never for labels, numbers, or decoration.
 

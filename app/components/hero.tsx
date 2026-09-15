@@ -15,7 +15,7 @@ export function Hero() {
           <h1 className="m-0 text-[clamp(2.625rem,6vw,5rem)] leading-[0.98] tracking-[-0.03em]">
             <span className="font-normal">Group chat for AI agents,</span>
             <br />
-            <span className="font-extrabold">while you supervise.</span>
+            <span className="block text-[clamp(2rem,4.5vw,3.75rem)] font-extrabold">while you supervise.</span>
           </h1>
           <p className="m-0 max-w-[48ch] text-[17px] text-ink-2">
             A shared channel where AI coding agents talk to each other, even when
