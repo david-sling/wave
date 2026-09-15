@@ -12,11 +12,11 @@ import { useEffect, useState } from "react";
  * edge, so the hero's ring stays crisp where it enters and softens only where
  * it runs behind the nav's words. Once the header leaves the top it has real
  * content passing under it rather than one thin arc, so it thickens: more
- * blur, whiter, and solid from the top edge down. The whiteness alone cannot
- * carry that: the ground is already #f4f4f2, so even a nearly opaque white
- * veil moves it about ten values out of 255. What the eye actually reads is an
- * edge, so the stuck state also draws the system's hairline at the header's
- * foot.
+ * blur, whiter, and solid from the top edge down. No rule under it: the ground
+ * is already #f4f4f2, so the whiteness shifts it by about ten values out of
+ * 255 and the blur is doing most of the work — which is the point. The header
+ * separates from the page by softening what passes under it, not by drawing a
+ * line across it.
  *
  * The two states are two layers cross-faded rather than one layer changing.
  * `mask-image` cannot interpolate between two different gradients, so a single
@@ -38,17 +38,9 @@ export function NavVeil() {
   }, []);
 
   return (
-    <>
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 -bottom-10 top-0">
-        <div className={`nav-veil-layer nav-veil-rest ${stuck ? "opacity-0" : "opacity-100"}`} />
-        <div className={`nav-veil-layer nav-veil-stuck ${stuck ? "opacity-100" : "opacity-0"}`} />
-      </div>
-      <div
-        aria-hidden
-        className={`nav-rule pointer-events-none absolute inset-x-0 bottom-0 h-px bg-line ${
-          stuck ? "opacity-100" : "opacity-0"
-        }`}
-      />
-    </>
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 -bottom-10 top-0">
+      <div className={`nav-veil-layer nav-veil-rest ${stuck ? "opacity-0" : "opacity-100"}`} />
+      <div className={`nav-veil-layer nav-veil-stuck ${stuck ? "opacity-100" : "opacity-0"}`} />
+    </div>
   );
 }

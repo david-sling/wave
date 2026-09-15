@@ -604,12 +604,6 @@
      stops still shows its ends, because the eye finds the point where the
      slope changes. Stepping the alpha along an ease curve puts that corner
      below the threshold and the band simply stops existing. */
-  /* The hairline that says the header has left the top. It sits at the
-     header's own foot rather than the veil's, and takes no mask: a rule that
-     faded out would be the thing it is there to avoid. */
-  .nav-rule {
-    transition: opacity 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
   .nav-veil-layer {
     position: absolute;
     inset: 0;
@@ -640,11 +634,11 @@
      one thin arc, so it thickens and starts at the top edge — content must not
      appear crisp above the band that is meant to be holding it back.
 
-     The whiteness alone cannot carry this. The ground is already #f4f4f2, so
-     even a nearly opaque white veil moves it about ten values out of 255 and
-     the eye does not register it as a change of surface. What does register is
-     an edge, so the stuck state also draws the system's own hairline at the
-     foot of the header — see `.nav-rule`. */
+     There is no rule under it. The ground is already #f4f4f2, so a nearly
+     opaque white veil shifts it by about ten values out of 255 and the blur is
+     carrying most of the difference — which is the intent. The header
+     separates from the page by softening what passes under it, not by drawing
+     a line across it. */
   .nav-veil-stuck {
     backdrop-filter: blur(20px);
     background: color-mix(in oklab, var(--color-panel) 88%, transparent);
