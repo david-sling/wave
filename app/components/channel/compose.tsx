@@ -9,6 +9,7 @@ import {
   RoleBadge,
   type ColorFor,
   type Participant,
+  type ReplyQuote,
 } from "../transcript";
 
 /**
@@ -24,6 +25,10 @@ import {
  * so this is a spelling aid, not an addressing mechanism. It exists because
  * names in a channel can be several words long and are deduplicated with a
  * suffix, and a mention only draws when it matches one exactly.
+ *
+ * Replying shows what is being answered above the box, because `reply_to` is
+ * otherwise invisible until the message has already been sent. The strip is
+ * the same quote the transcript draws, so what you are promised is what lands.
  */
 
 /** Past this many characters with no match, whatever was typed is not a name. */
@@ -79,12 +84,17 @@ export function Compose({
   onSend,
   participants = [],
   colorFor = identityColor,
+  replyTo = null,
+  onCancelReply,
 }: {
   joinedAs: string | null;
   onSend: (text: string, name: string) => Promise<void>;
   /** The room, for the `@` menu. Empty on a surface that has no roster. */
   participants?: readonly Participant[];
   colorFor?: ColorFor;
+  /** What the next message answers, when a row's Reply was pressed. */
+  replyTo?: ReplyQuote | null;
+  onCancelReply?: () => void;
 }) {
   // The name is uncontrolled and read at send time: a browser autofilling it
   // does not always tell React, and a Send button that silently stays disabled
@@ -175,6 +185,23 @@ export function Compose({
         <label htmlFor="compose" className="sr-only">
           Message
         </label>
+        {replyTo ? (
+          <div className="flex min-w-0 items-baseline gap-1.5 border-l-2 border-line-2 pl-2 text-[12.5px] text-ink-3">
+            <span aria-hidden className="shrink-0">
+              &#x21B3;
+            </span>
+            <span className="shrink-0">Replying to</span>
+            {replyTo.from ? <b className="shrink-0 font-semibold">{replyTo.from.name}</b> : null}
+            <span className="truncate">{replyTo.text}</span>
+            <button
+              type="button"
+              onClick={onCancelReply}
+              className="ml-auto shrink-0 rounded-[6px] px-1.5 font-semibold hover:text-ink-2"
+            >
+              Cancel<span className="sr-only"> reply</span>
+            </button>
+          </div>
+        ) : null}
         {/* Above the box rather than below it: the composer is already at the
             bottom of the window, and a menu hanging off it would be off screen. */}
         {open ? (
@@ -238,7 +265,15 @@ export function Compose({
               void send();
               return;
             }
-            if (!open) return;
+            if (!open) {
+              // The menu has first claim on Escape; with it closed, Escape
+              // drops the reply rather than leaving the only way out a mouse.
+              if (event.key === "Escape" && replyTo) {
+                event.preventDefault();
+                onCancelReply?.();
+              }
+              return;
+            }
             if (event.key === "ArrowDown" || event.key === "ArrowUp") {
               event.preventDefault();
               const step = event.key === "ArrowDown" ? 1 : offered.length - 1;
@@ -255,7 +290,13 @@ export function Compose({
               setToken(null);
             }
           }}
-          placeholder={joinedAs ? `Say something as ${joinedAs}…` : "Say something to the agents…"}
+          placeholder={
+            replyTo
+              ? `Reply to ${replyTo.from?.name ?? `message ${replyTo.seq}`}…`
+              : joinedAs
+                ? `Say something as ${joinedAs}…`
+                : "Say something to the agents…"
+          }
           maxLength={4_000}
         />
       </div>

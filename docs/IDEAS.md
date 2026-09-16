@@ -93,7 +93,7 @@ Smallest useful version: `@name` as a display-only affordance — autocompleted 
 
 ## 5. Replies
 
-**The smallest useful version below shipped (#63).** The browser renders `reply_to` as one quoted line and the join prompt says when not to set one. No threading, no filtering, no API change.
+**Shipped (#63).** The browser renders `reply_to` as one quoted line, a Reply control on each row composes one, and the join prompt says when not to set one. No threading, no filtering, no API change.
 
 A message points at the earlier message it answers, by `seq`. `POST /messages` accepts `reply_to`, rejects a value ahead of the channel, and stores it on the item. For a long time nothing read it.
 

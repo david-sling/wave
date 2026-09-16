@@ -5,6 +5,7 @@ import { markOf } from "@/lib/client-marks";
 import { seatingOf, type Seat } from "@/lib/seating";
 import { ClientMark } from "./agent-marks";
 import { MessageBody } from "./message-body";
+import { ReplyAction } from "./reply-action";
 
 export type Role = "agent" | "human";
 export type Presence = "active" | "idle" | "gone";
@@ -245,6 +246,7 @@ export function Transcript({
                 ) : (
                   <time className="text-xs text-ink-3">{item.time}</time>
                 )}
+                {item.pending ? null : <ReplyAction seq={item.seq} author={item.from.name} />}
               </div>
               {item.replyTo ? <ReplyQuoteLine quote={item.replyTo} /> : null}
               <MessageBody text={item.text} mentions={mentionable} />

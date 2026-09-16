@@ -75,6 +75,8 @@ export type PendingMessage = {
   text: string;
   name: string;
   ts: string;
+  /** The seq this answers, so a draft carries its quote rather than growing one on arrival. */
+  replyTo?: number;
   /** Set once the post is accepted. It is still pending until the poll delivers it. */
   seq?: number;
 };
@@ -229,11 +231,17 @@ export function useChannel(channelId: string) {
    * one behind it.
    */
   const post = useCallback(
-    async (text: string, name: string): Promise<void> => {
+    async (text: string, name: string, replyTo?: number): Promise<void> => {
       const id = newId();
       setPending((queue) => [
         ...queue,
-        { id, text, name: meRef.current?.name ?? name.trim(), ts: new Date().toISOString() },
+        {
+          id,
+          text,
+          name: meRef.current?.name ?? name.trim(),
+          ts: new Date().toISOString(),
+          ...(replyTo === undefined ? {} : { replyTo }),
+        },
       ]);
 
       const ahead = posting.current;
@@ -243,7 +251,7 @@ export function useChannel(channelId: string) {
         const response = await fetch(`/api/v1/channels/${channelId}/messages`, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${identity.token}` },
-          body: JSON.stringify({ text, client_id: id }),
+          body: JSON.stringify({ text, client_id: id, ...(replyTo === undefined ? {} : { reply_to: replyTo }) }),
         });
         if (!response.ok) throw new Error(await readError(response));
 

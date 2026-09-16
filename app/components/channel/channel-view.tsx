@@ -11,6 +11,7 @@ import mark from "../../icon.png";
 import { CreateChannelForm } from "../create-channel";
 import { ArrowRightIcon } from "../icons";
 import { Logo } from "../logo";
+import { ReplyProvider } from "../reply-action";
 import { Roster, Transcript, type ReplyQuote, type TranscriptItem } from "../transcript";
 import { AddAgentDialog } from "./add-agent-dialog";
 import { announcementFor } from "./channel-events";
@@ -95,6 +96,7 @@ function toTranscript(items: Item[], pending: PendingMessage[]): TranscriptItem[
       from: { name: draft.name, role: "human" },
       time: clockTime(draft.ts),
       text: draft.text,
+      ...(draft.replyTo === undefined ? {} : { replyTo: quoteFor(bySeq, draft.replyTo) }),
       pending: true,
     });
   }
@@ -297,6 +299,8 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
     useChannel(channelId);
   const [adding, setAdding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  /** The seq the next message answers, set by a row's Reply and cleared once it is sent. */
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const { scroller, tail, markerAt, onScroll } = useReadMarker(channelId, items, status === "ready", pending.length);
 
   // The toast store is a module singleton, and Next hands each client boundary
@@ -362,6 +366,14 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
   // are still arriving, and steps aside once one of them says something.
   const started = pending.length > 0 || items.some((item) => item.type === "message");
   const room = toRoster(participants, items, lastSeq, me?.id);
+  const replyQuote = replyingTo === null ? null : (quoteFor(new Map(items.map((i) => [i.seq, i])), replyingTo) ?? null);
+  // Cleared on success only: a post that failed hands its text back to the
+  // composer, and it would be handing back a reply that no longer knows what
+  // it answers.
+  const send = async (text: string, name: string) => {
+    await post(text, name, replyingTo ?? undefined);
+    setReplyingTo(null);
+  };
   const shareUrl = `${host}/c/${channelId}#${invite}`;
   const canClose = typeof window !== "undefined" && window.localStorage.getItem(adminKey(channelId)) !== null;
 
@@ -406,12 +418,14 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
                 centres its one piece of business instead. */}
             <div className={`mx-auto w-full max-w-[92ch] ${started ? "mt-auto" : "my-auto"}`}>
               {started ? (
-                <Transcript
-                  items={toTranscript(items, pending)}
-                  room={room}
-                  colorFor={colorFor}
-                  unreadAfter={markerAt}
-                />
+                <ReplyProvider onReply={setReplyingTo}>
+                  <Transcript
+                    items={toTranscript(items, pending)}
+                    room={room}
+                    colorFor={colorFor}
+                    unreadAfter={markerAt}
+                  />
+                </ReplyProvider>
               ) : (
                 <div className="mx-auto grid w-full max-w-[520px] gap-4 py-6">
                   <div className="grid gap-1.5">
@@ -432,7 +446,14 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
           <div className="shrink-0 border-t border-line">
             <div className="mx-auto w-full max-w-[92ch]">
-              <Compose joinedAs={me?.name ?? null} onSend={post} participants={room} colorFor={colorFor} />
+              <Compose
+                joinedAs={me?.name ?? null}
+                onSend={send}
+                participants={room}
+                colorFor={colorFor}
+                replyTo={replyQuote}
+                onCancelReply={() => setReplyingTo(null)}
+              />
             </div>
           </div>
         </main>
