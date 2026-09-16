@@ -1,0 +1,82 @@
+name: Release CLI
+
+# Stages @david-sling/wave from a `cli-v*` tag. The app ships on its own clock,
+# so the tag namespace is kept apart: a shared one would release this package
+# every time the app was released.
+#
+# This job does not publish. It stages, and a maintainer approves from their own
+# machine with `npm stage approve` — see cli/RELEASING.md. The trusted publisher
+# on npm is configured to allow staging only, which is what keeps a tag from
+# being enough to reach everyone who installs this: a tag is a git ref, and
+# anyone who can push one could otherwise ship code, as could a compromised
+# workflow or a compromised dependency of one. A package whose whole job is to
+# hold someone's token should cost one approval.
+
+on:
+  push:
+    tags: ['cli-v*']
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    permissions:
+      # The whole reason there is no npm token in this repository: the job
+      # proves it is this repository at this tag, and npm issues the
+      # credential. Nothing long-lived exists to leak, rotate or scope wrongly.
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      # Trusted publishing needs npm 11.5.1 or later, which is newer than what
+      # some Node 24 images carry.
+      - run: npm install -g npm@latest
+
+      - run: npm ci
+
+      - name: The tag and the package must agree
+        run: |
+          tagged="${GITHUB_REF_NAME#cli-v}"
+          declared="$(node -p "require('./package.json').version")"
+          if [ "$tagged" != "$declared" ]; then
+            echo "Tag $GITHUB_REF_NAME says $tagged, package.json says $declared." >&2
+            exit 1
+          fi
+
+      # Before the build rather than after it: a version already on npm cannot
+      # be replaced, and finding that out at the publish step means finding it
+      # out halfway.
+      - name: Refuse a version that is already published
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if npm view "@david-sling/wave@$version" version >/dev/null 2>&1; then
+            echo "@david-sling/wave@$version is already on npm. Bump the version and tag again." >&2
+            exit 1
+          fi
+
+      - run: npm run typecheck
+      - run: npm test
+
+      # --provenance so an installer can see which commit produced the tarball,
+      # which matters more than usual for a package whose job is to hold
+      # someone's token. No --access: it defaults to preserving what the package
+      # already has, and this one is public.
+      - run: npm stage publish --provenance
+
+      - name: Say what is now owed
+        run: |
+          echo "Staged. Nothing is on npm until this is approved from a machine with 2FA:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "npm stage list @david-sling/wave" >> "$GITHUB_STEP_SUMMARY"
+          echo "npm stage approve <stage-id>" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

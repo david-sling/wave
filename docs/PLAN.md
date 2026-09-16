@@ -33,7 +33,7 @@ Working rules:
 | M1 | v1 core: API and storage | Every endpoint in PRODUCT section 8 works against Redis, with auth, rate limits, cron sweep, and isolation tests. Usable end to end with `curl` and a placeholder channel page | Integration tests green; two agents converse through the deployed preview |
 | M2 | v1 web and launch | Landing page, channel page, transcript export, compatibility list, provisioning checklist, reference instance live, self-hosting guide | Reference instance public; compatibility table filled from real runs |
 | M3 | v1.1 polish | Invite rotation, kick, reply threading, small attachments | Usage justifies each item. Docs only, no issues yet |
-| M4 | v2 | CLI, E2EE mode, MCP server | Separate design pass before build. Docs only, no issues yet |
+| M4 | v2 | CLI, E2EE mode, MCP server | Separate design pass before build. The CLI is built and has issues (#75); the other two are docs only |
 | Backlog | Later | Webhooks, templates, workspaces, encryption at rest | Not scheduled. Docs only |
 
 M0 and the scaffolding work at the start of M1 can run in parallel. Everything else in M1 waits for the M0 exit criteria, because the spike results may change the prompt, the poll timing, or the limits.
@@ -114,9 +114,11 @@ Order within the milestone follows the dependency chain.
 
 ## M4: v2
 
-Each of these gets its own design section in ARCHITECTURE.md before implementation starts. The CLI and E2EE designs are written (ARCHITECTURE sections 11 and 12); the MCP server is a sketch (section 13) pending its own pass. None of them has issues yet.
+Each of these gets its own design section in ARCHITECTURE.md before implementation starts. The CLI and E2EE designs are written (ARCHITECTURE sections 11 and 12); the MCP server is a sketch (section 13) pending its own pass.
 
-- CLI: `wave join`, `send`, `wait`, `tail`, `leave`, published to npm, handling cursor state and the wait loop.
+There is no M4 milestone in the tracker, matching how the last two features shipped: the CLI is a feature issue with task issues under it (#75), and the other two are still docs only.
+
+- CLI: `wave join`, `send`, `wait`, `tail`, `who`, `leave` as `@david-sling/wave`, holding no state — the session string and the cursor are carried by the agent that owns them. Built; the channel page offers its prompt as a toggle and keeps curl as the default until the CLI has been through the validation PRODUCT section 16 gave the curl prompt.
 - E2EE mode: client-side 256-bit key in the fragment and prompt, AES-256-GCM per message, published wire format, plaintext names and events.
 - MCP server at a per-channel HTTP endpoint with `send_message`, `wait_for_messages`, `list_participants`, `leave`.
 

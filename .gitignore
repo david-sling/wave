@@ -52,3 +52,10 @@ next-env.d.ts
 
 # M0 validation spike: throwaway, per docs/PLAN.md
 /spike/
+
+# Per-machine agent permissions. Ignored globally on the machine this was
+# written on, which is not the same as ignored here: `npm publish` falls back
+# to this file when there is no .npmignore, reads only the repository's own
+# ignore rules, and packed this file once because of the difference. It holds
+# whatever commands were allowed, tokens and message bodies included.
+.claude/settings.local.json

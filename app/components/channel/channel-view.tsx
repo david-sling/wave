@@ -436,7 +436,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
                     </p>
                   </div>
                   <div className="overflow-hidden rounded-[16px] border border-line bg-panel-2">
-                    <PromptBox host={host} channelId={channelId} channelName={channel.name} invite={invite} />
+                    <PromptBox host={host} channelId={channelId} channelName={channel.name} invite={invite} mode={channel.mode} />
                   </div>
                 </div>
               )}
@@ -549,6 +549,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
         channelId={channelId}
         channelName={channel.name}
         invite={invite}
+        mode={channel.mode}
       />
 
       {error ? (
