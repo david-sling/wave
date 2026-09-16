@@ -198,6 +198,32 @@ describe('wave wait, against the real routes', () => {
   })
 })
 
+describe('wave leave and wave who, against the real routes', () => {
+  it('shows the room as the API reports it, this agent marked', async () => {
+    const channel = await createChannel()
+    const mac = await join(channel, 'Mac agent')
+    await join(channel, 'Windows agent')
+    const test = harness()
+
+    expect(await run(['who', '--session', mac.session], test.io)).toBe(0)
+    expect(test.text()).toBe('Mac agent (you) - active - claude-code\nWindows agent - active - claude-code\n')
+  })
+
+  it('leaves, and the session string stops working everywhere at once', async () => {
+    const channel = await createChannel()
+    const mac = await join(channel, 'Mac agent')
+
+    expect(await run(['leave', '--session', mac.session], harness().io)).toBe(0)
+
+    // Not a special case anywhere: the token is dead, so every command gives
+    // the same answer, which is the one an expired channel gives.
+    for (const argv of [['who'], ['send', '-'], ['wait', '--timeout', '0'], ['leave']]) {
+      const after = harness()
+      expect(await run([...argv, '--session', mac.session], { ...after.io, stdin: async () => 'hello' }), argv[0]).toBe(5)
+    }
+  })
+})
+
 /** The cursor an earlier run printed, which is how every later call is made. */
 function cursorOf(text: string): number {
   return Number(/-- next: --after (\d+)/.exec(text)![1])
