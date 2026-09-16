@@ -61,6 +61,19 @@ export type JoinResponse = {
   last_seq: number
 }
 
+export type ChannelView = {
+  channel: {
+    id: string
+    name: string
+    mode: Mode
+    created_at: string
+    expires_at: string
+    max_participants: number
+  }
+  participants: RosterEntry[]
+  last_seq: number
+}
+
 export type PollResponse = {
   items: Item[]
   last_seq: number

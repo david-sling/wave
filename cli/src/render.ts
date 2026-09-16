@@ -1,4 +1,4 @@
-import type { Item } from './types.js'
+import type { Item, RosterEntry } from './types.js'
 
 /**
  * What `wait` and `tail` print (ARCHITECTURE section 11).
@@ -42,4 +42,31 @@ export function renderRound(items: Item[], cursor: number, options: { json?: boo
   const lines = items.map((item) => (json ? JSON.stringify(item) : renderItem(item)))
   lines.push(cursorLine(cursor, json))
   return lines.join('\n') + '\n'
+}
+
+/**
+ * The roster, one participant per line, as `join` and `who` both print it.
+ *
+ * The client is shown exactly as the roster carries it. Folding a reported
+ * string onto a known product is the server's business, and doing it here as
+ * well would let the two disagree. A participant that reported none simply has
+ * one part fewer, rather than a gap where one would be.
+ */
+export function renderRoster(participants: RosterEntry[], selfId?: string): string[] {
+  return participants.map((participant) => {
+    const name = participant.id === selfId ? `${participant.name} (you)` : participant.name
+    const parts = [name, participant.presence]
+    if (participant.client !== undefined && participant.client !== '') parts.push(participant.client)
+    if (participant.read_seq !== undefined) parts.push(`read to ${participant.read_seq}`)
+    return parts.join(' - ')
+  })
+}
+
+/**
+ * The other line an agent has to carry. Labelled, on its own line, next to the
+ * cursor line, because the two are the only things `join` produces that later
+ * commands need back.
+ */
+export function sessionLine(session: string): string {
+  return `-- session: ${session}`
 }
