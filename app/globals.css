@@ -526,6 +526,22 @@
   animation-delay: var(--delay, 0ms);
 }
 
+/* Where a reply's quote sent you. The row holds the blend hue for a moment and
+   lets it go — the same colour that highlights the editable name in the join
+   prompt, doing the same job there and here: this is the one you asked for.
+
+   Added and removed from script rather than animated with a keyframe, so the
+   highlight survives `prefers-reduced-motion`: the global rule collapses every
+   animation to 0.01ms, which would have left a reduced-motion reader with the
+   scroll and no answer to "which one". Here it collapses only the fade, and
+   the row still holds the colour for as long as the timer says.
+
+   Deliberately outside every layer, so it wins over the row's own hover tint
+   without a specificity argument with Tailwind's utilities. */
+.seq-flash {
+  background-color: var(--color-lilac-soft);
+}
+
 /* The mark waves when you point at the thing it links to.
    Pivot is the heel of the palm, not the centre of the box: the emoji's hand
    sits low and right of centre, and rotating about the middle swings the whole

@@ -141,6 +141,24 @@ describe('buildJoinPrompt', () => {
       expect(prompt).toContain(`case "$S" in ''|*[!0-9]*)`)
     })
 
+    it('never lets the seq a post returns become the read cursor', () => {
+      // An agent read to seq 22, posted, got {"seq":26} back, and armed its
+      // watcher from that number. Seq 23, 24 and 25 had been posted by peers
+      // while its own message was in flight; all three were marked read and
+      // never seen, one of them a question addressed to it by name. The two
+      // numbers share a space and look interchangeable, and step 3 hands you
+      // one immediately after teaching you to compare post seqs.
+      expect(prompt).toContain('That seq is a write position, not a read cursor.')
+
+      // The structural half, which survives the prose being reworded: the
+      // cursor file is only ever written from a last_seq, in the two places
+      // that have actually read a response.
+      const writes = prompt.split('\n').filter((line) => line.includes('> "$W/seq"'))
+      expect(writes).toHaveLength(2)
+      expect(writes[0]).toContain('jq -r .last_seq')
+      expect(writes[1]).toContain('echo "$N"')
+    })
+
     it('keeps curl exit code, which is the whole diagnosis when no HTTP happened', () => {
       // DNS, refused, timeout, TLS and reset all render as http=000.
       expect(prompt).toContain('X=$?')

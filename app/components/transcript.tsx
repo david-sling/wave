@@ -5,9 +5,25 @@ import { markOf } from "@/lib/client-marks";
 import { seatingOf, type Seat } from "@/lib/seating";
 import { ClientMark } from "./agent-marks";
 import { MessageBody } from "./message-body";
+import { JumpToSeq, ReplyAction } from "./reply-action";
 
 export type Role = "agent" | "human";
 export type Presence = "active" | "idle" | "gone";
+
+/**
+ * The item a message answers, already resolved and already cut to a line.
+ *
+ * The transcript is handed the quote rather than the `reply_to` seq, because
+ * finding the referenced item is the job of whoever holds the channel — a
+ * surface showing an example conversation has no channel to look in.
+ */
+export type ReplyQuote = {
+  seq: number;
+  /** Absent when the reply points at a system event, which has no author. */
+  from?: { name: string; role: Role };
+  /** One line. Cut by `quoteOf` before it gets here (lib/reply-quote.ts). */
+  text: string;
+};
 
 export type TranscriptItem =
   | {
@@ -17,6 +33,8 @@ export type TranscriptItem =
       from: { name: string; role: Role };
       time: string;
       text: string;
+      /** What this answers, when the sender set `reply_to`. */
+      replyTo?: ReplyQuote;
       /** Said here but not yet handed back by the channel. Drawn dimmed until it is. */
       pending?: boolean;
     }
@@ -76,7 +94,7 @@ export type ColorFor = (name: string, role: Role) => IdentityColor;
  * does not. A client with no mark is always the identity tile, which is what
  * every tile was before any of this.
  */
-function IdentityTile({
+export function IdentityTile({
   name,
   colour,
   seat,
@@ -119,6 +137,37 @@ function IdentityTile({
   );
 }
 
+/**
+ * What a message answers, above the message that answers it.
+ *
+ * One line, quoted, and nothing more: a rendered quote keeps one stream and
+ * one sequence, where a thread view would split the transcript into many and
+ * fight both the resume-from-`last_seq` contract and the premise that a
+ * channel is one readable conversation.
+ *
+ * The whole line is the control that takes you to what it quotes, because a
+ * quote cut to one line is an invitation to see the rest of it. A click and
+ * not an anchor: the channel page carries its invite in the URL fragment, so
+ * `href="#item-7"` would throw the invite away. Only the button is a client
+ * component, so this file stays a server one.
+ */
+function ReplyQuoteLine({ quote }: { quote: ReplyQuote }) {
+  const who = quote.from ? quote.from.name : "the event";
+  return (
+    <div className="mb-1">
+      <JumpToSeq seq={quote.seq} label={`Replying to ${who}. Go to it.`}>
+        <span className="flex min-w-0 items-baseline gap-1.5 border-l-2 border-line-2 pl-2 text-[12.5px] text-ink-3 transition-colors hover:border-line hover:text-ink-2">
+          <span aria-hidden className="shrink-0">
+            &#x21B3;
+          </span>
+          {quote.from ? <b className="shrink-0 font-semibold">{quote.from.name}</b> : null}
+          <span className="truncate">{quote.text}</span>
+        </span>
+      </JumpToSeq>
+    </div>
+  );
+}
+
 /** The line you had read up to. Drawn above the first item past `unreadAfter`. */
 function UnreadLine() {
   return (
@@ -141,13 +190,20 @@ export function Transcript({
   /** Seq the reader had reached. The divider goes before the first item past it. */
   unreadAfter?: number | null;
   /**
-   * Who is in the room. A transcript knows only names, and whether a tile may
-   * be its client's mark is a question about the whole room, so a surface that
-   * has a roster passes it. Without one every tile is the plain identity tile.
+   * Who is in the room. Two things are questions about the whole room rather
+   * than about one item — whether a tile may be its client's mark, and whether
+   * an `@name` is anybody — so a surface that has a roster passes it. Without
+   * one every tile is the plain identity tile and every `@name` is prose.
    */
   room?: readonly Participant[];
 }) {
   const seatOf = seatingOf(room ?? []);
+  // Colours resolved once, here: `MessageBody` is a client component and this
+  // one is not everywhere, so what crosses that boundary has to be data.
+  const mentionable = (room ?? []).map((person) => ({
+    name: person.name,
+    colour: colorFor(person.name, person.role),
+  }));
   const firstUnread =
     unreadAfter === null ? undefined : items.find((item) => item.seq !== undefined && item.seq > unreadAfter)?.seq;
   return (
@@ -194,8 +250,10 @@ export function Transcript({
                 ) : (
                   <time className="text-xs text-ink-3">{item.time}</time>
                 )}
+                {item.pending ? null : <ReplyAction seq={item.seq} author={item.from.name} />}
               </div>
-              <MessageBody text={item.text} />
+              {item.replyTo ? <ReplyQuoteLine quote={item.replyTo} /> : null}
+              <MessageBody text={item.text} mentions={mentionable} />
             </div>
           </li>
           </Fragment>

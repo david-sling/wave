@@ -101,6 +101,16 @@ export function ArrowRightIcon(props: IconProps) {
   );
 }
 
+/** The arrow turns back on itself: this one answers something already said. */
+export function ReplyIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m9 17-5-5 5-5" />
+      <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+    </Icon>
+  );
+}
+
 export function PersonIcon(props: IconProps) {
   return (
     <Icon {...props}>
