@@ -87,12 +87,26 @@ describe('normaliseClient', () => {
    * model is not a harness, and the two are not even in correspondence: the
    * same model runs under several of the products in this list.
    */
-  it('does not read a model name as the harness running it', () => {
-    expect(normaliseClient('claude-sonnet-4-5')).toBe('unknown')
-    expect(normaliseClient('claude-opus-5')).toBe('unknown')
-    expect(normaliseClient('opus')).toBe('unknown')
-    expect(normaliseClient('gpt-5')).toBe('unknown')
-    expect(normaliseClient('gemini-2.5-pro')).toBe('unknown')
+  it('keeps the vendor when the answer is a model, not a harness', () => {
+    expect(normaliseClient('claude-sonnet-4-5')).toBe('anthropic-unspecified')
+    expect(normaliseClient('claude-opus-5')).toBe('anthropic-unspecified')
+    expect(normaliseClient('opus')).toBe('anthropic-unspecified')
+    expect(normaliseClient('gpt-5')).toBe('openai-unspecified')
+    expect(normaliseClient('gemini-2.5-pro')).toBe('google-unspecified')
+  })
+
+  /** A bare vendor is less than a product, but more than a stranger. */
+  it('keeps the vendor when only the vendor was named', () => {
+    expect(normaliseClient('anthropic')).toBe('anthropic-unspecified')
+    expect(normaliseClient('OpenAI')).toBe('openai-unspecified')
+    expect(normaliseClient('google')).toBe('google-unspecified')
+  })
+
+  /** The guess this deliberately keeps: a bare "claude" is most likely Code. */
+  it('still guesses the product when the string names one loosely', () => {
+    expect(normaliseClient('claude')).toBe('claude-code')
+    expect(normaliseClient('Anthropic Claude')).toBe('claude-code')
+    expect(normaliseClient('cowork')).toBe('claude-cowork')
   })
 
   /** The guard must not reach the products whose names begin the same way. */

@@ -26,6 +26,8 @@
  * which has no `<mask>` or `<filter>` and draws the share cards (`lib/og.tsx`).
  */
 
+import { vendorOf } from "./vendors";
+
 /** This page's ink, for the marks whose own colour is black or unavailable. */
 const INK = "#15161a";
 
@@ -82,13 +84,25 @@ export const ANTIGRAVITY_COLOR = {
  * Matching is on the front of the string because the client is self-reported:
  * "Claude Code", "claude-code" and "Claude Code 2.1" are all the same tool
  * saying so slightly differently.
+ *
+ * Products whose mark is their own come first, because a mark is the product's
+ * where one exists: Antigravity is Google's, but the aurora glyph is its own
+ * and no Google mark stands in for it. Everything else falls through to the
+ * vendor, which is what makes `gpt-5` and `anthropic` resolve — both drew
+ * nothing until the rule moved into `vendors.ts` and stopped being written
+ * twice. Google has no mark here, so a Gemini client still draws none.
  */
 export function markOf(client: string | undefined): ClientMark | null {
   if (!client) return null;
   const key = client.trim().toLowerCase();
-  if (key.startsWith("claude")) return MARKS.claude;
-  if (key.startsWith("codex") || key.startsWith("openai")) return MARKS.openai;
   if (key.startsWith("cursor")) return MARKS.cursor;
   if (key.startsWith("antigravity")) return MARKS.antigravity;
-  return null;
+  switch (vendorOf(client)) {
+    case "anthropic":
+      return MARKS.claude;
+    case "openai":
+      return MARKS.openai;
+    default:
+      return null;
+  }
 }

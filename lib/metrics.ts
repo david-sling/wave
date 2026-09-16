@@ -2,6 +2,7 @@ import { keys } from './keys'
 import type { WaveRedis } from './redis'
 import { epochSeconds } from './time'
 import type { ChannelRecord, ParticipantRecord } from './types'
+import { namesAModel, slugOf, vendorOf } from './vendors'
 
 /**
  * The six counts in PRODUCT section 14, and nothing else.
@@ -48,37 +49,33 @@ const KNOWN_CLIENTS = [
 const JOIN_DELAY_BUCKETS = [30, 60, 300, 900, 3_600, 21_600] as const
 
 /**
- * Answers that name no client at all. Two kinds reach the join call: the
- * `CLIENT` placeholder from the prompt in PRODUCT section 7 left exactly as it
- * was written, and a model or vendor name given where a product was asked for.
+ * `client` is free text, and two kinds of answer name no product at all.
  *
- * Both have to be caught before the alias matching below, which reads `claude`
- * out of `<your agent product, e.g. claude-code or codex-cli>` and out of
- * `claude-sonnet-4-5`, and counts either as a harness. That is worse than
- * losing them: the bucket they land in is whichever product the prompt happens
- * to name first, so every agent that skipped the instruction accrues to the
- * largest count rather than spreading across the rest, and a distribution whose
- * biggest entry is also where its errors go cannot answer the question section
- * 14 keeps it for.
+ * The first is the `CLIENT` placeholder from the prompt in PRODUCT section 7,
+ * sent by an agent that never replaced it. It folds to `unknown`, because it
+ * names two products at once — `claude-code` and `codex-cli` are both inside
+ * it — so the one it used to be credited to was decided by nothing but which
+ * appears first. There is no signal in it to keep.
  *
- * They fold to `unknown` rather than `other`, because nothing was learned about
- * the client, which is a different fact from a client there is no key for.
+ * The second is a model name, and that one does carry signal: `claude-opus-5`
+ * does not say which harness is running, but it does say whose model it is.
+ * Those fold to a vendor bucket rather than to `unknown`, which would file them
+ * beside the agents that reported nothing, or to a product, which would credit
+ * a guess to whichever bucket is already the largest.
+ *
+ * The keyspace stays bounded: the products above, three vendor buckets,
+ * `other`, and `unknown`.
  */
-const NOT_A_CLIENT = [
-  /[<>]/,
-  /^claude-(opus|sonnet|haiku|fable|instant)\b/,
-  /^(opus|sonnet|haiku)(-|$)/,
-  /^gpt[-0-9]/,
-  /^o[0-9]/,
-  /^gemini-[0-9]/,
-]
-
 export function normaliseClient(raw: string | undefined): string {
   if (!raw) return 'unknown'
-  const slug = raw.trim().toLowerCase().replace(/[\s_]+/g, '-')
+  const slug = slugOf(raw)
+  if (slug.includes('<') || slug.includes('>')) return 'unknown'
   const known = KNOWN_CLIENTS.find((name) => slug === name || slug.startsWith(`${name}-`))
   if (known) return known
-  if (NOT_A_CLIENT.some((pattern) => pattern.test(slug))) return 'unknown'
+  if (namesAModel(slug)) {
+    const vendor = vendorOf(slug)
+    return vendor ? `${vendor}-unspecified` : 'unknown'
+  }
   // Common aliases an agent might report for itself.
   if (slug.includes('cowork')) return 'claude-cowork'
   if (slug.includes('claude')) return 'claude-code'
@@ -89,6 +86,9 @@ export function normaliseClient(raw: string | undefined): string {
   // and an agent on a paid key can still report it.
   if (slug.includes('antigravity') || slug === 'agy') return 'antigravity'
   if (slug.includes('gemini')) return 'gemini-cli'
+  // A bare vendor name: less than a product, more than a stranger.
+  const vendor = vendorOf(slug)
+  if (vendor) return `${vendor}-unspecified`
   return 'other'
 }
 

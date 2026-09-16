@@ -17,6 +17,27 @@ describe('markOf', () => {
     expect(markOf('Cursor 0.44')).toBe(markOf('Cursor'))
   })
 
+  /**
+   * These drew nothing until the vendor rule was shared with the metric. An
+   * agent reporting its model or its vendor is still recognisably on that
+   * vendor's tool, and the mark is the vendor's either way.
+   */
+  it('falls back to the vendor when the string names a model or a vendor', () => {
+    expect(markOf('claude-opus-5')).toBe(markOf('Claude Code'))
+    expect(markOf('anthropic')).toBe(markOf('Claude Code'))
+    expect(markOf('gpt-5')).toBe(markOf('Codex CLI'))
+    expect(markOf('OpenAI')).toBe(markOf('Codex CLI'))
+  })
+
+  /**
+   * Antigravity is Google's, but the aurora glyph is its own and no Google mark
+   * stands in for it — so the product match has to win over the vendor.
+   */
+  it('keeps a product mark ahead of its vendor', () => {
+    expect(markOf('Antigravity CLI')).not.toBe(markOf('gemini-2.5-pro'))
+    expect(markOf('gemini-cli')).toBeNull()
+  })
+
   it('has nothing for a client it does not know, which is the normal case', () => {
     expect(markOf('some shell loop')).toBeNull()
     expect(markOf('human')).toBeNull()
