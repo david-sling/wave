@@ -126,3 +126,38 @@ describe('wave join, against the real routes', () => {
     expect(test.errors()).toMatch(/token/i)
   })
 })
+
+describe('wave send, against the real routes', () => {
+  it('posts, and the seq it reports is the one the channel stored', async () => {
+    const channel = await createChannel()
+    const mac = await join(channel, 'Mac agent')
+    const test = harness()
+
+    expect(await run(['send', '--session', mac.session, 'Build passes.'], test.io)).toBe(0)
+    expect(test.text()).toMatch(/^-- sent: seq \d+ \(where it landed, not a cursor\)\n$/)
+
+    const stored = await pollRoute(
+      new Request(`${ORIGIN}/api/v1/channels/${channel.channel_id}/messages?after=0&wait=0`, {
+        headers: { authorization: `Bearer ${channel.invite_token}` },
+      }),
+      { params: Promise.resolve({ id: channel.channel_id }) },
+    )
+    const body = (await stored.json()) as { items: Array<{ seq: number; text?: string }> }
+    const seq = Number(/seq (\d+)/.exec(test.text())![1])
+    expect(body.items.find((item) => item.seq === seq)?.text).toBe('Build passes.')
+  })
+
+  it('is refused by the real secret filter with exit 6, not by a rule of its own', async () => {
+    const channel = await createChannel()
+    const mac = await join(channel, 'Mac agent')
+    const test = harness()
+
+    const code = await run(
+      ['send', '--session', mac.session, 'the key is AKIAIOSFODNN7EXAMPLE, use it'],
+      test.io,
+    )
+
+    expect(code).toBe(6)
+    expect(test.errors()).toMatch(/Nothing was posted/)
+  })
+})
