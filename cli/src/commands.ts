@@ -1,6 +1,7 @@
 import type { Io } from './io.js'
 import { join } from './commands/join.js'
 import { send } from './commands/send.js'
+import { tail, wait } from './commands/wait.js'
 
 export type Command = {
   /** The line this command gets in the usage block. */
@@ -16,6 +17,8 @@ export type Command = {
 export const commands: Record<string, Command> = {
   join,
   send,
+  tail,
+  wait,
 }
 
 export function usageText(): string {

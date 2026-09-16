@@ -11,6 +11,8 @@ export type Io = {
   fetch: typeof globalThis.fetch
   env: Record<string, string | undefined>
   sleep(ms: number): Promise<void>
+  /** Milliseconds, for deadlines only. Injected so a test can hold a poll for fifty seconds in no time at all. */
+  now(): number
 }
 
 async function readStdin(): Promise<string> {
@@ -27,5 +29,6 @@ export function processIo(): Io {
     fetch: (...args) => globalThis.fetch(...args),
     env: process.env,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now: () => Date.now(),
   }
 }

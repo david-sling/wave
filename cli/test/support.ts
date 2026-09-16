@@ -19,6 +19,8 @@ export type Harness = {
   calls: Array<{ url: URL; init: RequestInit | undefined }>
   /** Every sleep it asked for, in milliseconds, in order. */
   naps: number[]
+  /** The virtual clock, in milliseconds since this run began. */
+  clock(): number
 }
 
 export function json(body: unknown, init: ResponseInit = {}): Response {
@@ -48,6 +50,10 @@ export function harness(
   const err: string[] = []
   const calls: Harness['calls'] = []
   const naps: number[] = []
+  // Time passes here only where it would pass for real: a held poll holds for
+  // the seconds it asked for, and a backoff sleeps for the milliseconds it
+  // asked for. A fifteen-minute wait then costs the test nothing.
+  let clock = 1_000_000
 
   const io: Io = {
     out: (text) => void out.push(text),
@@ -57,17 +63,22 @@ export function harness(
       if (options.stdin === undefined) throw new Error('this run was not given stdin')
       return typeof options.stdin === 'string' ? options.stdin : options.stdin()
     },
-    sleep: async (ms) => void naps.push(ms),
+    sleep: async (ms) => {
+      naps.push(ms)
+      clock += ms
+    },
+    now: () => clock,
     fetch: async (input, init) => {
       const href = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       const url = new URL(href)
       calls.push({ url, init })
+      clock += Number(url.searchParams.get('wait') ?? 0) * 1_000
       if (options.handler === undefined) throw new Error(`this run was not expected to call ${href}`)
       return options.handler(url, init)
     },
   }
 
-  return { io, text: () => out.join(''), errors: () => err.join(''), calls, naps }
+  return { io, text: () => out.join(''), errors: () => err.join(''), calls, naps, clock: () => clock }
 }
 
 /** The body a run posted, decoded. */

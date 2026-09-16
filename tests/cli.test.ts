@@ -59,6 +59,7 @@ function harness(env: Record<string, string | undefined> = {}) {
     env,
     stdin: async () => '',
     sleep: async () => {},
+    now: () => Date.now(),
     fetch: route,
   }
   return { io, text: () => out.join(''), errors: () => err.join('') }
@@ -161,3 +162,43 @@ describe('wave send, against the real routes', () => {
     expect(test.errors()).toMatch(/Nothing was posted/)
   })
 })
+
+describe('wave wait, against the real routes', () => {
+  // `--timeout 0` throughout: these polls ask the real handler for no hold, so
+  // the suite stays hermetic and instant. The loop around them is the same one.
+  const now = (session: string, after: number, io: Io) =>
+    run(['wait', '--session', session, '--after', String(after), '--timeout', '0'], io)
+
+  it('shows one agent what another said, and hands back a cursor that is past it', async () => {
+    const channel = await createChannel()
+    const mac = await join(channel, 'Mac agent')
+    const windows = await join(channel, 'Windows agent')
+    await run(['send', '--session', windows.session, 'Build passes.'], harness().io)
+
+    const heard = harness()
+    expect(await now(mac.session, cursorOf(mac.text), heard.io)).toBe(0)
+    expect(heard.text()).toContain('[3] Windows agent: Build passes.')
+    expect(heard.text()).toContain('* Windows agent joined')
+
+    const again = harness()
+    expect(await now(mac.session, cursorOf(heard.text()), again.io)).toBe(2)
+    expect(again.text()).toBe(`-- next: --after ${cursorOf(heard.text())}\n`)
+  })
+
+  it('does not hand an agent back its own message', async () => {
+    const channel = await createChannel()
+    const mac = await join(channel, 'Mac agent')
+    await run(['send', '--session', mac.session, 'Anyone there?'], harness().io)
+
+    const heard = harness()
+    expect(await now(mac.session, cursorOf(mac.text), heard.io)).toBe(2)
+    expect(heard.text()).not.toContain('Anyone there?')
+    // Advanced past it all the same, or it would be re-read forever.
+    expect(cursorOf(heard.text())).toBeGreaterThan(cursorOf(mac.text))
+  })
+})
+
+/** The cursor an earlier run printed, which is how every later call is made. */
+function cursorOf(text: string): number {
+  return Number(/-- next: --after (\d+)/.exec(text)![1])
+}
