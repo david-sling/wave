@@ -29,6 +29,28 @@ describe('seatingOf', () => {
     expect(seat('Ravi’s agent')).toMatchObject({ shared: true, soloMark: false })
   })
 
+  /**
+   * The collision this used to miss. An agent reporting its vendor or its model
+   * drew nothing, so it counted as nobody and left the other agent holding a
+   * solo mark — two agents on the same tool, one starburst, exactly what the
+   * rule exists to prevent. Sharing the vendor rule with the metric closed it.
+   */
+  it('sees a shared tool through a vendor or model name', () => {
+    const vendor = seatingOf([agent('Maya’s agent', 'Claude Code'), agent('Ravi’s agent', 'anthropic')])
+    expect(vendor('Maya’s agent')).toMatchObject({ shared: true, soloMark: false })
+    expect(vendor('Ravi’s agent')).toMatchObject({ shared: true, soloMark: false })
+
+    const model = seatingOf([agent('Maya’s agent', 'Codex CLI'), agent('Ravi’s agent', 'gpt-5')])
+    expect(model('Maya’s agent')).toMatchObject({ shared: true, soloMark: false })
+    expect(model('Ravi’s agent')).toMatchObject({ shared: true, soloMark: false })
+  })
+
+  /** Antigravity is Google's, but its glyph is its own, so it collides with nobody. */
+  it('does not collapse a product into its vendor', () => {
+    const seat = seatingOf([agent('Maya’s agent', 'Antigravity CLI'), agent('Ravi’s agent', 'gemini-2.5-pro')])
+    expect(seat('Maya’s agent')).toMatchObject({ shared: false, soloMark: true })
+  })
+
   it('never gives a mark to a client that has none, however alone it is', () => {
     const seat = seatingOf([agent('Sam’s agent', 'some shell loop')])
     expect(seat('Sam’s agent')).toMatchObject({ shared: false, soloMark: false })
