@@ -78,9 +78,14 @@ const CHANNEL = {
 const PURPOSE = "Get the Rust engine building on Windows as well as macOS.";
 const STEER = "Gate it behind cfg(unix) and add a Windows path.";
 
+/* Named for the machine each one is sitting on, because that is the whole of
+   what this channel is for: the same commit, two operating systems, one room. */
+const MAC = "Mac agent";
+const WIN = "Windows agent";
+
 const people: Participant[] = [
-  { name: "Maya's agent", role: "agent", client: "Claude Code", presence: "active", behind: 0 },
-  { name: "Ravi's agent", role: "agent", client: "Codex CLI", presence: "active", behind: 0 },
+  { name: MAC, role: "agent", client: "Claude Code", presence: "active", behind: 0 },
+  { name: WIN, role: "agent", client: "Codex CLI", presence: "active", behind: 0 },
   { name: "David", role: "human", client: "this browser", presence: "active" },
 ];
 
@@ -91,24 +96,24 @@ const joinPrompt = buildJoinPrompt({
   channelId: CHANNEL.channelId,
   channelName: CHANNEL.name,
   invite: CHANNEL.invite,
-  agentName: "Maya's agent",
+  agentName: MAC,
   purpose: PURPOSE,
 });
 
 const script: TranscriptItem[] = [
-  { seq: 1, type: "system", text: "Maya's agent joined" },
+  { seq: 1, type: "system", text: `${MAC} joined` },
   {
     seq: 2,
     type: "message",
-    from: { name: "Maya's agent", role: "agent" },
+    from: { name: MAC, role: "agent" },
     time: "09:41",
     text: "Engine builds clean on macOS — `cargo test` green, 48 passing.",
   },
-  { seq: 3, type: "system", text: "Ravi's agent joined" },
+  { seq: 3, type: "system", text: `${WIN} joined` },
   {
     seq: 4,
     type: "message",
-    from: { name: "Ravi's agent", role: "agent" },
+    from: { name: WIN, role: "agent" },
     time: "09:42",
     text: "Same commit fails on Windows: `std::os::unix` imported in `src/watch.rs:12`.",
   },
@@ -116,7 +121,7 @@ const script: TranscriptItem[] = [
   {
     seq: 6,
     type: "message",
-    from: { name: "Maya's agent", role: "agent" },
+    from: { name: MAC, role: "agent" },
     time: "09:43",
     text: "Agreed — gating the import, `notify` for the Windows watcher.",
   },
@@ -492,7 +497,7 @@ function PromptScreen({ layout }: { layout: Layout }) {
               <div className="flex min-h-0 flex-col">
                 <div className="grid gap-2 px-4 pt-4">
                   <span className="text-sm font-semibold">Agent name</span>
-                  <span className="input flex items-center">Maya&rsquo;s agent</span>
+                  <span className="input flex items-center">{MAC}</span>
                 </div>
                 <div className="grid gap-2 px-4 pt-4">
                   <span className="text-sm font-semibold">
@@ -535,7 +540,7 @@ function TerminalScreen() {
       <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px]">
         <div className="flex shrink-0 items-center gap-2 border-b border-line px-4 py-2.5">
           <ClientMark client="claude code" size={15} />
-          <span className="font-mono text-[12px] text-ink-2">maya@macbook — claude</span>
+          <span className="font-mono text-[12px] text-ink-2">david@macbook — claude</span>
         </div>
         <div className="min-h-0 flex-1 overflow-hidden px-4 py-3 font-mono text-[12.5px] leading-[1.65] text-ink-2">
           <div className="text-ink-3">$ claude</div>
@@ -557,7 +562,7 @@ function TerminalScreen() {
           {sent ? (
             <div className="mt-2 flex items-center gap-2 text-[12.5px]">
               <span className="text-ok">✓</span>
-              <span className="text-ink">Joined #{CHANNEL.name} as Maya&rsquo;s agent. Polling for messages.</span>
+              <span className="text-ink">Joined #{CHANNEL.name} as {MAC}. Polling for messages.</span>
             </div>
           ) : null}
         </div>
