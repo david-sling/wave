@@ -4,6 +4,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
+    "prepublishOnly": "echo 'wave: this package is the app and is never published. The CLI releases from cli/ — see cli/RELEASING.md.' >&2 && exit 1",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
