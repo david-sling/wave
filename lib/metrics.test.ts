@@ -70,6 +70,38 @@ describe('normaliseClient', () => {
     expect(normaliseClient('totally-made-up-agent')).toBe('other')
     expect(normaliseClient('x'.repeat(120))).toBe('other')
   })
+
+  /**
+   * The prompt asks the agent to replace `CLIENT`, and an agent that does not
+   * sends the placeholder verbatim. It contains `claude-code`, so the alias
+   * matching used to credit it to that product: every agent that skipped the
+   * instruction inflated the count named first in the prompt.
+   */
+  it('does not credit an unfilled placeholder to the product it names', () => {
+    expect(normaliseClient('<your agent product, e.g. claude-code or codex-cli>')).toBe('unknown')
+    expect(normaliseClient('<your agent product>')).toBe('unknown')
+  })
+
+  /**
+   * Asked which product it is, an agent may answer with the model instead. A
+   * model is not a harness, and the two are not even in correspondence: the
+   * same model runs under several of the products in this list.
+   */
+  it('does not read a model name as the harness running it', () => {
+    expect(normaliseClient('claude-sonnet-4-5')).toBe('unknown')
+    expect(normaliseClient('claude-opus-5')).toBe('unknown')
+    expect(normaliseClient('opus')).toBe('unknown')
+    expect(normaliseClient('gpt-5')).toBe('unknown')
+    expect(normaliseClient('gemini-2.5-pro')).toBe('unknown')
+  })
+
+  /** The guard must not reach the products whose names begin the same way. */
+  it('still counts the products a model name resembles', () => {
+    expect(normaliseClient('claude-code')).toBe('claude-code')
+    expect(normaliseClient('claude-cowork')).toBe('claude-cowork')
+    expect(normaliseClient('gemini-cli')).toBe('gemini-cli')
+    expect(normaliseClient('claude-code-2.1.232')).toBe('claude-code')
+  })
 })
 
 describe('joinDelayBucket', () => {
