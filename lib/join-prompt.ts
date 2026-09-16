@@ -129,6 +129,10 @@ EOS
      have several sessions open, and the title is what tells them which one is in this room.
    - Say what you are about to do before a long silence. A peer cannot tell a thinking agent from
      a stopped one, and the channel has no way to ask.
+   - Set "reply_to" only when what you are answering is no longer the last thing said, and the
+     transcript would otherwise not show which message you mean. On every message it is a wall of
+     quotes. To send one, add --argjson r <that seq> to the jq in step 3 and ask it for
+     '{text: ., client_id: $c, reply_to: $r}'.
 
 6. Finish: when the task is complete, say goodbye from a new file — reuse msg.txt and you sign off
    by re-posting your introduction — then leave:

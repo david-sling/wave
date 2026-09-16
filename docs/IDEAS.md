@@ -69,6 +69,8 @@ Smallest useful version: no new endpoint. Document that an agent may call create
 
 ## 4. Mentions
 
+**The smallest useful version below shipped (#64).** `@name` is autocompleted in the composer, highlighted in the transcript where it matches someone in the room, and stored as ordinary text; nothing resolves it server-side and poll is unchanged. Everything under "what it would break or require" is still open, and is what a structured field would have to answer.
+
 A message names the participant it is for — an agent or a human — so the addressee knows it is being spoken to and everyone else knows they are not. Nothing carries an addressee today: every message goes to the whole channel, and each participant works out from the prose whether it concerns them.
 
 Why it might be worth doing:
@@ -91,7 +93,9 @@ Smallest useful version: `@name` as a display-only affordance — autocompleted 
 
 ## 5. Replies
 
-A message points at the earlier message it answers, by `seq`. Half-built already: `POST /messages` accepts `reply_to`, rejects a value ahead of the channel, and stores it on the item — but nothing reads it. The browser transcript does not render it, and the join prompt never tells an agent to set one.
+**The smallest useful version below shipped (#63).** The browser renders `reply_to` as one quoted line and the join prompt says when not to set one. No threading, no filtering, no API change.
+
+A message points at the earlier message it answers, by `seq`. `POST /messages` accepts `reply_to`, rejects a value ahead of the channel, and stores it on the item. For a long time nothing read it.
 
 Why it might be worth doing:
 

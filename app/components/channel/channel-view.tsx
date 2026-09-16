@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { sileo, Toaster } from "sileo";
 import { identityPalette } from "@/lib/identity-color";
+import { quoteOf } from "@/lib/reply-quote";
 import { channelGone } from "@/lib/site";
 import mark from "../../icon.png";
 import { CreateChannelForm } from "../create-channel";
 import { ArrowRightIcon } from "../icons";
 import { Logo } from "../logo";
-import { Roster, Transcript, type TranscriptItem } from "../transcript";
+import { Roster, Transcript, type ReplyQuote, type TranscriptItem } from "../transcript";
 import { AddAgentDialog } from "./add-agent-dialog";
 import { announcementFor } from "./channel-events";
 import { ChannelAddButton, ChannelMenu, ChannelMenuButton, ChannelShareButton } from "./channel-menu";
@@ -47,6 +48,26 @@ function clockTime(ts: string): string {
 }
 
 /**
+ * What a `reply_to` points at, as the line the transcript quotes.
+ *
+ * Resolved here rather than in the transcript because this is the surface that
+ * holds the channel: the page polls from seq 0, so every `seq` at or below the
+ * head is in `items`. References cannot dangle either — the item cap refuses
+ * new posts rather than trimming old ones — so the undefined below is for a
+ * build whose retention rules have changed, not for anything reachable today.
+ */
+function quoteFor(bySeq: Map<number, Item>, seq: number): ReplyQuote | undefined {
+  const answered = bySeq.get(seq);
+  if (!answered) return undefined;
+  if (answered.type === "system") return { seq, text: quoteOf(describe(answered)) };
+  return {
+    seq,
+    from: { name: answered.from.name, role: answered.from.role },
+    text: quoteOf(answered.text),
+  };
+}
+
+/**
  * The transcript, with anything still on its way to the channel on the end.
  *
  * Drafts sit after the items because that is where they will land. When the
@@ -54,6 +75,7 @@ function clockTime(ts: string): string {
  * React keeps the node and only the dimming changes.
  */
 function toTranscript(items: Item[], pending: PendingMessage[]): TranscriptItem[] {
+  const bySeq = new Map(items.map((item) => [item.seq, item]));
   const said: TranscriptItem[] = items.map((item) =>
     item.type === "system"
       ? { seq: item.seq, type: "system", text: describe(item) }
@@ -63,6 +85,7 @@ function toTranscript(items: Item[], pending: PendingMessage[]): TranscriptItem[
           from: { name: item.from.name, role: item.from.role },
           time: clockTime(item.ts),
           text: item.text,
+          ...(item.reply_to === undefined ? {} : { replyTo: quoteFor(bySeq, item.reply_to) }),
         },
   );
 
@@ -338,6 +361,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
   // Joins alone do not start a conversation: the prompt stays put while agents
   // are still arriving, and steps aside once one of them says something.
   const started = pending.length > 0 || items.some((item) => item.type === "message");
+  const room = toRoster(participants, items, lastSeq, me?.id);
   const shareUrl = `${host}/c/${channelId}#${invite}`;
   const canClose = typeof window !== "undefined" && window.localStorage.getItem(adminKey(channelId)) !== null;
 
@@ -384,7 +408,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
               {started ? (
                 <Transcript
                   items={toTranscript(items, pending)}
-                  room={toRoster(participants, items, lastSeq, me?.id)}
+                  room={room}
                   colorFor={colorFor}
                   unreadAfter={markerAt}
                 />
@@ -408,7 +432,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
           <div className="shrink-0 border-t border-line">
             <div className="mx-auto w-full max-w-[92ch]">
-              <Compose joinedAs={me?.name ?? null} onSend={post} />
+              <Compose joinedAs={me?.name ?? null} onSend={post} participants={room} colorFor={colorFor} />
             </div>
           </div>
         </main>
@@ -424,7 +448,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             {participants.length === 0 ? (
               <p className="m-0 text-[13px] text-ink-3">Nobody has joined yet.</p>
             ) : (
-              <Roster participants={toRoster(participants, items, lastSeq, me?.id)} colorFor={colorFor} />
+              <Roster participants={room} colorFor={colorFor} />
             )}
           </section>
 
@@ -464,7 +488,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
           {participants.length === 0 ? (
             <p className="m-0 text-[13px] text-ink-3">Nobody has joined yet.</p>
           ) : (
-            <Roster participants={toRoster(participants, items, lastSeq, me?.id)} colorFor={colorFor} />
+            <Roster participants={room} colorFor={colorFor} />
           )}
         </div>
         <div className="border-t border-line px-4 py-4">
