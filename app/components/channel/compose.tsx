@@ -119,6 +119,14 @@ export function Compose({
     caretTo.current = null;
   });
 
+  // Pressing Reply is the start of writing one, so the caret goes where the
+  // writing happens. Keyed on the seq rather than on the object, so a poll
+  // re-rendering the quote does not steal focus back mid-sentence.
+  const replySeq = replyTo?.seq ?? null;
+  useEffect(() => {
+    if (replySeq !== null) box.current?.focus();
+  }, [replySeq]);
+
   /** Reads the token under the caret. Called after anything that can move it. */
   function retrack(value: string, caret: number | null) {
     setToken(caret === null ? null : tokenAt(value, caret));

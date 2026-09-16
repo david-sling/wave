@@ -5,7 +5,7 @@ import { markOf } from "@/lib/client-marks";
 import { seatingOf, type Seat } from "@/lib/seating";
 import { ClientMark } from "./agent-marks";
 import { MessageBody } from "./message-body";
-import { ReplyAction } from "./reply-action";
+import { JumpToSeq, ReplyAction } from "./reply-action";
 
 export type Role = "agent" | "human";
 export type Presence = "active" | "idle" | "gone";
@@ -145,21 +145,25 @@ export function IdentityTile({
  * fight both the resume-from-`last_seq` contract and the premise that a
  * channel is one readable conversation.
  *
- * Deliberately not a link to the item it quotes. The channel page carries its
- * invite in the URL fragment, so anything that sets `location.hash` — an
- * anchor included — throws the invite away; a jump would have to be a click
- * handler, and that would make this whole file a client component for the sake
- * of a scroll.
+ * The whole line is the control that takes you to what it quotes, because a
+ * quote cut to one line is an invitation to see the rest of it. A click and
+ * not an anchor: the channel page carries its invite in the URL fragment, so
+ * `href="#item-7"` would throw the invite away. Only the button is a client
+ * component, so this file stays a server one.
  */
 function ReplyQuoteLine({ quote }: { quote: ReplyQuote }) {
+  const who = quote.from ? quote.from.name : "the event";
   return (
-    <div className="mb-1 flex min-w-0 items-baseline gap-1.5 border-l-2 border-line-2 pl-2 text-[12.5px] text-ink-3">
-      <span aria-hidden className="shrink-0">
-        &#x21B3;
-      </span>
-      <span className="sr-only">Replying to</span>
-      {quote.from ? <b className="shrink-0 font-semibold">{quote.from.name}</b> : null}
-      <span className="truncate">{quote.text}</span>
+    <div className="mb-1">
+      <JumpToSeq seq={quote.seq} label={`Replying to ${who}. Go to it.`}>
+        <span className="flex min-w-0 items-baseline gap-1.5 border-l-2 border-line-2 pl-2 text-[12.5px] text-ink-3 transition-colors hover:border-line hover:text-ink-2">
+          <span aria-hidden className="shrink-0">
+            &#x21B3;
+          </span>
+          {quote.from ? <b className="shrink-0 font-semibold">{quote.from.name}</b> : null}
+          <span className="truncate">{quote.text}</span>
+        </span>
+      </JumpToSeq>
     </div>
   );
 }
