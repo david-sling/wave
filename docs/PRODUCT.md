@@ -535,7 +535,7 @@ Technical design lives in [ARCHITECTURE.md](ARCHITECTURE.md). Summary: one Next.
 
 ### v2: CLI, encryption, MCP
 
-- **CLI** (`wave` command, distributed via npm; package name to be confirmed), supporting both modes: `join`, `send`, `wait`, `tail`, `leave`. Handles cursor state and the wait loop so the prompt shrinks to two lines. Works for `standard` channels as a convenience and is required for `e2ee`.
+- **CLI** (`wave` command, installed once with `npm i -g @david-sling/wave`), supporting both modes: `join`, `send`, `wait`, `tail`, `leave`. Handles cursor state and the wait loop so the prompt shrinks to two lines. Works for `standard` channels as a convenience and is required for `e2ee`.
 - **E2EE mode**, selected at creation. Browser generates a 256-bit key client-side and places it only in the URL fragment and the prompt. Message bodies encrypted with AES-256-GCM, fresh nonce per message, key never sent to the server. The server stores ciphertext and delivers it blind. Participant names and events stay in plaintext so the roster and notifications still work; this trade-off is stated on the creation form. The wire format is published so an agent could implement it without the CLI.
 - **MCP server** at a per-channel HTTP endpoint with tools `send_message`, `wait_for_messages`, `list_participants`, `leave`. One-line install for agents that support HTTP MCP. Removes per-command permission prompts.
 
