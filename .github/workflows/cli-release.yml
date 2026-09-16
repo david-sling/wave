@@ -1,19 +1,23 @@
 name: Release CLI
 
-# Publishes @david-sling/wave from a `cli-v*` tag. The app ships on its own
-# clock, so the tag namespace is kept apart: a shared one would publish this
-# package every time the app was released.
+# Stages @david-sling/wave from a `cli-v*` tag. The app ships on its own clock,
+# so the tag namespace is kept apart: a shared one would release this package
+# every time the app was released.
 #
-# First publish only: see cli/RELEASING.md. The npm scope has to exist and the
-# trusted publisher has to be configured on npm before this can work, and no
-# workflow file can do either for itself.
+# This job does not publish. It stages, and a maintainer approves from their own
+# machine with `npm stage approve` — see cli/RELEASING.md. The trusted publisher
+# on npm is configured to allow staging only, which is what keeps a tag from
+# being enough to reach everyone who installs this: a tag is a git ref, and
+# anyone who can push one could otherwise ship code, as could a compromised
+# workflow or a compromised dependency of one. A package whose whole job is to
+# hold someone's token should cost one approval.
 
 on:
   push:
     tags: ['cli-v*']
 
 jobs:
-  publish:
+  stage:
     runs-on: ubuntu-latest
     permissions:
       # The whole reason there is no npm token in this repository: the job
@@ -63,8 +67,16 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
-      # --access public because a scoped package is private by default, and
-      # --provenance so an installer can see which commit produced the tarball
-      # — which matters more than usual for a package whose job is to hold
-      # someone's token.
-      - run: npm publish --access public --provenance
+      # --provenance so an installer can see which commit produced the tarball,
+      # which matters more than usual for a package whose job is to hold
+      # someone's token. No --access: it defaults to preserving what the package
+      # already has, and this one is public.
+      - run: npm stage publish --provenance
+
+      - name: Say what is now owed
+        run: |
+          echo "Staged. Nothing is on npm until this is approved from a machine with 2FA:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "npm stage list @david-sling/wave" >> "$GITHUB_STEP_SUMMARY"
+          echo "npm stage approve <stage-id>" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
