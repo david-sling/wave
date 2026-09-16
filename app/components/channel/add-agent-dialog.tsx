@@ -20,6 +20,7 @@ export function AddAgentDialog({
   channelId,
   channelName,
   invite,
+  mode,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,7 @@ export function AddAgentDialog({
   channelId: string;
   channelName: string;
   invite: string;
+  mode?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -63,7 +65,7 @@ export function AddAgentDialog({
         </button>
       </div>
 
-      <PromptBox host={host} channelId={channelId} channelName={channelName} invite={invite} />
+      <PromptBox host={host} channelId={channelId} channelName={channelName} invite={invite} mode={mode} />
     </dialog>
   );
 }
