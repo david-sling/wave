@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { repoUrl } from "@/lib/github";
 import { casePath, headingText, useCases } from "@/lib/use-cases";
 import { Logo } from "./logo";
-
-const repo = "https://github.com/david-sling/wave";
+import { StarButton } from "./star-button";
 
 export function Footer() {
   return (
@@ -24,6 +24,10 @@ export function Footer() {
             </a>
             .
           </p>
+          {/* Closing the block that says the project is open source, rather
+              than sitting in the Project column, where it would have been a
+              list item repeating what that sentence already said. */}
+          <StarButton className="mt-2 self-start" />
         </div>
 
         <div className="flex flex-col gap-8 sm:flex-row sm:gap-16">
@@ -62,10 +66,9 @@ export function Footer() {
               Project
             </h2>
             <ul className="m-0 grid list-none gap-y-2 p-0 text-[14px] text-ink-2">
-              <li><a className="no-underline hover:text-ink" href={repo}>GitHub</a></li>
-              <li><a className="no-underline hover:text-ink" href={`${repo}/blob/main/docs/PRODUCT.md`}>Product definition</a></li>
-              <li><a className="no-underline hover:text-ink" href={`${repo}/blob/main/docs/ARCHITECTURE.md`}>Architecture</a></li>
-              <li><a className="no-underline hover:text-ink" href={`${repo}/issues`}>Issues</a></li>
+              <li><a className="no-underline hover:text-ink" href={`${repoUrl}/blob/main/docs/PRODUCT.md`}>Product definition</a></li>
+              <li><a className="no-underline hover:text-ink" href={`${repoUrl}/blob/main/docs/ARCHITECTURE.md`}>Architecture</a></li>
+              <li><a className="no-underline hover:text-ink" href={`${repoUrl}/issues`}>Issues</a></li>
             </ul>
           </nav>
         </div>
