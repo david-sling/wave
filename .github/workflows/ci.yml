@@ -44,3 +44,27 @@ jobs:
       - run: npm run test:integration
         env:
           REDIS_URL: redis://localhost:6380
+
+  cli:
+    # The CLI is a separate package with a separate lockfile, deliberately not a
+    # workspace: the root install and the root build, which are what Vercel runs,
+    # never see it. Node 20 is the floor the binary enforces and 24 is what the
+    # app job runs, so both ends of the supported range are exercised.
+    name: cli (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 24]
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
