@@ -91,6 +91,7 @@ export function PromptBox({
   const method: Method = encrypted && chosen === "curl" ? "npm" : chosen;
   const variant = method === "curl" ? "curl" : "cli";
 
+  const shownName = agentName.trim() || defaultAgentName("");
   const prompt = useMemo(
     () =>
       buildJoinPrompt(
@@ -99,114 +100,135 @@ export function PromptBox({
           channelId,
           channelName,
           invite,
-          agentName: agentName.trim() || defaultAgentName(""),
+          agentName: shownName,
           purpose,
           provider,
           installer: method === "curl" ? undefined : method,
         },
         variant,
       ),
-    [host, channelId, channelName, invite, agentName, purpose, provider, method, variant],
+    [host, channelId, channelName, invite, shownName, purpose, provider, method, variant],
+  );
+  // The name, marked wherever the prompt carries it, so editing the field
+  // visibly rewrites the thing being handed over.
+  const marked = useMemo(
+    () =>
+      prompt.split(shownName).flatMap((part, index) =>
+        index === 0
+          ? [part]
+          : [
+              <mark key={index} className="rounded-[5px] bg-lilac-soft px-0.5 text-ink">
+                {shownName}
+              </mark>,
+              part,
+            ],
+      ),
+    [prompt, shownName],
   );
 
   return (
-    <section className="flex min-h-0 flex-col" aria-label="Join prompt">
-      <div className="grid gap-2 px-4 pt-4">
-        <label htmlFor="agent-name" className="text-sm font-semibold">
-          Agent name
-        </label>
-        <input
-          id="agent-name"
-          className="input"
-          value={agentName}
-          onChange={(event) => setAgentName(event.target.value)}
-          maxLength={40}
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </div>
-
-      <div className="grid gap-2 px-4 pt-4">
-        <label htmlFor="agent-purpose" className="text-sm font-semibold">
-          What they are here to do <span className="font-normal text-ink-3">optional</span>
-        </label>
-        <textarea
-          id="agent-purpose"
-          className="input h-auto min-h-[68px] resize-y py-3 leading-relaxed"
-          value={purpose}
-          onChange={(event) => setPurpose(event.target.value)}
-          placeholder="Agree the shape of the /orders response for cancelled orders."
-          maxLength={600}
-        />
-      </div>
-
-      <div className="grid gap-2.5 px-4 pt-5">
-        <div className="choices">
-          <fieldset className="choice-group">
-            <legend className="sr-only">Agent</legend>
-            {PROVIDERS.map((value) => (
-              <label key={value} className="choice choice-mark">
-                <input
-                  type="radio"
-                  name={`prompt-provider-${group}`}
-                  value={value}
-                  checked={provider === value}
-                  onChange={() => setProvider(value)}
-                  aria-label={AGENT_PROVIDERS[value]}
-                />
-                {PROVIDER_MARK[value]}
-                <span className="choice-tip" aria-hidden>
-                  {AGENT_PROVIDERS[value]}
-                </span>
-              </label>
-            ))}
-          </fieldset>
-
-          <fieldset className="choice-group">
-            <legend className="sr-only">How it talks to the channel</legend>
-            {offered.map((value) => (
-              <label key={value} className="choice">
-                <input
-                  type="radio"
-                  name={`prompt-variant-${group}`}
-                  value={value}
-                  checked={method === value}
-                  onChange={() => setChosen(value)}
-                />
-                <span>{value}</span>
-              </label>
-            ))}
-          </fieldset>
+    <section className="flex min-h-0 flex-1 flex-col" aria-label="Join prompt">
+      {/* The settings scroll and the prompt below them does not, so however
+          short the window, Copy prompt stays on screen. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="grid gap-2 px-4 pt-4">
+          <label htmlFor="agent-name" className="text-sm font-semibold">
+            Agent name
+          </label>
+          <input
+            id="agent-name"
+            className="input"
+            value={agentName}
+            onChange={(event) => setAgentName(event.target.value)}
+            maxLength={40}
+            autoComplete="off"
+            spellCheck={false}
+          />
         </div>
-        {/* Every note is laid out in the same cell and only the current one is
+
+        <div className="grid gap-2 px-4 pt-4">
+          <label htmlFor="agent-purpose" className="text-sm font-semibold">
+            What they are here to do <span className="font-normal text-ink-3">optional</span>
+          </label>
+          <textarea
+            id="agent-purpose"
+            className="input h-auto min-h-[68px] resize-y py-3 leading-relaxed"
+            value={purpose}
+            onChange={(event) => setPurpose(event.target.value)}
+            placeholder="Agree the shape of the /orders response for cancelled orders."
+            maxLength={600}
+          />
+        </div>
+
+        <div className="grid gap-2.5 px-4 pt-5">
+          <div className="choices">
+            <fieldset className="choice-group">
+              <legend className="sr-only">Agent</legend>
+              {PROVIDERS.map((value) => (
+                <label key={value} className="choice choice-mark">
+                  <input
+                    type="radio"
+                    name={`prompt-provider-${group}`}
+                    value={value}
+                    checked={provider === value}
+                    onChange={() => setProvider(value)}
+                    aria-label={AGENT_PROVIDERS[value]}
+                  />
+                  {PROVIDER_MARK[value]}
+                  <span className="choice-tip" aria-hidden>
+                    {AGENT_PROVIDERS[value]}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+
+            <fieldset className="choice-group">
+              <legend className="sr-only">How it talks to the channel</legend>
+              {offered.map((value) => (
+                <label key={value} className="choice">
+                  <input
+                    type="radio"
+                    name={`prompt-variant-${group}`}
+                    value={value}
+                    checked={method === value}
+                    onChange={() => setChosen(value)}
+                  />
+                  <span>{value}</span>
+                </label>
+              ))}
+            </fieldset>
+          </div>
+          {/* Every note is laid out in the same cell and only the current one is
             visible, so the cell is as tall as the longest and switching method
             never resizes the dialog around it. */}
-        <div className="grid text-[13px] leading-relaxed text-ink-3">
-          {offered.map((key) => (
-            <div
-              key={key}
-              className={`col-start-1 row-start-1 m-0 ${key === method ? "" : "invisible"}`}
-              aria-hidden={key !== method}
-            >
-              {note(key, encrypted)}
-            </div>
-          ))}
+          <div className="grid grid-cols-[minmax(0,1fr)] text-[13px] leading-relaxed text-ink-3">
+            {offered.map((key) => (
+              <div
+                key={key}
+                className={`col-start-1 row-start-1 m-0 ${key === method ? "" : "invisible"}`}
+                aria-hidden={key !== method}
+              >
+                {note(key, encrypted)}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* A preview, not a document: nobody reads this, they copy it. It stays
-          blurred until you lean in, so the block reads as "text to take" rather
-          than as something to work through. */}
-      <div className="group relative mt-4 border-t border-line bg-ground">
+      {/* The prompt, shown as what it is: the thing being handed to the agent.
+          Legible where it starts, fading into the ground where Copy prompt sits,
+          so the box reads as "text to take" rather than a document to work
+          through, and the name is marked where the prompt carries it. */}
+      <div className="relative mt-5 shrink-0 border-t border-line bg-ground">
         <pre
           aria-hidden
-          className="m-0 max-h-[104px] overflow-hidden whitespace-pre-wrap break-words px-4 py-3 font-mono text-[10px] leading-[1.5] text-ink-3 blur-[1.2px] transition-[filter] duration-200 [mask-image:linear-gradient(to_bottom,black_45%,transparent)] group-hover:blur-0 motion-reduce:transition-none"
+          className="m-0 max-h-[152px] overflow-hidden whitespace-pre-wrap break-words px-5 pb-16 pt-4 font-mono text-[11px] leading-[1.6] text-ink-2 [mask-image:linear-gradient(to_bottom,black_40%,transparent_92%)]"
         >
-          {prompt}
+          {marked}
         </pre>
-        <div className="pointer-events-none absolute inset-0 grid place-items-center">
+        <div className="pointer-events-none absolute inset-x-0 bottom-5 grid place-items-center">
           <span className="pointer-events-auto">
-            <CopyButton value={prompt} label="Copy prompt" />
+            <CopyButton value={prompt} label="Copy prompt" size="md" />
           </span>
         </div>
         <span className="sr-only">{prompt}</span>

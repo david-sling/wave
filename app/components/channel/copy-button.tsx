@@ -17,10 +17,13 @@ export function CopyButton({
   value,
   label,
   variant = "primary",
+  size = "sm",
 }: {
   value: string;
   label: string;
   variant?: "primary" | "secondary";
+  /** `md` is the full 48px button, for a surface whose one action this is. */
+  size?: "sm" | "md";
 }) {
   const [state, setState] = useState<"resting" | "copied" | "failed">("resting");
   const copied = state === "copied";
@@ -37,7 +40,7 @@ export function CopyButton({
   return (
     <button
       type="button"
-      className={`btn btn-sm gap-2 ${tone}`}
+      className={`btn ${size === "sm" ? "btn-sm" : ""} gap-2 ${tone}`}
       aria-live="polite"
       onClick={async () => {
         setState((await copyText(value)) ? "copied" : "failed");

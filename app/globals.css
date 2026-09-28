@@ -504,6 +504,17 @@
       width: 3rem;
     }
   }
+  /* On a phone the method group takes its own row and shares it: five
+     options at their natural width are a few pixels wider than the box. */
+  @media (max-width: 30rem) {
+    .choice-group:not(:has(.choice-mark)) {
+      flex: 1 1 100%;
+    }
+    .choice-group:not(:has(.choice-mark)) .choice {
+      flex: 1;
+      padding: 0 0.5rem;
+    }
+  }
 
   /* The install line under the npm choice: the command in mono, since it is
      text to run, on the recessed code tone, with a copy control that does not

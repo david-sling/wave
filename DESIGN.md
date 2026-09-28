@@ -347,6 +347,12 @@ The landing page's main call to action, in the hero heading block: a 48px `.inpu
 - **Focus:** 2px accent outline on the visible span.
 - **Rail (`.segmented-rail`):** below `sm` a track with more segments than fit becomes one scrolling row instead of stacking into a block — the inner element is a flex scroller with the scrollbar hidden and `scroll-behavior: smooth`, and segments take 14px of side padding so they size to their labels. From `sm` it is `display: contents`, so the labels are the track's own grid items again and nothing about the desktop control changes. Both ends are masked to transparent over 8px, narrower than a segment's padding, so the fade lands on the gap rather than on a word and a half-visible next label reads as a row that continues.
 
+### Add an agent dialog (`channel/add-agent-dialog.tsx`)
+
+- **Frame:** a `.dialog-modal` at `min(92vw, 600px)`, 28px panel radius, `shadow-lift`, capped at the viewport height less 2rem. The header and the prompt footer are fixed and the settings between them scroll, so Copy prompt is on screen at any window height.
+- **Header:** one bar, 1px `line` rule below. "Add an agent" in Funnel Display 700 at 20px, tracking -0.015em, and a 32px close control, ink-3, `panel-2` on hover. No subtitle: the room is spent on the settings and the prompt, which is what the dialog is for.
+- **Prompt footer:** the prompt itself on `ground`, 11px Geist Mono in ink-2, not blurred, fading to transparent from 40% to 92% of its 152px. The agent's name is marked in `lilac-soft` wherever the prompt carries it, so editing the name visibly rewrites what is handed over. Copy prompt is the full 48px ink pill, centred 20px above the bottom edge. The empty channel's prompt box shares the footer and the button, not the header.
+
 ### Choice groups (`.choices`, `.choice-group`, `.choice`, in `channel/prompt-box.tsx`)
 
 The prompt box's two settings, agent and method, as two joined button groups side by side. Used where a choice is small, has two or three options, and belongs beside another choice rather than stacked under a label.
