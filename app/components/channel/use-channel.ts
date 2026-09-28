@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { forgetChannel, rememberChannel } from './use-visited-channels'
 
 /**
  * The channel page's connection to its channel (ARCHITECTURE section 6).
@@ -281,6 +282,7 @@ export function useChannel(channelId: string) {
       headers: { authorization: `Bearer ${admin}` },
     })
     if (!response.ok) throw new Error(await readError(response))
+    forgetChannel(channelId)
     setStatus('gone')
   }, [channelId])
 
@@ -316,6 +318,7 @@ export function useChannel(channelId: string) {
         signal: controller.signal,
       })
       if (response.status === 410) {
+        forgetChannel(channelId)
         setStatus('gone')
         return false
       }
@@ -326,6 +329,12 @@ export function useChannel(channelId: string) {
       }
       const view = await response.json()
       setChannel(view.channel)
+      rememberChannel({
+        id: channelId,
+        invite: invite.current ?? '',
+        name: view.channel.name ?? '',
+        expiresAt: Date.parse(view.channel.expires_at),
+      })
       setParticipants(view.participants)
       setHistoryUpTo(view.last_seq)
       setLastSeq(view.last_seq)
@@ -343,6 +352,7 @@ export function useChannel(channelId: string) {
         { headers: { authorization: `Bearer ${token()}` }, signal: controller.signal },
       )
       if (response.status === 410) {
+        forgetChannel(channelId)
         setStatus('gone')
         return 'gone'
       }
