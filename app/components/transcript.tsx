@@ -27,7 +27,10 @@ export type ReplyQuote = {
 
 export type TranscriptItem =
   | {
-      /** Channel sequence number. Absent for illustrative transcripts. */
+      /**
+       * Channel sequence number. An illustrative transcript numbers its own
+       * items too, because a reply quote is a control that goes to one.
+       */
       seq?: number;
       type: "message";
       from: { name: string; role: Role };

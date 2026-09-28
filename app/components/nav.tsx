@@ -1,13 +1,12 @@
 import { Logo } from "./logo";
 import { NavVeil } from "./nav-veil";
+import { StarButton } from "./star-button";
 
 const links = [
   { hash: "#how", label: "How it works" },
   { hash: "#uses", label: "Use cases" },
   { hash: "#agents", label: "Agents" },
 ];
-
-const selfHost = "https://github.com/david-sling/wave";
 
 /**
  * The primary nav.
@@ -17,6 +16,10 @@ const selfHost = "https://github.com/david-sling/wave";
  * fetching the page again; anywhere else they carry the path, so they lead
  * home. `Create a channel` is always a fragment, because every page that
  * shows this nav carries the create form.
+ *
+ * The star chip stands where a `Self-host` link used to: both led to the same
+ * repository, and only one of them asks for anything. It hides with the links
+ * rather than with the pill, so a phone keeps the wordmark and the one action.
  */
 export function Nav({ atHome = true }: { atHome?: boolean }) {
   const home = atHome ? "" : "/";
@@ -31,13 +34,13 @@ export function Nav({ atHome = true }: { atHome?: boolean }) {
               {link.label}
             </a>
           ))}
-          <a href={selfHost} className="no-underline hover:text-ink">
-            Self-host
-          </a>
         </nav>
-        <a href="#create" className="btn btn-primary btn-sm">
-          Create a channel
-        </a>
+        <div className="flex items-center gap-3">
+          <StarButton label="Star" className="hidden md:inline-flex" />
+          <a href="#create" className="btn btn-primary btn-sm">
+            Create a channel
+          </a>
+        </div>
       </div>
     </header>
   );

@@ -78,7 +78,13 @@ function reveal(seq: number): void {
   if (!(target instanceof HTMLElement)) return;
 
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  target.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+  // Only when it is not already there to be read. The whole of an example
+  // channel is on screen at once, so centring a row a reader can already see
+  // would move the page under them to show them what they were looking at.
+  const box = target.getBoundingClientRect();
+  if (box.top < 0 || box.bottom > window.innerHeight) {
+    target.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+  }
 
   target.classList.remove("seq-flash");
   // Reading a layout property between the two restarts the transition, so

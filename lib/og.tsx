@@ -2,7 +2,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Participant, TranscriptItem } from "@/app/components/transcript";
 import { markOf } from "./client-marks";
-import { identityPalette } from "./identity-color";
+import { identityPalette, type IdentityColor } from "./identity-color";
+import { findMentions } from "./mentions";
 import { seatingOf, type Seat } from "./seating";
 
 /**
@@ -160,12 +161,49 @@ function RoleBadge({ role }: { role: "agent" | "human" }) {
  */
 type Token = {
   code: boolean;
+  /** Set when the word is an `@name` the room answers to; it is drawn in that hue. */
+  mention?: IdentityColor;
   text: string;
   padLeft: boolean;
   padRight: boolean;
 };
 
-function tokenize(text: string): Token[] {
+/** Who `@name` may resolve to on this card, with their colour already looked up. */
+export type OgMention = { name: string; colour: IdentityColor };
+
+/**
+ * A segment's mentions, kept whole, with the prose between them left to be cut
+ * into words. A name may run to three words and must not wrap in the middle of
+ * itself, which is the one thing the word rule would do to it.
+ */
+function mentioned(text: string, mentions: readonly OgMention[]): Token[] {
+  const found = findMentions(text, mentions.map((target) => target.name));
+  const tokens: Token[] = [];
+  let at = 0;
+
+  const prose = (part: string) => {
+    for (const word of part.split(/(?<= )/)) {
+      if (word !== "") tokens.push({ code: false, text: word, padLeft: false, padRight: false });
+    }
+  };
+
+  for (const mention of found) {
+    prose(text.slice(at, mention.index));
+    tokens.push({
+      code: false,
+      mention: mentions.find((target) => target.name === mention.name)?.colour,
+      text: text.slice(mention.index, mention.index + mention.length),
+      padLeft: false,
+      padRight: false,
+    });
+    at = mention.index + mention.length;
+  }
+  prose(text.slice(at));
+
+  return tokens;
+}
+
+function tokenize(text: string, mentions: readonly OgMention[]): Token[] {
   const parts = text.split("`");
   const tokens: Token[] = [];
 
@@ -183,21 +221,13 @@ function tokenize(text: string): Token[] {
     const trimmed = part
       .replace(i === 0 ? /$^/ : /^ /, "")
       .replace(i === parts.length - 1 ? /$^/ : / $/, "");
-    for (const word of trimmed.split(/(?<= )/)) {
-      if (word !== "")
-        tokens.push({
-          code: false,
-          text: word,
-          padLeft: false,
-          padRight: false,
-        });
-    }
+    tokens.push(...mentioned(trimmed, mentions));
   });
 
   return tokens;
 }
 
-function Body({ text }: { text: string }) {
+function Body({ text, mentions }: { text: string; mentions: readonly OgMention[] }) {
   const space = 5;
 
   return (
@@ -212,8 +242,24 @@ function Body({ text }: { text: string }) {
         color: ink,
       }}
     >
-      {tokenize(text).map((token, i) =>
-        token.code ? (
+      {tokenize(text, mentions).map((token, i) =>
+        token.mention ? (
+          // The Identity-In-The-Tile Rule reaches the card too: the same person
+          // is the same colour in the room, on their messages, and here.
+          <span
+            key={i}
+            style={{
+              display: "flex",
+              fontWeight: 600,
+              backgroundColor: token.mention.fill,
+              color: token.mention.ink,
+              borderRadius: 5,
+              padding: "0px 3px",
+            }}
+          >
+            {token.text}
+          </span>
+        ) : token.code ? (
           <span
             key={i}
             style={{
@@ -348,10 +394,12 @@ function Message({
   item,
   color,
   seat,
+  mentions,
 }: {
   item: Extract<TranscriptItem, { type: "message" }>;
   color: { fill: string; ink: string };
   seat: Seat;
+  mentions: readonly OgMention[];
 }) {
   return (
     <div style={{ display: "flex", gap: TILE_GAP }}>
@@ -369,7 +417,7 @@ function Message({
           <RoleBadge role={item.from.role} />
           <span style={{ color: ink3, fontSize: 18 }}>{item.time}</span>
         </div>
-        <Body text={item.text} />
+        <Body text={item.text} mentions={mentions} />
       </div>
     </div>
   );
@@ -482,6 +530,10 @@ function OgFrame({
 export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
   const colorFor = identityPalette(room);
   const seatOf = seatingOf(room);
+  const mentions = room.map((person) => ({
+    name: person.name,
+    colour: colorFor(person.name, person.role),
+  }));
   // Three is what fits, and three is the whole loop: one agent asks, the other
   // answers, the human overrules them. Two would only show a room.
   // A heading that wrapped to three lines has taken a message's worth of the
@@ -519,6 +571,7 @@ export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
           item={item}
           color={colorFor(item.from.name, item.from.role)}
           seat={seatOf(item.from.name)}
+          mentions={mentions}
         />
       ))}
     </OgFrame>
