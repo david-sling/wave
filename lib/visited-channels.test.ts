@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { VISITED_CAP, forget, live, parse, record, type VisitedChannel } from './visited-channels'
+import {
+  VISITED_CAP,
+  byActivity,
+  forget,
+  live,
+  noteMessage,
+  parse,
+  record,
+  type VisitedChannel,
+} from './visited-channels'
 
 const now = Date.parse('2026-09-29T12:00:00Z')
 const hour = 3_600_000
@@ -10,17 +19,29 @@ const channel = (id: string, overrides: Partial<VisitedChannel> = {}): VisitedCh
   name: `room ${id}`,
   expiresAt: now + hour,
   lastSeenAt: now - hour,
+  addedAt: now - 2 * hour,
+  lastMessageAt: 0,
   ...overrides,
 })
 
 const entry = (id: string, overrides: Partial<VisitedChannel> = {}) => {
-  const { lastSeenAt: _, ...rest } = channel(id, overrides)
+  const { lastSeenAt: _, addedAt: __, lastMessageAt: ___, ...rest } = channel(id, overrides)
   return rest
 }
 
 describe('record', () => {
   it('adds a channel it has not seen, stamped with now', () => {
-    expect(record([], entry('a'), now)).toEqual([{ ...entry('a'), lastSeenAt: now }])
+    expect(record([], entry('a'), now)).toEqual([{ ...entry('a'), lastSeenAt: now, addedAt: now, lastMessageAt: 0 }])
+  })
+
+  it('keeps when the room was first opened and the latest message known, across revisits', () => {
+    const list = [channel('a', { addedAt: now - 5 * hour, lastMessageAt: now - 3 * hour })]
+    expect(record(list, entry('a'), now)[0]).toMatchObject({ addedAt: now - 5 * hour, lastMessageAt: now - 3 * hour })
+  })
+
+  it('restores a forgotten entry with its own times, for undo', () => {
+    const forgotten = channel('a', { addedAt: now - 5 * hour, lastMessageAt: now - 3 * hour })
+    expect(record([], forgotten, now)[0]).toMatchObject({ addedAt: now - 5 * hour, lastMessageAt: now - 3 * hour })
   })
 
   it('upserts by id rather than duplicating, and takes the newer name and invite', () => {
@@ -50,6 +71,43 @@ describe('record', () => {
   it('prunes expired entries while it writes', () => {
     const list = [channel('gone', { expiresAt: now - 1 }), channel('kept')]
     expect(record(list, entry('a'), now).map((c) => c.id)).toEqual(['a', 'kept'])
+  })
+})
+
+describe('noteMessage', () => {
+  it('moves the latest message forward', () => {
+    expect(noteMessage([channel('a')], 'a', now)[0].lastMessageAt).toBe(now)
+  })
+
+  it('returns the same list when the time is not newer, so nothing is written', () => {
+    const list = [channel('a', { lastMessageAt: now })]
+    expect(noteMessage(list, 'a', now)).toBe(list)
+    expect(noteMessage(list, 'a', now - 1)).toBe(list)
+  })
+
+  it('returns the same list for a channel it does not hold', () => {
+    const list = [channel('a')]
+    expect(noteMessage(list, 'nope', now)).toBe(list)
+  })
+})
+
+describe('byActivity', () => {
+  it('orders by the latest message, not by when the room was last opened', () => {
+    const list = [
+      channel('quiet', { lastSeenAt: now, lastMessageAt: now - 3 * hour }),
+      channel('busy', { lastSeenAt: now - hour, lastMessageAt: now - 60_000 }),
+    ]
+    expect(byActivity(list).map((c) => c.id)).toEqual(['busy', 'quiet'])
+  })
+
+  it('places a room nobody has spoken in by when it was opened', () => {
+    const list = [channel('old', { lastMessageAt: now - hour }), channel('new', { addedAt: now - 60_000 })]
+    expect(byActivity(list).map((c) => c.id)).toEqual(['new', 'old'])
+  })
+
+  it('does not reorder on a revisit', () => {
+    const list = [channel('a', { lastMessageAt: now - 60_000 }), channel('b', { lastMessageAt: now - hour })]
+    expect(byActivity(record(list, entry('b'), now)).map((c) => c.id)).toEqual(['a', 'b'])
   })
 })
 
@@ -124,6 +182,11 @@ describe('parse', () => {
   it('keeps the first of two entries with the same id', () => {
     const raw = JSON.stringify([channel('a', { name: 'first' }), channel('a', { name: 'second' })])
     expect(parse(raw)).toEqual([channel('a', { name: 'first' })])
+  })
+
+  it('reads an entry written before addedAt and lastMessageAt existed', () => {
+    const { addedAt: _, lastMessageAt: __, ...old } = channel('a')
+    expect(parse(JSON.stringify([old]))[0]).toMatchObject({ addedAt: old.lastSeenAt, lastMessageAt: 0 })
   })
 
   it('does not carry unknown fields through', () => {

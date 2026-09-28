@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VISITED_KEY } from '@/lib/visited-channels'
-import { forgetChannel, rememberChannel, snapshot, subscribe } from './use-visited-channels'
+import { forgetChannel, noteChannelMessage, rememberChannel, snapshot, subscribe } from './use-visited-channels'
 
 const now = Date.parse('2026-09-29T12:00:00Z')
 const room = (id: string) => ({ id, invite: `inv-${id}`, name: `room ${id}`, expiresAt: now + 3_600_000 })
@@ -35,13 +35,15 @@ afterEach(() => {
 describe('rememberChannel', () => {
   it('writes the channel to the one key', () => {
     rememberChannel(room('a'), now)
-    expect(JSON.parse(win.store.get(VISITED_KEY)!)).toEqual([{ ...room('a'), lastSeenAt: now }])
+    expect(JSON.parse(win.store.get(VISITED_KEY)!)).toEqual([
+      { ...room('a'), lastSeenAt: now, addedAt: now, lastMessageAt: 0 },
+    ])
   })
 
   it('does not duplicate on a reload, and moves lastSeenAt', () => {
     rememberChannel(room('a'), now)
     rememberChannel(room('a'), now + 5_000)
-    expect(snapshot()).toEqual([{ ...room('a'), lastSeenAt: now + 5_000 }])
+    expect(snapshot()).toEqual([{ ...room('a'), lastSeenAt: now + 5_000, addedAt: now, lastMessageAt: 0 }])
   })
 
   it('records nothing for a channel whose expiry cannot be read', () => {
@@ -61,6 +63,19 @@ describe('forgetChannel', () => {
     rememberChannel(room('b'), now + 1)
     forgetChannel('a')
     expect(snapshot().map((c) => c.id)).toEqual(['b'])
+  })
+})
+
+describe('noteChannelMessage', () => {
+  it('writes and announces a newer message, and does neither for an older one', () => {
+    rememberChannel(room('a'), now)
+    const onChange = vi.fn()
+    const unsubscribe = subscribe(onChange)
+    noteChannelMessage('a', now + 1_000)
+    expect(snapshot()[0].lastMessageAt).toBe(now + 1_000)
+    noteChannelMessage('a', now)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    unsubscribe()
   })
 })
 

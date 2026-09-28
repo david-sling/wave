@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react'
 import {
   VISITED_KEY,
   forget,
+  noteMessage,
   parse,
   readVisited,
   record,
@@ -51,9 +52,18 @@ function update(change: (list: VisitedChannel[]) => VisitedChannel[]): void {
   window.dispatchEvent(new Event(CHANGED))
 }
 
-export function rememberChannel(entry: Omit<VisitedChannel, 'lastSeenAt'>, now = Date.now()): void {
+export function rememberChannel(entry: Parameters<typeof record>[1], now = Date.now()): void {
   if (!entry.invite || !Number.isFinite(entry.expiresAt)) return
   update((list) => record(list, entry, now))
+}
+
+export function noteChannelMessage(id: string, at: number): void {
+  if (!Number.isFinite(at)) return
+  const list = readVisited()
+  const next = noteMessage(list, id, at)
+  if (next === list) return
+  writeVisited(next)
+  window.dispatchEvent(new Event(CHANGED))
 }
 
 export function forgetChannel(id: string): void {

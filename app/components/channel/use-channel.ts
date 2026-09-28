@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { forgetChannel, rememberChannel } from './use-visited-channels'
+import { forgetChannel, noteChannelMessage, rememberChannel } from './use-visited-channels'
 
 /**
  * The channel page's connection to its channel (ARCHITECTURE section 6).
@@ -367,6 +367,8 @@ export function useChannel(channelId: string) {
       if (page.items.length > 0) {
         setItems((existing) => [...existing, ...page.items])
         cursor.current = page.last_seq
+        const said = (page.items as Item[]).findLast((item) => item.type === 'message')
+        if (said) noteChannelMessage(channelId, Date.parse(said.ts))
       }
       // In the same pass as the items above, so a message hands over to its own
       // draft within one render rather than flickering between the two.
