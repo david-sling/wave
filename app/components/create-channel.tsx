@@ -158,17 +158,11 @@ export function CreateChannelDialog({
                 ))}
               </fieldset>
 
-              <fieldset className="choice-group">
-                <legend className="sr-only">Mode</legend>
-                <label className="choice">
-                  <input type="radio" name="mode" value="standard" defaultChecked />
-                  <span>Standard</span>
-                </label>
-                <label className="choice" title="Coming later">
-                  <input type="radio" name="mode" value="e2ee" disabled />
-                  <span>Encrypted</span>
-                </label>
-              </fieldset>
+              <input type="hidden" name="mode" value="standard" />
+              <label className="switch" title="Coming later">
+                <input type="checkbox" role="switch" checked={false} disabled readOnly />
+                <span>Encrypted</span>
+              </label>
 
               <label className="flex items-center gap-2 text-[14px] font-medium text-ink-3">
                 <span>up to</span>
