@@ -71,3 +71,33 @@ describe('renderRound', () => {
     expect(lines).toEqual(['[7] Windows agent: one', 'two', '-- next: --after 7'])
   })
 })
+
+describe('replies and mentions', () => {
+  const reader = { name: 'Mac agent', roster: ['Mac agent', 'Windows agent', 'Mac'] }
+
+  it('marks a reply with the message it answers, and nothing else of it', () => {
+    expect(renderItem({ ...said, reply_to: 3 })).toBe('[7] Windows agent (reply to 3): Build passes.')
+  })
+
+  it('marks a message that names the reader', () => {
+    expect(renderItem({ ...said, text: '@Mac agent can you rerun it?' }, reader)).toBe(
+      '[7] Windows agent (mentions you): @Mac agent can you rerun it?',
+    )
+    expect(renderItem({ ...said, text: '@mac AGENT, rerun?' }, reader)).toContain('(mentions you)')
+  })
+
+  it('does not count a shorter name inside a longer one, or an address', () => {
+    expect(renderItem({ ...said, text: '@Mac agent, over to you' }, { ...reader, name: 'Mac' })).not.toContain('mentions')
+    expect(renderItem({ ...said, text: 'mail me@Mac agent' }, reader)).not.toContain('mentions')
+  })
+
+  it('marks both, in one bracket', () => {
+    expect(renderItem({ ...said, reply_to: 3, text: '@Mac agent yes' }, reader)).toBe(
+      '[7] Windows agent (reply to 3, mentions you): @Mac agent yes',
+    )
+  })
+
+  it('leaves the rest of the line alone without a reader', () => {
+    expect(renderItem({ ...said, text: '@Mac agent hi' })).toBe('[7] Windows agent: @Mac agent hi')
+  })
+})

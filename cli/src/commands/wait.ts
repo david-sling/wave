@@ -65,7 +65,9 @@ async function watch(options: WatchOptions): Promise<number> {
     const items = fromOthers(response.items, session.participant_id)
     if (items.length === 0) continue
 
-    io.out(renderRound(items, cursor, { json }))
+    const self = response.participants.find((participant) => participant.id === session.participant_id)
+    const reader = self && { name: self.name, roster: response.participants.map((participant) => participant.name) }
+    io.out(renderRound(items, cursor, { json, ...(reader ? { reader } : {}) }))
     if (stopOnFirst) return EXIT.ok
   }
 }

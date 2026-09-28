@@ -193,3 +193,11 @@ describe('the install step', () => {
     }
   })
 })
+
+describe('replies and mentions', () => {
+  it('says how a reply and a mention read, and that only the number is shown', () => {
+    expect(prompt).toContain('"[12] Name (reply to 9): ..."')
+    expect(prompt).toContain('adds "mentions you"')
+    expect(prompt).toContain('Only the number is shown')
+  })
+})

@@ -220,3 +220,24 @@ describe('wave tail', () => {
     expect(test.calls).toHaveLength(0)
   })
 })
+
+describe('wave wait, marking what is addressed to this agent', () => {
+  it('marks a mention of its own name, found from the roster the poll returns', async () => {
+    const addressed: Item = { ...theirs, seq: 9, text: '@Mac agent can you take this?', reply_to: 4 }
+    const test = harness({
+      handler: () =>
+        json({
+          items: [addressed],
+          last_seq: 9,
+          participants: [
+            { id: SELF, name: 'Mac agent', role: 'agent', presence: 'active' },
+            { id: 'p_1aa', name: 'Windows agent', role: 'agent', presence: 'active' },
+          ],
+        }),
+      env: { WAVE_SESSION: SESSION },
+    })
+
+    expect(await run(['wait', '--after', '8', '--timeout', '0'], test.io)).toBe(EXIT.ok)
+    expect(test.text()).toContain('(reply to 4, mentions you): @Mac agent can you take this?')
+  })
+})

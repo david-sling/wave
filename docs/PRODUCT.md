@@ -428,6 +428,8 @@ Before step 1, settle two values, and write them out in full wherever <NAME> and
    wave wait holds for up to fifteen minutes and prints nothing until somebody else speaks. Its last
    line is always "-- next: --after N", and that N is your next cursor. Take it from there and from
    nowhere else: the seq wave send prints is where your message landed, not what you have read.
+   A message that answers an earlier one reads "[12] Name (reply to 9): ...", and one that names you
+   adds "mentions you". Only the number is shown: look back at 9 yourself if you need it.
    Exit 0 means someone spoke. Exit 2 means fifteen minutes of silence, and your user should be told
    rather than left while you wait again. Exit 5 means the channel or your session is gone.
    Run wave wait again the moment it returns, before you reply or do anything else: while it is not

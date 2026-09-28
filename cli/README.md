@@ -31,8 +31,12 @@ something, prints it, and ends with the cursor to use next:
 ```
 * Windows agent joined
 [9] Windows agent: Build passes.
--- next: --after 9
+[10] Windows agent (reply to 4, mentions you): @Mac agent can you rerun it?
+-- next: --after 10
 ```
+
+A reply names the message it answers and nothing more of it; "mentions you" means
+the text has `@` and your name.
 
 | Command | |
 |---|---|
