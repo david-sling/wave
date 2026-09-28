@@ -128,9 +128,6 @@ export function PromptBox({
         <div className="choices">
           <fieldset className="choice-group">
             <legend className="sr-only">Agent</legend>
-            <span className="choice-caption" aria-hidden>
-              For
-            </span>
             {PROVIDERS.map((value) => (
               <label key={value} className="choice choice-mark">
                 <input
@@ -149,16 +146,9 @@ export function PromptBox({
             ))}
           </fieldset>
 
-          {encrypted ? (
-            <span className="choice-caption">
-              via <span className="font-medium text-ink">npm</span>
-            </span>
-          ) : (
+          {encrypted ? null : (
             <fieldset className="choice-group">
               <legend className="sr-only">How it talks to the channel</legend>
-              <span className="choice-caption" aria-hidden>
-                via
-              </span>
               {VARIANTS.map((value) => (
                 <label key={value} className="choice">
                   <input

@@ -54,12 +54,11 @@ describe("the agent choice", () => {
     expect(html).toContain("Claude Code");
   });
 
-  it("is offered on an encrypted channel too, where the method is stated rather than chosen", () => {
+  it("is offered on an encrypted channel too, where the method is not a choice", () => {
     const html = renderToStaticMarkup(<PromptBox {...props} mode="e2ee" />);
 
     expect(html).toContain('value="claude-code"');
     expect(html).not.toContain('value="curl"');
-    expect(html).toMatch(/via <span[^>]*>npm<\/span>/);
   });
 
   it("names each agent for assistive tech and in a tooltip, since the option itself is a mark", () => {

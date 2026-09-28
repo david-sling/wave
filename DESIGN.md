@@ -347,15 +347,17 @@ The landing page's main call to action, in the hero heading block: a 48px `.inpu
 - **Focus:** 2px accent outline on the visible span.
 - **Rail (`.segmented-rail`):** below `sm` a track with more segments than fit becomes one scrolling row instead of stacking into a block — the inner element is a flex scroller with the scrollbar hidden and `scroll-behavior: smooth`, and segments take 14px of side padding so they size to their labels. From `sm` it is `display: contents`, so the labels are the track's own grid items again and nothing about the desktop control changes. Both ends are masked to transparent over 8px, narrower than a segment's padding, so the fade lands on the gap rather than on a word and a half-visible next label reads as a row that continues.
 
-### Choice line (`.choices`, `.choice`, in `channel/prompt-box.tsx`)
+### Choice groups (`.choices`, `.choice-group`, `.choice`, in `channel/prompt-box.tsx`)
 
-The prompt box's two settings on one line, read as a sentence: "For [agent] via [method]". Used where a choice is small, has two or three options, and belongs beside another choice rather than stacked under a label.
+The prompt box's two settings, agent and method, as two joined button groups side by side. Used where a choice is small, has two or three options, and belongs beside another choice rather than stacked under a label.
 
-- **Structure:** each group is a `fieldset` with a screen-reader legend and a 13px ink-3 caption word ("For", "via"). Groups sit 20px either side of a 1px `line` hairline and wrap as whole groups. The note under the line lays every variant in one grid cell and shows only the current one, so switching never changes the box's height.
-- **Option:** a 34px pill (44px on coarse pointers) with no fill and a transparent border, 14px 500 ink-3 text. Hover: `panel-2` fill, ink-2 text. Chosen: `panel` fill, `line` border, `shadow-soft`, ink text — the same lift as a chip or a chosen segment.
-- **Mark option (`.choice-mark`):** a 34px circle holding a 17px mark: `ClientMark` for a product, an authored icon for "any". Unchosen marks are greyscale at 55% opacity, so the chosen one is the only mark on the line in its own colour.
+- **Group:** a `fieldset` drawn as one capsule — white fill, 1px `line` border, pill radius — with a screen-reader legend and no visible caption: the capsule is what says which options belong together. Groups sit 10px apart and wrap as whole groups.
+- **Option:** flush inside the capsule, 34px tall (44px on coarse pointers), 16px side padding, 14px 500 ink-3 text, split from its neighbour by a straight 1px `line` hairline. The end options carry the capsule's round corners themselves, so nothing needs overflow clipping and the tooltip is never cut off. Hover: `panel-2` fill, ink-2 text.
+- **Chosen:** pressed in, not lifted — `line-2` fill, a 1px inset shadow, ink text. A lifted shadow would be clipped by its neighbours in a joined group, and ink stays reserved for the box's one primary action.
+- **Mark option (`.choice-mark`):** 42px wide, holding a 17px mark: `ClientMark` for a product, an authored icon for "any". Unchosen marks are greyscale at 55% opacity, so the chosen one is the only mark in its own colour.
 - **Tooltip (`.choice-tip`):** a mark carries its name in `aria-label` and in an ink tooltip, 12px 500 panel text, 6px radius, 8px above the option. It answers hover and `:focus-visible` both, after 120ms, rising 3px as it fades in.
-- **Focus:** 2px accent outline, 3px offset, on the option itself.
+- **Focus:** 2px accent outline, inset 2px, so it stays inside the capsule.
+- **Note:** the line under the groups lays every variant in one grid cell and shows only the current one, so switching never changes the box's height.
 - **Memory:** both choices persist per device in localStorage (`useRemembered`, `channel/remembered.ts`), and every box on the page reading the same key moves together.
 
 ### Nav veil (`nav-veil.tsx`)
