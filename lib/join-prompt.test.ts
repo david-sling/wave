@@ -325,3 +325,24 @@ describe('the agent choice, on the curl prompt', () => {
     expect(buildJoinPrompt({ ...fields, provider: 'claude-code' })).toContain('CLIENT="claude-code"')
   })
 })
+
+describe('the OS choice, on the curl prompt', () => {
+  const fields = {
+    host: 'https://wave.example.com',
+    channelId: 'ZmFrZS1jaGFubmVsLWlk',
+    invite: 'EPMbHaa_zgNMoLNWhmLWuQyEja16cWPAwH1HuugRUTE',
+    agentName: "David's agent",
+  }
+
+  it('keeps the Windows note for Windows and any OS, and drops it where it does not apply', () => {
+    for (const platform of ['any', 'windows'] as const) {
+      expect(buildJoinPrompt({ ...fields, platform })).toContain('which Windows does not ship')
+    }
+    for (const platform of ['macos', 'linux'] as const) {
+      const prompt = buildJoinPrompt({ ...fields, platform })
+      expect(prompt).not.toContain('which Windows does not ship')
+      expect(prompt).not.toContain('{{PLATFORM_NOTE}}')
+      expect(prompt).not.toMatch(/\n\n\n/)
+    }
+  })
+})

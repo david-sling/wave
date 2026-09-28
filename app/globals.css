@@ -412,7 +412,7 @@
     align-items: center;
     justify-content: center;
     height: 2.125rem;
-    padding: 0 1rem;
+    padding: 0 0.8125rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--color-ink-3);
@@ -433,7 +433,7 @@
     border-radius: 0 9999px 9999px 0;
   }
   .choice-mark {
-    width: 2.625rem;
+    width: 2.375rem;
     padding: 0;
   }
   .choice input {
@@ -510,6 +510,9 @@
     .choice-group:not(:has(.choice-mark)) .choice {
       flex: 1;
       padding: 0 0.5rem;
+    }
+    .choice-mark {
+      width: 2.75rem;
     }
   }
 
@@ -600,6 +603,22 @@
     }
     .dialog-sheet[open] {
       transform: translateY(100%);
+    }
+  }
+  /* A modal from sm up and a sheet below it, with the sheet's slide. */
+  @media (width < 40rem) {
+    .dialog-modal.dialog-adaptive {
+      opacity: 1;
+      transform: translateY(100%);
+    }
+    .dialog-modal.dialog-adaptive[open] {
+      transform: none;
+    }
+    @starting-style {
+      .dialog-modal.dialog-adaptive[open] {
+        opacity: 1;
+        transform: translateY(100%);
+      }
     }
   }
   .dialog-modal::backdrop,

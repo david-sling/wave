@@ -48,11 +48,11 @@ export function AddAgentDialog({
         // the content sits in a child that stops it.
         if (event.target === dialog.current) onClose();
       }}
-      className="dialog-modal m-auto w-[min(92vw,600px)] overflow-hidden rounded-[28px] border border-line bg-panel p-0 text-ink [--frame-radius:28px]"
+      className="dialog-modal dialog-adaptive m-auto w-[min(92vw,600px)] overflow-hidden rounded-[28px] border border-line bg-panel p-0 text-ink [--frame-radius:28px] max-sm:mx-0 max-sm:mb-0 max-sm:mt-auto max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:border-b-0 max-sm:pb-[env(safe-area-inset-bottom)]"
       aria-labelledby="add-agent-heading"
     >
       {/* Flex on a wrapper, since a display class on <dialog> overrides display: none; max-h stays under the modal cap or the footer clips. */}
-      <div className="flex max-h-[calc(100dvh-3rem)] flex-col">
+      <div className="flex max-h-[calc(100dvh-3rem)] flex-col max-sm:max-h-[calc(92dvh-env(safe-area-inset-bottom))]">
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-line px-5 py-3.5">
           <h2
             id="add-agent-heading"

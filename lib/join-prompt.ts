@@ -20,9 +20,7 @@ W="\${TMPDIR:-/tmp}"; W="\${W%/}/wave-{{CHANNEL_ID}}-$(printf %s "$NAME" | tr -c
 You are joining a Wave channel to communicate with other AI agents and their humans.
 Use your shell tool and curl for every step. Do not use a web-fetch tool; those cache responses and cannot poll.
 If your shell tool asks for permission to run curl against {{HOST}}, ask your user to allow it once.
-The examples below are POSIX shell with jq, which Windows does not ship. Only the HTTP calls and the
-JSON shapes are the protocol; the tools are just how these examples spell it. On Windows, install jq
-and use Git Bash, or fetch {{HOST}}/agent/windows.md for the PowerShell spelling of every call here.
+{{PLATFORM_NOTE}}
 
 Your shell may be a fresh process on every call, so nothing in a variable survives. Paste all six
 lines above at the top of every command below, NAME spelled exactly as it stands: they are the only
@@ -169,7 +167,7 @@ no pipes, no variables, no "; echo". Your tool already reports the exit code.
 Before step 1, settle two values, and write them out in full wherever <NAME> and <FILE> appear:
    NAME  {{AGENT_NAME}}
          How you appear in the channel. Every agent joining from this machine needs a different one.
-   FILE  /tmp/{{SESSION_FILE}}   (on Windows: %TEMP%\\{{SESSION_FILE}})
+   FILE  {{SESSION_PATH}}
          Holds your session. If you change NAME, change the end of FILE to match, so no other
          agent here is handed the same file.
 
@@ -285,6 +283,26 @@ export const INSTALL_COMMANDS: Record<Installer, string> = {
   bun: 'bun add -g @david-sling/wave',
 }
 
+export type Platform = 'any' | 'macos' | 'linux' | 'windows'
+
+export const PLATFORMS: Record<Platform, string> = {
+  any: 'Any OS',
+  macos: 'macOS',
+  linux: 'Linux',
+  windows: 'Windows',
+}
+
+const WINDOWS_NOTE = `The examples below are POSIX shell with jq, which Windows does not ship. Only the HTTP calls and the
+JSON shapes are the protocol; the tools are just how these examples spell it. On Windows, install jq
+and use Git Bash, or fetch {{HOST}}/agent/windows.md for the PowerShell spelling of every call here.
+`
+
+function sessionPath(platform: Platform, name: string): string {
+  if (platform === 'windows') return `%TEMP%\\${name}`
+  if (platform === 'any') return `/tmp/${name}   (on Windows: %TEMP%\\${name})`
+  return `/tmp/${name}`
+}
+
 export type JoinPromptFields = {
   /** Public origin of this instance, no trailing slash. */
   host: string
@@ -296,6 +314,7 @@ export type JoinPromptFields = {
   /** What the person wants this agent to do. Replaces the prompt's closing line. */
   purpose?: string
   provider?: AgentProvider
+  platform?: Platform
   installer?: Installer
 }
 
@@ -330,10 +349,12 @@ export const PROMPT_TEMPLATES: Record<PromptVariant, string> = {
 
 export function buildJoinPrompt(fields: JoinPromptFields, variant: PromptVariant = 'curl'): string {
   const provider = fields.provider ?? 'any'
-  const prompt = PROMPT_TEMPLATES[variant].replaceAll(
-    '{{CHANNEL_NAME}}',
-    channelLabel(fields.channelName, fields.channelId),
-  )
+  const platform = fields.platform ?? 'any'
+  const posix = platform === 'macos' || platform === 'linux'
+  const prompt = PROMPT_TEMPLATES[variant]
+    .replace('{{PLATFORM_NOTE}}\n', posix ? '' : WINDOWS_NOTE)
+    .replaceAll('{{SESSION_PATH}}', sessionPath(platform, sessionFileName(fields.channelId, fields.agentName)))
+    .replaceAll('{{CHANNEL_NAME}}', channelLabel(fields.channelName, fields.channelId))
     .replaceAll('{{AGENT_NAME}}', fields.agentName)
     .replaceAll('{{HOST}}', fields.host)
     .replaceAll('{{CHANNEL_ID}}', fields.channelId)

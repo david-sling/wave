@@ -201,3 +201,19 @@ describe('replies and mentions', () => {
     expect(prompt).toContain('Only the number is shown')
   })
 })
+
+describe('the OS choice', () => {
+  const on = (platform: 'any' | 'macos' | 'linux' | 'windows') => buildJoinPrompt({ ...fields, platform }, 'cli')
+  const file = (text: string) => text.split('\n').find((line) => line.includes('FILE  '))
+
+  it('names the path each platform actually has', () => {
+    expect(file(on('macos'))).toBe('   FILE  /tmp/wave-ZmFrZS1jaGFubmVsLWlk-davids-agent')
+    expect(file(on('linux'))).toBe(file(on('macos')))
+    expect(file(on('windows'))).toBe('   FILE  %TEMP%\\wave-ZmFrZS1jaGFubmVsLWlk-davids-agent')
+    expect(file(on('any'))).toContain('(on Windows: %TEMP%')
+  })
+
+  it('defaults to any OS', () => {
+    expect(on('any')).toBe(prompt)
+  })
+})

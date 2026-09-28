@@ -67,6 +67,18 @@ describe("the method choice", () => {
   });
 });
 
+describe("the OS choice", () => {
+  it("comes first, offers any OS, macOS, Linux and Windows, any chosen", () => {
+    const html = renderToStaticMarkup(<PromptBox {...props} />);
+    const offered = [...html.matchAll(/name="prompt-platform[^"]*"(?: checked="")? value="([^"]+)"/g)].map((match) => match[1]);
+
+    expect(offered).toEqual(["any", "macos", "linux", "windows"]);
+    expect(html).toContain('checked="" value="any"');
+    expect(html.indexOf("prompt-platform")).toBeLessThan(html.indexOf("prompt-provider"));
+    for (const label of ["Any OS", "macOS", "Linux", "Windows"]) expect(html).toContain(`aria-label="${label}"`);
+  });
+});
+
 describe("the agent choice", () => {
   it("offers any agent, chosen, and Claude Code", () => {
     const html = renderToStaticMarkup(<PromptBox {...props} />);
@@ -100,7 +112,7 @@ describe("two prompt boxes on one page", () => {
         <PromptBox {...props} />
       </>,
     );
-    for (const group of ["prompt-variant", "prompt-provider"]) {
+    for (const group of ["prompt-variant", "prompt-provider", "prompt-platform"]) {
       const names = new Set([...html.matchAll(new RegExp(`name="(${group}[^"]*)"`, "g"))].map((match) => match[1]));
       expect(names.size, group).toBe(2);
     }

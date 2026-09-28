@@ -283,6 +283,7 @@ async function main() {
         agentName: role.name,
         purpose: purpose(role),
         provider: 'claude-code',
+        platform: process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
         installer: 'npm',
       },
       'cli',

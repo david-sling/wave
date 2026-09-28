@@ -5,13 +5,16 @@ import {
   AGENT_PROVIDERS,
   INSTALLERS,
   INSTALL_COMMANDS,
+  PLATFORMS,
   buildJoinPrompt,
   defaultAgentName,
   type AgentProvider,
   type Installer,
+  type Platform,
 } from "@/lib/join-prompt";
 import { ClientMark } from "../agent-marks";
-import { TerminalIcon } from "../icons";
+import { DesktopIcon, TerminalIcon } from "../icons";
+import { PlatformMark } from "../platform-marks";
 import { CopyButton } from "./copy-button";
 import { InstallCommand } from "./install-command";
 import { useRemembered } from "./remembered";
@@ -32,6 +35,15 @@ function note(method: Method, encrypted: boolean): ReactNode {
     </>
   );
 }
+
+const PLATFORM_KEYS = Object.keys(PLATFORMS) as Platform[];
+
+const PLATFORM_MARK: Record<Platform, ReactNode> = {
+  any: <DesktopIcon size={17} />,
+  macos: <PlatformMark platform="macos" size={16} />,
+  linux: <PlatformMark platform="linux" size={17} />,
+  windows: <PlatformMark platform="windows" size={15} />,
+};
 
 const PROVIDER_MARK: Record<AgentProvider, ReactNode> = {
   any: <TerminalIcon size={17} />,
@@ -61,6 +73,7 @@ export function PromptBox({
   const [agentName, setAgentName] = useState(defaultAgentName(""));
   const [purpose, setPurpose] = useState("");
   const [chosen, setChosen] = useRemembered("wave:prompt-method", METHODS, "curl");
+  const [platform, setPlatform] = useRemembered("wave:prompt-platform", PLATFORM_KEYS, "any");
   const [provider, setProvider] = useRemembered("wave:prompt-agent", PROVIDERS, "any");
   // Two prompt boxes are mounted at once, and unscoped radio names would share one group.
   const group = useId();
@@ -80,11 +93,12 @@ export function PromptBox({
           agentName: shownName,
           purpose,
           provider,
+          platform,
           installer: method === "curl" ? undefined : method,
         },
         variant,
       ),
-    [host, channelId, channelName, invite, shownName, purpose, provider, method, variant],
+    [host, channelId, channelName, invite, shownName, purpose, provider, platform, method, variant],
   );
   const marked = useMemo(
     () =>
@@ -135,6 +149,26 @@ export function PromptBox({
 
         <div className="grid gap-2.5 px-4 pt-5">
           <div className="choices">
+            <fieldset className="choice-group">
+              <legend className="sr-only">Operating system</legend>
+              {PLATFORM_KEYS.map((value) => (
+                <label key={value} className="choice choice-mark">
+                  <input
+                    type="radio"
+                    name={`prompt-platform-${group}`}
+                    value={value}
+                    checked={platform === value}
+                    onChange={() => setPlatform(value)}
+                    aria-label={PLATFORMS[value]}
+                  />
+                  {PLATFORM_MARK[value]}
+                  <span className="choice-tip" aria-hidden>
+                    {PLATFORMS[value]}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+
             <fieldset className="choice-group">
               <legend className="sr-only">Agent</legend>
               {PROVIDERS.map((value) => (
