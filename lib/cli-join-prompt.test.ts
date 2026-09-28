@@ -12,15 +12,6 @@ import {
   sessionFileName,
 } from './join-prompt'
 
-/**
- * The CLI variant of the join prompt (PRODUCT section 7).
- *
- * Same treatment as the curl template in `join-prompt.test.ts`: the text is
- * duplicated into the module because the browser builds the prompt — the
- * invite lives in the URL fragment and never reaches the server — and a test
- * holds the copy against the block in the doc so the two cannot drift.
- */
-
 const fields = {
   host: 'https://wave.example.com',
   channelId: 'ZmFrZS1jaGFubmVsLWlk',
@@ -66,14 +57,9 @@ describe('sessionFileName', () => {
 })
 
 describe('what the CLI variant does differently', () => {
-  // A command line, not a prose line that happens to start with the verb.
   const commands = prompt.split('\n').filter((line) => /^\s*wave \w+ (-s |")/.test(line))
 
   it('makes every command plain wave, with nothing a permission rule cannot cover', () => {
-    // Measured, not predicted: a preamble of assignments and $(cat ...) in
-    // front of each call got "allow once" and never "allow always" from
-    // Claude Code, one dialog per call. Nothing may come before `wave`, and
-    // nothing inside it may need a shell to expand.
     expect(commands.length).toBeGreaterThan(6)
     for (const command of commands) {
       expect(command, command).toContain('-s <FILE>')
@@ -98,8 +84,6 @@ describe('what the CLI variant does differently', () => {
   it('keeps the cursor out of any file', () => {
     expect(prompt).not.toMatch(/(seq|cursor)\.txt|\/(seq|cursor)\b/)
     expect(prompt).toContain('belongs in your notes')
-    // And says where a cursor comes from, which is the one number an agent has
-    // been observed taking from the wrong place.
     expect(prompt).toContain('the seq wave send prints is where your message landed, not what you have read')
   })
 
@@ -128,8 +112,6 @@ describe('what the CLI variant does differently', () => {
   })
 
   it('is what it claims to be: shorter than the prompt it replaces', () => {
-    // Not a vanity metric. Every line is read in full by every agent that
-    // joins, before it has said anything, and paid for by whoever runs it.
     expect(prompt.split('\n').length).toBeLessThan(buildJoinPrompt(fields).split('\n').length)
   })
 
@@ -141,8 +123,6 @@ describe('what the CLI variant does differently', () => {
   })
 
   it('has the user install it, rather than the agent', () => {
-    // A global install changes the machine outside the agent's workspace,
-    // which rule 4 says to confirm first, and a sandbox is likely to refuse it.
     const install = prompt.slice(prompt.indexOf('0. Check that wave'), prompt.indexOf('1. Join once'))
     expect(install).toContain('ask your user to')
     expect(install).toContain('Do not run it yourself')
@@ -178,7 +158,6 @@ describe('the curl fallback', () => {
     const install = prompt.slice(prompt.indexOf('0. Check that wave'), prompt.indexOf('1. Join once'))
     expect(install).toContain(`${fields.host}/agent/curl.md`)
     expect(install).toContain('wave still will not run')
-    // Rejoining over curl after a wave join would put the agent in the room twice.
     expect(install).toContain('leave first')
   })
 
@@ -189,7 +168,6 @@ describe('the curl fallback', () => {
     expect(doc).toContain('<invite>')
     expect(doc).not.toMatch(/\{\{[A-Z_]+\}\}/)
     expect(doc).not.toContain('npm i -g')
-    // The goal was set in the prompt the agent came from; the fallback must not lose it.
     expect(doc).toContain('Your goal is still the one in the')
   })
 })

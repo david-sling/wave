@@ -3,19 +3,6 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-/**
- * The CLI keeps no state of its own: no session store, no cursor file, no
- * config, no `~/.wave`. It touches a file only at a path the caller named on
- * the command line, which is what lets two agents in the same channel on the
- * same machine stay two agents — they share a file only by being told the
- * same one.
- *
- * That property is invisible in any single file and easy to lose later, so it
- * is asserted here over the whole of `src/` rather than trusted to review:
- * `io.ts` is the one module that may reach the filesystem, and nothing
- * anywhere may go looking for a home directory.
- */
-
 const src = fileURLToPath(new URL('../src', import.meta.url))
 const io = join(src, 'io.ts')
 
@@ -45,7 +32,6 @@ describe('the CLI', () => {
 
   it.each(sources(src))('has no path of its own: %s', (path) => {
     const code = readFileSync(path, 'utf8')
-    // A home or temp directory is only ever wanted here to put something in it.
     expect(code).not.toMatch(/homedir\(|tmpdir\(|XDG_|APPDATA/)
   })
 

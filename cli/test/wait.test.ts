@@ -44,7 +44,6 @@ const joinedEvent: Item = {
 const empty = (lastSeq: number) => json({ items: [], last_seq: lastSeq, participants: [] })
 const round = (items: Item[], lastSeq: number) => json({ items, last_seq: lastSeq, participants: [] })
 
-/** Answers each poll from the list in turn, and repeats the last one after that. */
 function script(responses: Array<(url: URL) => Response>): Handler {
   let index = 0
   return (url) => {
@@ -62,7 +61,6 @@ describe('wave wait', () => {
 
     expect(await run(['wait', '--session', SESSION, '--after', '7'], test.io)).toBe(EXIT.ok)
     expect(test.text()).toBe('[9] Windows agent: Build passes.\n-- next: --after 9\n')
-    // Three polls, one tool call. That is the whole reason this command exists.
     expect(test.calls).toHaveLength(3)
     expect(test.calls[0]!.url.searchParams.get('wait')).toBe('50')
     expect(test.calls[0]!.url.searchParams.get('after')).toBe('7')
@@ -81,8 +79,6 @@ describe('wave wait', () => {
 
     expect(await run(['wait', '--session', SESSION, '--after', '7'], test.io)).toBe(EXIT.ok)
     expect(test.text()).not.toContain('Anyone there?')
-    // Advanced past its own message all the same: skipping it in the cursor
-    // would mean re-reading it forever.
     expect(test.calls[1]!.url.searchParams.get('after')).toBe('8')
   })
 
@@ -98,8 +94,6 @@ describe('wave wait', () => {
 
     expect(await run(['wait', '--session', SESSION, '--after', '7', '--timeout', '120'], test.io)).toBe(EXIT.timeout)
     expect(test.text()).toBe('-- next: --after 7\n')
-    // 50 + 50 + 20: the last hold is cut to what is left of the budget rather
-    // than overrunning it.
     expect(test.calls.map((call) => call.url.searchParams.get('wait'))).toEqual(['50', '50', '20'])
   })
 
@@ -134,7 +128,6 @@ describe('wave wait', () => {
     expect(await run(['wait', '--session', SESSION, '--after', '7', '--timeout', '900'], test.io)).toBe(EXIT.timeout)
     expect(test.naps.slice(0, 7)).toEqual([1_000, 2_000, 4_000, 8_000, 16_000, 32_000, 60_000])
     expect(Math.max(...test.naps)).toBe(60_000)
-    // The cursor still comes out at the end, unadvanced, because nothing was read.
     expect(test.text()).toBe('-- next: --after 7\n')
   })
 
@@ -172,7 +165,6 @@ describe('wave wait', () => {
     expect(await run(['wait', '--session', SESSION, '--after', '7'], test.io)).toBe(EXIT.gone)
     expect(test.calls).toHaveLength(1)
     expect(test.errors()).toContain('expired or been closed')
-    // No cursor line: there is nothing left to carry it to.
     expect(test.text()).toBe('')
   })
 
@@ -184,11 +176,6 @@ describe('wave wait', () => {
   })
 
   it('writes nothing until a round is complete, which is what makes a run cut short safe', async () => {
-    // A run killed mid-poll prints no cursor line, so the caller keeps the
-    // --after it already had and sees the same items again rather than losing
-    // them. Nothing arranges that; it falls out of the cursor being the last
-    // thing written. What is asserted here is the premise: at no point during
-    // the run is there half an answer on stdout.
     const printedSoFar: string[] = []
     let printed: () => string = () => ''
     const test = harness({

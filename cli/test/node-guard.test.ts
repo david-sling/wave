@@ -4,11 +4,6 @@ import { describe, expect, it } from 'vitest'
 
 const bin = fileURLToPath(new URL('../bin/wave.cjs', import.meta.url))
 
-/**
- * The version is faked rather than the runtime installed. A test that needed a
- * real Node 16 on the machine would be a test nobody runs, and the guard's one
- * job is to speak on a runtime this suite will never execute on.
- */
 function runAsNode(version: string, argv: string[] = []) {
   const preamble = `Object.defineProperty(process.versions, 'node', { value: ${JSON.stringify(version)}, configurable: true });`
   return spawnSync(process.execPath, ['-e', `${preamble}require(${JSON.stringify(bin)})`, '--', ...argv], {
@@ -23,8 +18,6 @@ describe('the Node guard', () => {
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('16.20.2')
     expect(result.stderr).toContain('Node 20')
-    // The failure has to be legible as a Node version rather than as Wave being
-    // down, which is what `fetch is not defined` would have read as.
     expect(result.stderr).not.toContain('fetch')
   })
 
@@ -42,7 +35,6 @@ describe('the Node guard', () => {
     const result = runAsNode('20.0.0')
 
     expect(result.stderr).not.toContain('Node 20 or later')
-    // No command given, so what it reached was the dispatcher's usage.
     expect(result.stdout).toContain('Usage: wave')
   })
 

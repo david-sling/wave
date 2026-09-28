@@ -39,8 +39,6 @@ describe('encodeSession', () => {
   it('refuses to mint a session that is already wrong', () => {
     expect(() => encodeSession({ ...session, token: '' })).toThrow(SessionError)
     expect(() => encodeSession({ ...session, host: 'wave.davidsling.in' })).toThrow(SessionError)
-    // A channel URL where an origin belongs: every later request would be built
-    // against the wrong base.
     expect(() => encodeSession({ ...session, host: 'https://wave.davidsling.in/c/-j7yRyQ2' })).toThrow(SessionError)
     expect(() => encodeSession({ ...session, participant_id: 'p 9f3' })).toThrow(SessionError)
   })
@@ -56,7 +54,6 @@ describe('decodeSession', () => {
   })
 
   it('rejects a string cut short rather than half-reading it', () => {
-    // Every prefix of a real one: a scrollback cut, a wrapped line, a partial copy.
     for (let length = 1; length < encoded.length; length += 1) {
       expect(() => decodeSession(encoded.slice(0, length)), `${length}`).toThrow(SessionError)
     }
@@ -71,9 +68,6 @@ describe('decodeSession', () => {
 
   it('names the field a session string is missing, and populates nothing', () => {
     const partial = (fields: Record<string, unknown>) => {
-      // Re-checksummed after the edit, because the checksum is not a signature:
-      // what stands between a rewritten string and a half-populated session is
-      // the field validation, and this is the test of it.
       const payload = Buffer.from(JSON.stringify(fields), 'utf8').toString('base64url')
       const sum = createHash('sha256').update(payload).digest('hex').slice(0, 8)
       return `wv1.${payload}.${sum}`

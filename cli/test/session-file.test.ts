@@ -5,13 +5,6 @@ import { decodeSession, encodeSession } from '../src/session.js'
 import { VERSION } from '../src/version.js'
 import { apiError, harness, json, sentBody, type Handler } from './support.js'
 
-/**
- * `-s <file>`: the session in a file the agent named, so every command the
- * join prompt teaches is `wave <verb> -s <file> ...` and nothing else. No
- * variable in front of it, no `$(cat ...)`, no pipe — each of which made
- * Claude Code offer "allow once" and never "allow always", one dialog per call.
- */
-
 const LINK = 'https://wave.example.com/c/-j7yRyQ2#8vUyR0nnLmR2QoQ9vG1z'
 const FILE = '/tmp/wave--j7yRyQ2-mac-agent'
 

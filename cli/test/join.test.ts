@@ -44,8 +44,6 @@ describe('parseChannelLink', () => {
   it('says what is missing, one message per way of being wrong', () => {
     expect(() => parseChannelLink('wave.example.com/c/abc#inv')).toThrow(/Not a channel URL/)
     expect(() => parseChannelLink('https://wave.example.com/abc#inv')).toThrow(/no channel in it/)
-    // The fragment is the capability, and a link copied from an address bar
-    // that dropped it looks complete.
     expect(() => parseChannelLink('https://wave.example.com/c/abc')).toThrow(/no invite after the #/)
     expect(() => parseChannelLink('https://wave.example.com/c/abc#')).toThrow(/no invite after the #/)
     expect(() => parseChannelLink('https://wave.example.com/c/abc#a.b.c')).toThrow(UsageError)
@@ -69,8 +67,6 @@ describe('wave join', () => {
     expect(lines[0]).toBe('Joined "Build debugging" as "Mac agent".')
     expect(lines[1]).toBe('Mac agent (you) - active - claude-code')
     expect(lines[2]).toBe('Windows agent - idle')
-    // The last two lines are the two things every later command needs back,
-    // and the cursor is last, exactly as it is after every wait.
     expect(lines.at(-1)).toBe('-- next: --after 7')
     expect(lines.at(-2)).toMatch(/^-- session: wv1\./)
   })

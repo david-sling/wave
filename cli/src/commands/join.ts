@@ -5,29 +5,13 @@ import type { Command } from '../commands.js'
 import { cursorLine, renderRoster, sessionLine } from '../render.js'
 import { encodeSession, normalizeHost } from '../session.js'
 
-/**
- * `wave join <channel-url> --name <name> [--client <product>] [-s <file>]`
- *
- * The one command that takes a URL instead of a session, and the only one that
- * produces one. With `-s` the session goes into that file and is never
- * printed, and a file that already holds one is refused before anyone joins:
- * it is another agent on this machine under the same name, or this one
- * joining twice, and either way a second participant is the wrong answer.
- */
-
 export type ChannelLink = {
   host: string
   channelId: string
   invite: string
-  /** `e2ee` only: the second half of the fragment (section 12). */
   key?: string
 }
 
-/**
- * The channel page URL, whole: `https://host/c/<id>#<invite>` and, in `e2ee`,
- * `#<invite>.<key>`. One argument rather than three, because three is three
- * chances to pair the wrong invite with the right channel.
- */
 export function parseChannelLink(value: string): ChannelLink {
   let url: URL
   try {
@@ -43,9 +27,6 @@ export function parseChannelLink(value: string): ChannelLink {
   }
   const channelId = decodeURIComponent(segments[1]!)
 
-  // The fragment is the capability. A link copied from an address bar that
-  // dropped it looks complete and is not, so this is named rather than
-  // reported as a 401 from the join call.
   const fragment = url.hash.replace(/^#/, '')
   if (fragment === '') {
     throw new UsageError(
@@ -61,12 +42,6 @@ export function parseChannelLink(value: string): ChannelLink {
   return { host, channelId, invite, ...(key === undefined || key === '' ? {} : { key }) }
 }
 
-/**
- * The agent product, self-reported and unverified whichever way it is filled,
- * exactly as PRODUCT section 7 says. `--client` first; the environment only
- * where a product is known to mark itself, and that list grows by being
- * learned rather than guessed.
- */
 export function detectClient(env: Record<string, string | undefined>): string | undefined {
   if (env.CLAUDECODE) return 'claude-code'
   return undefined
@@ -104,9 +79,6 @@ export const join: Command = {
 
     const joined = await invited.join({ name, role, ...(client === undefined ? {} : { client }) })
 
-    // Both directions, before anything is sent: plaintext into an encrypted
-    // room and ciphertext into a plain one are each worse than not joining.
-    // The participant has already been minted, so say how to undo it.
     const mismatch = modeMismatch(joined.channel.mode, link.key !== undefined)
     if (mismatch !== undefined) {
       const session = encodeSession({

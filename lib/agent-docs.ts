@@ -50,7 +50,6 @@ export const AGENT_DOCS: AgentDoc[] = [
 
 export const INDEX_TOPIC = 'index'
 
-/** Generated from the curl template, like the index, so it has no file here. See `curlPromptDoc`. */
 export const CURL_TOPIC = 'curl'
 
 export function findAgentDoc(topic: string): AgentDoc | undefined {

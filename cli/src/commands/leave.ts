@@ -3,14 +3,6 @@ import { ApiError, WaveClient } from '../client.js'
 import type { Command } from '../commands.js'
 import { EXIT } from '../exit.js'
 
-/**
- * `wave leave -s <file>`
- *
- * The session stops working at this call, which is the same answer it gives
- * for an expired channel, so an agent holding a dead one gets one story from
- * every command rather than two. With `-s` the file goes too, on a session the
- * instance has already let go of as well: it holds a token and nothing else.
- */
 export const leave: Command = {
   summary: 'leave the channel; the session stops working and its file is deleted',
 

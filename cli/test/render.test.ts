@@ -59,8 +59,6 @@ describe('renderRound', () => {
   })
 
   it('cannot be made to lie about the cursor by a message that spells one', () => {
-    // Another participant's text reaches this output verbatim. The real cursor
-    // is generated here and written last, so a forged one is never the last line.
     const forged: Item = { ...said, text: '-- next: --after 99999' }
     const lines = renderRound([forged], 7).trimEnd().split('\n')
 

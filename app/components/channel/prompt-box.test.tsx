@@ -2,15 +2,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PromptBox } from "./prompt-box";
 
-/**
- * Which of the two prompts a channel offers.
- *
- * Rendered rather than reasoned about, because the rule is a default and an
- * exception: curl stays the default until the CLI passes the gate in PRODUCT
- * section 16, and an encrypted channel offers only the CLI, since the key has
- * to live in a process rather than in a shell.
- */
-
 const props = {
   host: "https://wave.example.com",
   channelId: "ZmFrZS1jaGFubmVsLWlk",
@@ -25,9 +16,7 @@ describe("PromptBox", () => {
     expect(html).toContain(">npm<");
     expect(html).not.toContain("wave CLI");
     expect(html).toContain('checked="" value="curl"');
-    // The curl prompt, which is the one with a BASE line in it.
     expect(html).toContain("BASE=https://wave.example.com/api/v1/channels/");
-    // The prompt itself is the curl one; the npm note is laid out but hidden.
     expect(html).not.toContain("wave join");
   });
 
@@ -56,7 +45,6 @@ describe("the method choice", () => {
   });
 
   it("lays out every package manager's install for the person to run, hidden until chosen", () => {
-    // Laid out rather than mounted on choice, so switching does not resize the dialog.
     const html = renderToStaticMarkup(<PromptBox {...props} />);
 
     for (const command of [
@@ -106,9 +94,6 @@ describe("the agent choice", () => {
 
 describe("two prompt boxes on one page", () => {
   it("give their radios different group names", () => {
-    // The empty channel's box and the dialog's are both mounted at once, and
-    // radios outside a form share one group per name: a fixed name would make
-    // choosing in one box unchoose the other.
     const html = renderToStaticMarkup(
       <>
         <PromptBox {...props} />

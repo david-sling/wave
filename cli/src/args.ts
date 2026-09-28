@@ -1,16 +1,6 @@
 import type { Io } from './io.js'
 import { decodeSession, type Session } from './session.js'
 
-/**
- * Argument parsing, deliberately small and strict.
- *
- * Every varying part of a command is a suffix — that is the property the
- * permission grant rests on — so nothing here reorders or rewrites what it was
- * given. An unknown option is an error rather than a shrug: a mistyped
- * `--seesion` that parsed as nothing would send an unauthenticated request and
- * fail three layers away from its cause.
- */
-
 export class UsageError extends Error {
   constructor(message: string) {
     super(message)
@@ -25,7 +15,6 @@ export type Args = {
   positional: string[]
 }
 
-/** One letter each, and only for the flag an agent types on every call. */
 const SHORT: Record<string, string> = { s: 'session-file' }
 
 export function parseArgs(argv: string[], spec: Record<string, FlagKind>): Args {
@@ -35,15 +24,12 @@ export function parseArgs(argv: string[], spec: Record<string, FlagKind>): Args 
   for (let index = 0; index < argv.length; index += 1) {
     let arg = argv[index]!
 
-    // A lone `-` is stdin and stays positional; `-x` is an option or a mistake.
     if (/^-[A-Za-z]$/.test(arg)) {
       const long = SHORT[arg.slice(1)]
       if (long === undefined || spec[long] === undefined) throw new UsageError(`No such option: ${arg}`)
       arg = `--${long}`
     }
 
-    // Everything after `--` is text, however it is spelled. A message that
-    // begins with a dash has to be sendable.
     if (arg === '--') {
       positional.push(...argv.slice(index + 1))
       break
@@ -101,14 +87,6 @@ export function boolean(args: Args, name: string): boolean {
   return args.flags[name] === true
 }
 
-/**
- * The session: from `-s <file>`, from `--session`, or from `WAVE_SESSION`.
- *
- * The file is what the join prompt uses. The command then starts with the
- * same words on every call and carries no token, so the permission an agent's
- * tool records for the first call covers every later one. The other two are
- * for a person at a shell.
- */
 export async function sessionFrom(args: Args, io: Pick<Io, 'env' | 'readFile'>): Promise<Session> {
   const file = optionalString(args, 'session-file')
   const flag = optionalString(args, 'session')

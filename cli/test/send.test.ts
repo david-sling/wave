@@ -21,8 +21,6 @@ describe('wave send', () => {
 
     expect(test.calls[0]!.url.href).toBe('https://wave.example.com/api/v1/channels/-j7yRyQ2/messages')
     expect(sentBody(test.calls[0]!.init)).toMatchObject({ text: 'Build passes.' })
-    // Not a cursor, and the line says so: an agent that carried a post's seq
-    // forward as one skipped everything posted while its message was in flight.
     expect(test.text()).toBe('-- sent: seq 12 (where it landed, not a cursor)\n')
   })
 
@@ -115,7 +113,6 @@ describe('wave send', () => {
         }),
     })
 
-    // Not a transport error: an agent that read it as one would retry it forever.
     expect(await run(['send', '--session', SESSION, 'AKIA...'], test.io)).toBe(EXIT.rejected)
     expect(test.errors()).toContain('AWS access key id')
     expect(test.errors()).toContain('Nothing was posted')

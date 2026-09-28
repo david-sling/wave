@@ -4,17 +4,6 @@ import type { WaveRedis } from '@/lib/redis'
 import { run } from '../cli/src/index'
 import type { Io } from '../cli/src/io'
 
-/**
- * The CLI against the real API (ARCHITECTURE section 11).
- *
- * The CLI takes its `fetch` as an argument, and the app's route handlers are
- * ordinary functions from a `Request` to a `Response`, so the two meet here
- * with no server, no port and no network between them. This lives in the app
- * rather than in `cli/`, which is a separate package that must not depend on
- * it — and it is the test that would catch the CLI and the API disagreeing
- * about a shape, which no test inside either one can see.
- */
-
 let redis: WaveRedis
 
 vi.mock('@/lib/redis', async (importOriginal) => ({
@@ -30,7 +19,6 @@ const { GET: pollRoute, POST: postRoute } = await import('@/app/api/v1/channels/
 
 const ORIGIN = 'https://wave.example.com'
 
-/** Every v1 route this client speaks to, as one `fetch`. */
 const route: Io['fetch'] = async (input, init) => {
   const request = new Request(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, init)
   const { pathname } = new URL(request.url)
@@ -50,7 +38,6 @@ const route: Io['fetch'] = async (input, init) => {
   }
 }
 
-/** Shared across runs, like a disk, so one run can read what another wrote. */
 let disk: Map<string, string>
 
 function harness(env: Record<string, string | undefined> = {}) {
@@ -85,7 +72,6 @@ async function createChannel(body: unknown = { ttl: '1h', name: 'Build debugging
 const link = (channel: { channel_id: string; invite_token: string }) =>
   `${ORIGIN}/c/${channel.channel_id}#${channel.invite_token}`
 
-/** Joins, and returns the session string the run printed. */
 async function join(channel: { channel_id: string; invite_token: string }, name: string) {
   const test = harness()
   const code = await run(['join', link(channel), '--name', name, '--client', 'claude-code'], test.io)
@@ -106,9 +92,6 @@ describe('wave join, against the real routes', () => {
     expect(first.code).toBe(0)
     expect(first.text).toContain('Joined "Build debugging" as "Mac agent".')
     expect(first.session).toMatch(/^wv1\./)
-    // Past its own arrival: the join event is seq 1, and the API reads
-    // last_seq after writing it, so the first wait is not handed news of
-    // this agent joining.
     expect(first.text).toContain('-- next: --after 1')
   })
 
@@ -118,8 +101,6 @@ describe('wave join, against the real routes', () => {
     const windows = await join(channel, 'Windows agent')
 
     expect(mac.session).not.toBe(windows.session)
-    // The second join sees the first in the room, and the first's cursor is
-    // untouched by the second's arrival.
     expect(windows.text).toContain('Mac agent')
     expect(windows.text).toContain('Windows agent (you)')
   })
@@ -171,8 +152,6 @@ describe('wave send, against the real routes', () => {
 })
 
 describe('wave wait, against the real routes', () => {
-  // `--timeout 0` throughout: these polls ask the real handler for no hold, so
-  // the suite stays hermetic and instant. The loop around them is the same one.
   const now = (session: string, after: number, io: Io) =>
     run(['wait', '--session', session, '--after', String(after), '--timeout', '0'], io)
 
@@ -200,7 +179,6 @@ describe('wave wait, against the real routes', () => {
     const heard = harness()
     expect(await now(mac.session, cursorOf(mac.text), heard.io)).toBe(2)
     expect(heard.text()).not.toContain('Anyone there?')
-    // Advanced past it all the same, or it would be re-read forever.
     expect(cursorOf(heard.text())).toBeGreaterThan(cursorOf(mac.text))
   })
 })
@@ -222,8 +200,6 @@ describe('wave leave and wave who, against the real routes', () => {
 
     expect(await run(['leave', '--session', mac.session], harness().io)).toBe(0)
 
-    // Not a special case anywhere: the token is dead, so every command gives
-    // the same answer, which is the one an expired channel gives.
     for (const argv of [['who'], ['send', '-'], ['wait', '--timeout', '0'], ['leave']]) {
       const after = harness()
       expect(await run([...argv, '--session', mac.session], { ...after.io, stdin: async () => 'hello' }), argv[0]).toBe(5)
@@ -268,7 +244,6 @@ describe('the join prompt\'s path: -s <file> on every command, against the real 
   })
 })
 
-/** The cursor an earlier run printed, which is how every later call is made. */
 function cursorOf(text: string): number {
   return Number(/-- next: --after (\d+)/.exec(text)![1])
 }

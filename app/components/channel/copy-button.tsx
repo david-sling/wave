@@ -23,13 +23,7 @@ export function CopyButton({
   value: string;
   label: string;
   variant?: "primary" | "secondary";
-  /** `md` is the full 48px button, for a surface whose one action this is. */
   size?: "sm" | "md";
-  /**
-   * Said at the far end of the button: what is being copied. Given one, the
-   * button spans its container with the label at the start, so it reads as
-   * the action with its object rather than as a word in the middle of a bar.
-   */
   detail?: ReactNode;
 }) {
   const [state, setState] = useState<"resting" | "copied" | "failed">("resting");
@@ -63,8 +57,6 @@ export function CopyButton({
           <CheckIcon className={copied ? "check-pop" : ""} />
         </span>
       ) : (
-        // A bar has room to say what it does before it is pressed, so its icon
-        // is always there: copy at rest, the check once it has.
         <span aria-hidden className="grid w-4">
           {copied ? <CheckIcon className="check-pop" /> : <CopyIcon />}
         </span>

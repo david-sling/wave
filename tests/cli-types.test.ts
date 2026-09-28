@@ -14,24 +14,6 @@ import {
   systemItemSchema,
 } from '@/lib/types'
 
-/**
- * `cli/src/types.ts` is a copy, not an import (ARCHITECTURE section 11): the
- * CLI is a separate package and must not pull the app's tree into its install.
- * A copy that nothing checks is a copy that drifts, and the drift surfaces as
- * an agent reading a field the server stopped sending.
- *
- * This lives in the app because the app is where a schema changes, so the app
- * is where the failure should appear. A test in `cli/` would fail on the next
- * CLI change instead, which could be months later. Same pattern as
- * `lib/join-prompt.test.ts` and `lib/agent-docs.test.ts`.
- *
- * What it compares is field names, optionality, and the shape of each field as
- * a string — enough to catch a field added, removed, renamed or retyped, and
- * an enum gaining or losing a member. Inside an inline object literal it
- * compares the member names only; anything deeper than that has a name, and a
- * name is compared as a name.
- */
-
 const CLI_TYPES = 'cli/src/types.ts'
 const APP_TYPES = 'lib/types.ts'
 
@@ -53,7 +35,6 @@ function aliasNode(path: string, name: string): ts.TypeNode {
   return node
 }
 
-/** A type node as one comparable string. A named type stays its name. */
 function render(node: ts.TypeNode): string {
   if (ts.isTypeReferenceNode(node)) return node.typeName.getText()
   if (ts.isUnionTypeNode(node)) return [...node.types.map(render)].sort().join(' | ')
@@ -81,7 +62,6 @@ function members(node: ts.TypeLiteralNode): Array<[string, ts.PropertySignature]
   return node.members.filter(ts.isPropertySignature).map((member) => [member.name.getText(), member])
 }
 
-/** The fields of a type alias, with `A & { ... }` flattened into one shape. */
 function shapeOf(path: string, name: string): Shape {
   const aliases = aliasesIn(path)
   const shape: Shape = {}
@@ -103,7 +83,6 @@ function shapeOf(path: string, name: string): Shape {
   return shape
 }
 
-/** The schemas the CLI names, so a field holding one compares as that name. */
 const NAMED = new Map<ZodType, string>([
   [authorSchema, 'Author'],
   [roleSchema, 'Role'],
@@ -203,7 +182,6 @@ describe(`${CLI_TYPES} is still a copy of the API's shapes`, () => {
   })
 })
 
-/** The response bodies, which are plain types in the app rather than schemas. */
 const RESPONSES: Array<[string, string, string, string]> = [
   ['lib/participants.ts', 'JoinResult', 'JoinResponse', 'the join route returns it verbatim'],
   ['lib/messages.ts', 'PostMessageResult', 'PostResponse', 'the post route returns it verbatim'],
@@ -225,9 +203,6 @@ describe('the response shapes the CLI reads', () => {
   })
 
   it('lists the same error codes as lib/http.ts', () => {
-    // An agent never reads these, but the CLI switches on two of them to pick
-    // an exit code, and a code renamed on one side would make that silently
-    // unreachable.
     expect(render(aliasNode(CLI_TYPES, 'ApiErrorCode'))).toBe(render(aliasNode('lib/http.ts', 'ApiErrorCode')))
   })
 })

@@ -233,12 +233,6 @@ describe('buildJoinPrompt', () => {
       expect(guard).toContain('[ -s "$W/token" ]')
       expect(guard).toContain('exit 1; }')
 
-      // Removed on the way out, including when an assertion below throws. The
-      // guard being tested is the one that refuses to start on a directory
-      // holding a live token, so every run of this test writes a token-shaped
-      // file to the system temp directory; leaving them there accumulated one
-      // per case per run, and they are exactly the thing the prompt tells an
-      // agent to clear on the way out.
       const runGuard = (token?: string) => {
         const dir = mkdtempSync(join(tmpdir(), 'wave-guard-'))
         try {

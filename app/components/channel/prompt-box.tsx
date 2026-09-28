@@ -17,15 +17,9 @@ import { InstallCommand } from "./install-command";
 import { useRemembered } from "./remembered";
 
 const PROVIDERS = Object.keys(AGENT_PROVIDERS) as AgentProvider[];
-/**
- * How the agent talks to the channel: curl, or the CLI installed with one of
- * the package managers. Every package manager gives the same CLI prompt; which
- * one only changes the install command the person runs and the agent asks for.
- */
 type Method = "curl" | Installer;
 const METHODS: readonly Method[] = ["curl", ...INSTALLERS];
 
-/** What the chosen method costs, said under the choice. A package manager's note carries its install. */
 function note(method: Method, encrypted: boolean): ReactNode {
   if (method === "curl") return "Nothing to install. Your agent asks permission for each kind of call it makes.";
   const lead = encrypted
@@ -49,19 +43,6 @@ const PROVIDER_MARK: Record<AgentProvider, ReactNode> = {
  *
  * The name is editable here because the person pasting decides how their agent
  * appears; editing it rewrites the two lines of the prompt that carry it.
- *
- * Two spellings of the same join are offered. `curl` stays the default until
- * the CLI has been through the validation PRODUCT section 16 gave the curl
- * prompt — an operator-observed run across the agent products in section 11,
- * counting permission dialogs from outside the agent. An encrypted channel is
- * the exception and offers only the CLI: a shell improvising AES-GCM is not a
- * path worth documenting.
- *
- * The agent choice fills in the client name for a known product, and defaults
- * to a blank the agent fills in itself.
- *
- * Both choices are remembered on this device: someone who runs Claude Code
- * over npm picks that once, not once per channel.
  */
 export function PromptBox({
   host,
@@ -74,7 +55,6 @@ export function PromptBox({
   channelId: string;
   channelName: string;
   invite: string;
-  /** The channel's mode, as the API reports it. */
   mode?: string;
 }) {
   const encrypted = mode !== "standard";
@@ -82,11 +62,8 @@ export function PromptBox({
   const [purpose, setPurpose] = useState("");
   const [chosen, setChosen] = useRemembered("wave:prompt-method", METHODS, "curl");
   const [provider, setProvider] = useRemembered("wave:prompt-agent", PROVIDERS, "any");
-  // Two of these are mounted at once — the empty channel's and the dialog's —
-  // and radio inputs outside a form share one group per name, so a fixed name
-  // would make choosing in one box unchoose in the other.
+  // Two prompt boxes are mounted at once, and unscoped radio names would share one group.
   const group = useId();
-  // An encrypted channel has no curl path, so a remembered curl reads as npm there.
   const offered = encrypted ? INSTALLERS : METHODS;
   const method: Method = encrypted && chosen === "curl" ? "npm" : chosen;
   const variant = method === "curl" ? "curl" : "cli";
@@ -109,8 +86,6 @@ export function PromptBox({
       ),
     [host, channelId, channelName, invite, shownName, purpose, provider, method, variant],
   );
-  // The name, marked wherever the prompt carries it, so editing the field
-  // visibly rewrites the thing being handed over.
   const marked = useMemo(
     () =>
       prompt.split(shownName).flatMap((part, index) =>
@@ -128,8 +103,6 @@ export function PromptBox({
 
   return (
     <section className="flex min-h-0 flex-1 flex-col" aria-label="Join prompt">
-      {/* The settings scroll and the prompt below them does not, so however
-          short the window, Copy prompt stays on screen. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="grid gap-2 px-4 pt-4">
           <label htmlFor="agent-name" className="text-sm font-semibold">
@@ -198,9 +171,7 @@ export function PromptBox({
               ))}
             </fieldset>
           </div>
-          {/* Every note is laid out in the same cell and only the current one is
-            visible, so the cell is as tall as the longest and switching method
-            never resizes the dialog around it. */}
+          {/* All notes share one grid cell so switching method never resizes the dialog. */}
           <div className="grid grid-cols-[minmax(0,1fr)] text-[13px] leading-relaxed text-ink-3">
             {offered.map((key) => (
               <div
@@ -215,11 +186,6 @@ export function PromptBox({
         </div>
       </div>
 
-      {/* The prompt, shown as what it is: the thing being handed to the agent,
-          legible where it starts and fading into the ground, with the name
-          marked where the prompt carries it. Under it, Copy prompt spans the
-          box and says what it takes, so the action and its object are one
-          thing. */}
       <div className="mt-5 shrink-0 border-t border-line bg-ground">
         <pre
           aria-hidden

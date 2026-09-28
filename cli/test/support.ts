@@ -1,27 +1,14 @@
 import type { Io } from '../src/io.js'
 
-/**
- * A whole run with nothing outside the process touched: no terminal, no
- * network, no clock. The CLI takes its `Io` as an argument for exactly this,
- * and it is also what lets the app's integration test drive two sessions
- * through the real route handlers.
- */
-
 export type Handler = (url: URL, init: RequestInit | undefined) => Response | Promise<Response>
 
 export type Harness = {
   io: Io
-  /** What the run printed to stdout. */
   text(): string
-  /** What the run printed to stderr. */
   errors(): string
-  /** Every request it made, in order. */
   calls: Array<{ url: URL; init: RequestInit | undefined }>
-  /** Every sleep it asked for, in milliseconds, in order. */
   naps: number[]
-  /** The virtual clock, in milliseconds since this run began. */
   clock(): number
-  /** The files this run can see, by path. Starts as `options.files`. */
   files: Map<string, string>
 }
 
@@ -58,9 +45,6 @@ export function harness(
   const err: string[] = []
   const calls: Harness['calls'] = []
   const naps: number[] = []
-  // Time passes here only where it would pass for real: a held poll holds for
-  // the seconds it asked for, and a backoff sleeps for the milliseconds it
-  // asked for. A fifteen-minute wait then costs the test nothing.
   let clock = 1_000_000
 
   const io: Io = {
@@ -92,7 +76,6 @@ export function harness(
   return { io, text: () => out.join(''), errors: () => err.join(''), calls, naps, clock: () => clock, files }
 }
 
-/** The body a run posted, decoded. */
 export function sentBody(init: RequestInit | undefined): unknown {
   return JSON.parse(String(init?.body))
 }

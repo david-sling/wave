@@ -3,12 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { AGENT_DOCS, CURL_TOPIC, INDEX_TOPIC, agentDocIndex, agentDocPath, findAgentDoc, readAgentDoc } from './agent-docs'
 import { CLI_JOIN_PROMPT_TEMPLATE, JOIN_PROMPT_TEMPLATE } from './join-prompt'
 
-/** Every `{{HOST}}/agent/<topic>.md` either prompt tells an agent to fetch. */
 function linkedTopics(template = JOIN_PROMPT_TEMPLATE + CLI_JOIN_PROMPT_TEMPLATE): string[] {
   return [...template.matchAll(/\{\{HOST\}\}\/agent\/([a-z-]+)\.md/g)].map((match) => match[1])
 }
 
-/** The two that are generated rather than read from `docs/agent/`. */
 const GENERATED = [INDEX_TOPIC, CURL_TOPIC]
 
 describe('the agent docs', () => {

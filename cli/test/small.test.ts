@@ -63,8 +63,6 @@ describe('wave who', () => {
   })
 
   it('prints the client exactly as reported, without folding it onto a product', async () => {
-    // The server decides what `claude-opus-5` counts as. Deciding it here as
-    // well is how the two come to disagree.
     const test = harness({
       handler: () =>
         json({

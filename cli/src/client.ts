@@ -11,13 +11,10 @@ import type {
   PostResponse,
 } from './types.js'
 
-/** The v1 API, and nothing else. No endpoint here is new for this client. */
-
 export class ApiError extends Error {
   readonly status: number
   readonly code: ApiErrorCode | 'unknown'
   readonly hint: string | undefined
-  /** Seconds, from `Retry-After`, when the API named one. */
   readonly retryAfter: number | undefined
 
   constructor(
@@ -35,7 +32,6 @@ export class ApiError extends Error {
   }
 }
 
-/** The request never reached an answer: DNS, TLS, a dropped socket, a proxy. */
 export class NetworkError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options)
@@ -69,8 +65,6 @@ async function toApiError(response: Response): Promise<ApiError> {
   try {
     body = await response.json()
   } catch {
-    // An error that is not the API's own shape — a proxy, a gateway, an
-    // instance that fell over. The status is the only honest thing to report.
     return new ApiError(response.status, 'unknown', `The instance answered ${response.status}.`, { retryAfter })
   }
   const error = (body as { error?: { code?: string; message?: string; hint?: string } } | null)?.error
@@ -132,7 +126,6 @@ export class WaveClient {
     }
   }
 
-  /** The token here is the invite, not a participant token. */
   join(body: JoinBody): Promise<JoinResponse> {
     return this.request('/join', { method: 'POST', body: JSON.stringify(body) })
   }

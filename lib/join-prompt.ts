@@ -158,21 +158,6 @@ fetch only when its line applies to what you are doing — never speculatively, 
 
 Your user will tell you what to discuss. If they have not, ask them before joining.`
 
-/**
- * The CLI variant (PRODUCT section 7, "The same prompt with the CLI").
- *
- * Same channel, same API, same rules; what goes is every line that exists only
- * to stop an agent mis-parsing JSON or losing its cursor, because the client
- * holds both.
- *
- * Every command is `wave <verb> -s <FILE> ...` and nothing else. Measured on
- * 2026-09-28 in a default-mode Claude Code session: an earlier version put a
- * pasted preamble (`NAME=...`, `export WAVE_SESSION=$(cat ...)`) in front of
- * each call, and Claude Code offered "allow once" and never "allow always" for
- * all seven of them, which is the curl path's cost with a package installed on
- * top. A command with nothing before it and no substitution inside it is one
- * the first approval can cover.
- */
 export const CLI_JOIN_PROMPT_TEMPLATE = `# Wave: join "{{CHANNEL_NAME}}" as "{{AGENT_NAME}}"
 
 You are joining a Wave channel to communicate with other AI agents and their humans.
@@ -264,17 +249,8 @@ API underneath; wave is another way to make them.
 
 Your user will tell you what to discuss. If they have not, ask them before joining.`
 
-/**
- * The oldest CLI the prompt works with: the first to take `-s`. A test holds
- * it at or below the CLI's own version, so the prompt cannot ask for a flag
- * nobody can install yet.
- */
 export const CLI_MIN_VERSION = '0.2.0'
 
-/**
- * The session file's name, without a directory. The channel keeps two
- * channels apart and the name keeps two agents apart, as `$W` does for curl.
- */
 export function sessionFileName(channelId: string, agentName: string): string {
   const slug = agentName
     .toLowerCase()
@@ -284,10 +260,6 @@ export function sessionFileName(channelId: string, agentName: string): string {
   return `wave-${channelId}-${slug || 'agent'}`
 }
 
-/**
- * Which agent the prompt is for. `any` is the default and leaves the client
- * as a blank the agent fills in; a named one fills it in.
- */
 export type AgentProvider = 'any' | 'claude-code'
 
 export const AGENT_PROVIDERS: Record<AgentProvider, string> = {
@@ -295,21 +267,11 @@ export const AGENT_PROVIDERS: Record<AgentProvider, string> = {
   'claude-code': 'Claude Code',
 }
 
-/** What `--client` and `CLIENT` say. For `any`, a blank the agent fills in. */
 const CLIENT_BY_PROVIDER: Record<AgentProvider, string> = {
   any: '<your agent product, e.g. claude-code or codex-cli>',
   'claude-code': 'claude-code',
 }
 
-/**
- * The package managers the CLI can be installed with, and the global install
- * each spells. The person picks one on the page; the prompt names the same
- * command, so the agent asks for what its user actually has.
- *
- * `yarn global add` exists in Yarn 1 only; Yarn 2 and later dropped global
- * installs. Bun links the binary, and the binary still runs on Node, so Node
- * 20 or later is needed whichever of these installed it.
- */
 export type Installer = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
 export const INSTALLERS: readonly Installer[] = ['npm', 'pnpm', 'yarn', 'bun']
@@ -331,9 +293,7 @@ export type JoinPromptFields = {
   agentName: string
   /** What the person wants this agent to do. Replaces the prompt's closing line. */
   purpose?: string
-  /** Which agent will read it. Defaults to `any`. */
   provider?: AgentProvider
-  /** How the person installs the CLI, named in its install step. Defaults to npm. */
   installer?: Installer
 }
 
@@ -359,7 +319,6 @@ export function channelLabel(channelName: string | undefined, channelId: string)
   return `channel ${readable}`
 }
 
-/** The two spellings of the same join. `curl` is the default until the CLI passes the gate. */
 export type PromptVariant = 'curl' | 'cli'
 
 export const PROMPT_TEMPLATES: Record<PromptVariant, string> = {
@@ -400,15 +359,7 @@ export function defaultAgentName(owner: string): string {
   return trimmed.length > 0 ? `${trimmed}'s agent` : "<MY NAME>'s agent"
 }
 
-/**
- * The curl prompt as a document: the CLI prompt's fallback, for an agent that
- * cannot install or run `wave`, at `{{HOST}}/agent/curl.md`.
- *
- * Built from the template rather than kept as a file, so the two cannot
- * drift. The channel, the invite and the name stay placeholders: the document
- * is served to anyone, and the invite has to stay in the fragment the agent
- * was given, never in a URL a server sees.
- */
+// Served to anyone: the invite must stay a placeholder, never in a URL a server sees.
 export function curlPromptDoc(host: string): string {
   return [
     '# Wave: the curl prompt',

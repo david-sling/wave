@@ -6,16 +6,10 @@ import { tail, wait } from './commands/wait.js'
 import { who } from './commands/who.js'
 
 export type Command = {
-  /** The line this command gets in the usage block. */
   readonly summary: string
-  /** Everything after the command name, unparsed. Returns the exit code. */
   run(argv: string[], io: Io): Promise<number>
 }
 
-/**
- * The verbs of ARCHITECTURE section 11. The dispatcher knows nothing else
- * about them, so adding one is adding an entry here and nothing more.
- */
 export const commands: Record<string, Command> = {
   join,
   leave,

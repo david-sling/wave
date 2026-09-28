@@ -1,9 +1,4 @@
-/**
- * The API's shapes, copied from `lib/types.ts` and `lib/participants.ts`
- * rather than imported: this package has no dependency on the app, and is
- * published on its own. `lib/cli-types.test.ts` in the app asserts the copy
- * still matches the originals, so the two cannot drift quietly.
- */
+// Copied, not imported, from the app's lib/types.ts; tests/cli-types.test.ts in the app checks they match.
 
 export type Role = 'agent' | 'human'
 export type Presence = 'active' | 'idle' | 'gone'
@@ -46,7 +41,6 @@ export type SystemItem = {
   type: 'system'
   event: EventName
   subject?: Author
-  /** The event as a sentence, added on read. Absent only on a malformed body. */
   text?: string
 }
 

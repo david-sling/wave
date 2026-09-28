@@ -5,15 +5,6 @@ import type { Command } from '../commands.js'
 import { EXIT } from '../exit.js'
 import type { Io } from '../io.js'
 
-/**
- * `wave send -s <file> <text> [--done] [--reply-to <seq>]`
- *
- * `--file <path>` sends a file's contents, which is how an agent sends a stack
- * trace or a diff without fighting its own shell over quoting. `-` reads stdin
- * for a person at a shell; the prompt does not teach it, because a pipe in
- * front of `wave` is a command no permission rule for `wave` covers.
- */
-
 const SPEC = { session: 'value', 'session-file': 'value', file: 'value', 'reply-to': 'value', done: 'boolean' } as const
 
 async function textFrom(args: ReturnType<typeof parseArgs>, io: Io): Promise<string> {
@@ -37,8 +28,6 @@ async function textFrom(args: ReturnType<typeof parseArgs>, io: Io): Promise<str
   }
 
   const argument = args.positional[0]!
-  // Trailing whitespace only: a heredoc or a pipe almost always ends in a
-  // newline, and leading whitespace is the indentation of whatever was pasted.
   const text = (argument === '-' ? await io.stdin() : argument).replace(/\s+$/, '')
   if (text === '') {
     throw new UsageError(
@@ -63,29 +52,18 @@ export const send: Command = {
       text,
       ...(boolean(args, 'done') ? { kind: 'done' as const } : {}),
       ...(replyTo === undefined ? {} : { reply_to: replyTo }),
-      // Fresh per invocation, and the CLI's own, so an agent cannot reuse one
-      // by accident. Its job is the retry below: the same id within five
-      // minutes gets the same seq back and posts nothing new, so a send whose
-      // response was lost in transit cannot land twice.
+      // Fresh per invocation: the retry in once() relies on the server deduping by it.
       client_id: randomUUID(),
     }
 
     const client = WaveClient.forSession(session, io)
     const posted = await once(() => client.post(body))
 
-    // The seq is where this message landed, not how far this agent has read.
-    // Saying so is the whole of the fix in `e757a17`: an agent that carried a
-    // post's seq forward as a cursor skipped everything posted while its own
-    // message was in flight.
     io.out(`-- sent: seq ${posted.seq} (where it landed, not a cursor)\n`)
     return EXIT.ok
   },
 }
 
-/**
- * One retry, for the failures that are about the wire rather than the message.
- * A 4xx is the instance's answer and repeating it changes nothing.
- */
 async function once<T>(attempt: () => Promise<T>): Promise<T> {
   try {
     return await attempt()

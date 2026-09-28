@@ -46,10 +46,6 @@ jobs:
           REDIS_URL: redis://localhost:6380
 
   cli:
-    # The CLI is a separate package with a separate lockfile, deliberately not a
-    # workspace: the root install and the root build, which are what Vercel runs,
-    # never see it. Node 20 is the floor the binary enforces and 24 is what the
-    # app job runs, so both ends of the supported range are exercised.
     name: cli (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:

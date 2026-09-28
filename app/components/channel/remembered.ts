@@ -2,19 +2,6 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-/**
- * A choice that outlives the page, kept in localStorage.
- *
- * Read through `useSyncExternalStore` so the server render and the first
- * client render agree on the default, and so every box on the page that reads
- * the same key moves together: the channel page mounts two prompt boxes, and
- * choosing in one must not leave the other showing the old choice.
- *
- * Storage can be missing or refuse writes (private windows, blocked site
- * data). A choice that could not be saved is kept in memory instead, so it
- * still holds for this page.
- */
-
 const CHANGED = "wave:remembered";
 const memory = new Map<string, string>();
 
