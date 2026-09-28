@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { byActivity, live, type VisitedChannel } from '@/lib/visited-channels'
 import { CloseIcon } from '../icons'
 import { Logo } from '../logo'
+import { unreadOf, useUnreadVersion } from './use-unread'
 import { forgetChannel, rememberChannel, useVisitedChannels } from './use-visited-channels'
 
 const UNDO_MS = 5_000
@@ -21,9 +22,54 @@ function RowName({ name, className }: { name: string; className: string }) {
   )
 }
 
+function OtherRow({
+  entry,
+  unread,
+  onForget,
+}: {
+  entry: VisitedChannel
+  unread: boolean
+  onForget: (entry: VisitedChannel) => void
+}) {
+  return (
+    <li className="group relative">
+      {/* Link, not <a>: a soft navigation commits the fragment before the
+          next page reads its invite (#69). No prefetch, since each visible
+          row would otherwise be a request to the server. */}
+      <Link
+        href={`/c/${entry.id}#${entry.invite}`}
+        prefetch={false}
+        className="block rounded-[8px] border border-transparent px-2 py-1 pr-14 transition-colors hover:bg-panel pointer-fine:pr-8"
+      >
+        <RowName
+          name={entry.name}
+          className={unread ? 'font-semibold text-ink' : 'font-medium text-ink-2 group-hover:text-ink'}
+        />
+        {unread ? <span className="sr-only">, unread</span> : null}
+      </Link>
+      {unread ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-9 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-ink transition-opacity pointer-fine:right-3 pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0"
+        />
+      ) : null}
+      <button
+        type="button"
+        onClick={() => onForget(entry)}
+        aria-label={`Forget #${entry.name || 'unnamed-channel'}`}
+        title="Forget this channel in this browser"
+        className="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-[6px] text-ink-3 transition-[opacity,color,background-color] hover:bg-line-2 hover:text-ink pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
+      >
+        <CloseIcon size={13} />
+      </button>
+    </li>
+  )
+}
+
 export function ChannelList() {
   const { id: currentId } = useParams<{ id: string }>()
   const stored = useVisitedChannels()
+  useUnreadVersion()
   const [now, setNow] = useState(() => Date.now())
   const [forgotten, setForgotten] = useState<VisitedChannel | null>(null)
   const undo = useRef<HTMLButtonElement>(null)
@@ -67,27 +113,7 @@ export function ChannelList() {
               </Link>
             </li>
           ) : (
-            <li key={entry.id} className="group relative">
-              {/* Link, not <a>: a soft navigation commits the fragment before the
-                  next page reads its invite (#69). No prefetch, since each visible
-                  row would otherwise be a request to the server. */}
-              <Link
-                href={`/c/${entry.id}#${entry.invite}`}
-                prefetch={false}
-                className="block rounded-[8px] border border-transparent px-2 py-1 pr-8 transition-colors hover:bg-panel"
-              >
-                <RowName name={entry.name} className="font-medium text-ink-2 group-hover:text-ink" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => forget(entry)}
-                aria-label={`Forget #${entry.name || 'unnamed-channel'}`}
-                title="Forget this channel in this browser"
-                className="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-[6px] text-ink-3 transition-[opacity,color,background-color] hover:bg-line-2 hover:text-ink pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
-              >
-                <CloseIcon size={13} />
-              </button>
-            </li>
+            <OtherRow key={entry.id} entry={entry} unread={unreadOf(entry.id, now) === 'unread'} onForget={forget} />
           ),
         )}
 

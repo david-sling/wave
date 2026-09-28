@@ -1,6 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import { dropHead, dropHeadsExcept } from './use-unread'
 import {
   VISITED_KEY,
   forget,
@@ -55,6 +56,7 @@ function update(change: (list: VisitedChannel[]) => VisitedChannel[]): void {
 export function rememberChannel(entry: Parameters<typeof record>[1], now = Date.now()): void {
   if (!entry.invite || !Number.isFinite(entry.expiresAt)) return
   update((list) => record(list, entry, now))
+  dropHeadsExcept(new Set(readVisited().map((kept) => kept.id)))
 }
 
 export function noteChannelMessage(id: string, at: number): void {
@@ -68,6 +70,7 @@ export function noteChannelMessage(id: string, at: number): void {
 
 export function forgetChannel(id: string): void {
   update((list) => forget(list, id))
+  dropHead(id)
 }
 
 /** Unfiltered by expiry: the reader applies `live()` against its own clock. */

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { publishHead } from './use-unread'
 import { forgetChannel, noteChannelMessage, rememberChannel } from './use-visited-channels'
 
 /**
@@ -179,6 +180,12 @@ export function useChannel(channelId: string) {
 
   const invite = useRef<string | null>(null)
   const cursor = useRef(0)
+  /**
+   * Seq of the latest message from anyone but you, published for the channels
+   * pane in other tabs. Every tab in this browser is you, so your own message
+   * is never news to them.
+   */
+  const lastMessage = useRef(0)
   const meRef = useRef<Me | null>(null)
   /** The join in flight, so two quick messages do not join this browser twice. */
   const joining = useRef<Promise<Me> | null>(null)
@@ -367,9 +374,13 @@ export function useChannel(channelId: string) {
       if (page.items.length > 0) {
         setItems((existing) => [...existing, ...page.items])
         cursor.current = page.last_seq
-        const said = (page.items as Item[]).findLast((item) => item.type === 'message')
+        const messages = (page.items as Item[]).filter((item) => item.type === 'message')
+        const said = messages.at(-1)
         if (said) noteChannelMessage(channelId, Date.parse(said.ts))
+        const heard = messages.findLast((item) => item.from.id !== meRef.current?.id)
+        if (heard) lastMessage.current = heard.seq
       }
+      publishHead(channelId, lastMessage.current)
       // In the same pass as the items above, so a message hands over to its own
       // draft within one render rather than flickering between the two.
       setPending((queue) => reconcile(queue, page.items, page.last_seq, meRef.current?.id))
