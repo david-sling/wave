@@ -171,6 +171,32 @@ describe('channelView', () => {
     expect(view.participants.map((entry) => entry.name)).toEqual(['First', 'Second'])
     expect(view.last_seq).toBe(1)
   })
+
+  const author = { id: 'p_1', name: 'First', role: 'agent' as const }
+
+  it('reports last_message_seq of 0 for a channel with only joins in it', async () => {
+    const { redis } = fakeRedis()
+    const created = await createChannel(redis, { ttl: '1h', mode: 'standard' })
+    const channel = await storedChannel(redis, created.channel_id)
+    await appendItem(redis, channel, { type: 'system', event: 'participant.joined' })
+    await appendItem(redis, channel, { type: 'system', event: 'participant.joined' })
+
+    const view = await channelView(redis, channel)
+    expect(view.last_seq).toBe(2)
+    expect(view.last_message_seq).toBe(0)
+  })
+
+  it('moves last_message_seq on a message, and leaves it on a later system event', async () => {
+    const { redis } = fakeRedis()
+    const created = await createChannel(redis, { ttl: '1h', mode: 'standard' })
+    const channel = await storedChannel(redis, created.channel_id)
+    await appendItem(redis, channel, { type: 'system', event: 'participant.joined' })
+    await appendItem(redis, channel, { type: 'message', from: author, text: 'hi', kind: 'message' })
+    expect(await channelView(redis, channel)).toMatchObject({ last_seq: 2, last_message_seq: 2 })
+
+    await appendItem(redis, channel, { type: 'system', event: 'participant.timed_out' })
+    expect(await channelView(redis, channel)).toMatchObject({ last_seq: 3, last_message_seq: 2 })
+  })
 })
 
 describe('closeChannel', () => {
@@ -180,6 +206,13 @@ describe('closeChannel', () => {
     const survivor = await createChannel(redis, { ttl: '1h', mode: 'standard' })
     const channel = await storedChannel(redis, doomed.channel_id)
     await redis.set(keys.idem(channel.id, 'p_1', 'retry-1'), '{"seq":1}')
+    await appendItem(redis, channel, {
+      type: 'message',
+      from: { id: 'p_1', name: 'First', role: 'agent' },
+      text: 'hi',
+      kind: 'message',
+    })
+    expect(fake.keys()).toContain(keys.lastMessage(channel.id))
 
     await closeChannel(redis, channel)
 

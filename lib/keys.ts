@@ -19,6 +19,8 @@ export const keys = {
   channel: (channelId: string) => `${ns()}:ch:${channelId}`,
   /** string: last allocated sequence number */
   seq: (channelId: string) => `${ns()}:ch:${channelId}:seq`,
+  /** string: seq of the latest message, so a head can say someone spoke rather than that anything happened */
+  lastMessage: (channelId: string) => `${ns()}:ch:${channelId}:lastmsg`,
   /** sorted set: one JSON item per member, score = seq */
   items: (channelId: string) => `${ns()}:ch:${channelId}:items`,
   /** string: running total of item bytes */
@@ -66,6 +68,7 @@ export function channelKeys(channelId: string): string[] {
   return [
     keys.channel(channelId),
     keys.seq(channelId),
+    keys.lastMessage(channelId),
     keys.items(channelId),
     keys.bytes(channelId),
     keys.parts(channelId),

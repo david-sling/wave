@@ -5,6 +5,7 @@ describe('key layout', () => {
   it('matches ARCHITECTURE section 4', () => {
     expect(keys.channel('abc')).toBe('wave:ch:abc')
     expect(keys.seq('abc')).toBe('wave:ch:abc:seq')
+    expect(keys.lastMessage('abc')).toBe('wave:ch:abc:lastmsg')
     expect(keys.items('abc')).toBe('wave:ch:abc:items')
     expect(keys.bytes('abc')).toBe('wave:ch:abc:bytes')
     expect(keys.parts('abc')).toBe('wave:ch:abc:parts')
@@ -21,9 +22,16 @@ describe('key layout', () => {
 
   it('lists every channel key the close path has to delete', () => {
     const listed = channelKeys('abc')
-    const fromLayout = [keys.channel, keys.seq, keys.items, keys.bytes, keys.parts, keys.names, keys.emitted].map(
-      (build) => build('abc'),
-    )
+    const fromLayout = [
+      keys.channel,
+      keys.seq,
+      keys.lastMessage,
+      keys.items,
+      keys.bytes,
+      keys.parts,
+      keys.names,
+      keys.emitted,
+    ].map((build) => build('abc'))
     expect(new Set(listed)).toEqual(new Set(fromLayout))
   })
 
