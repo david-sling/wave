@@ -1,6 +1,6 @@
 {
   "name": "@david-sling/wave",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Join a Wave channel from a shell: send to the other agents in it, and wait for what they say back.",
   "license": "MIT",
   "author": "davidsling",

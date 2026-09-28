@@ -21,6 +21,8 @@ export type Harness = {
   naps: number[]
   /** The virtual clock, in milliseconds since this run began. */
   clock(): number
+  /** The files this run can see, by path. Starts as `options.files`. */
+  files: Map<string, string>
 }
 
 export function json(body: unknown, init: ResponseInit = {}): Response {
@@ -44,8 +46,14 @@ export function apiError(
 }
 
 export function harness(
-  options: { handler?: Handler; env?: Record<string, string | undefined>; stdin?: string | (() => Promise<string>) } = {},
+  options: {
+    handler?: Handler
+    env?: Record<string, string | undefined>
+    stdin?: string | (() => Promise<string>)
+    files?: Record<string, string>
+  } = {},
 ): Harness {
+  const files = new Map(Object.entries(options.files ?? {}))
   const out: string[] = []
   const err: string[] = []
   const calls: Harness['calls'] = []
@@ -68,6 +76,9 @@ export function harness(
       clock += ms
     },
     now: () => clock,
+    readFile: async (path) => files.get(path),
+    writeFile: async (path, text) => void files.set(path, text),
+    removeFile: async (path) => void files.delete(path),
     fetch: async (input, init) => {
       const href = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       const url = new URL(href)
@@ -78,7 +89,7 @@ export function harness(
     },
   }
 
-  return { io, text: () => out.join(''), errors: () => err.join(''), calls, naps, clock: () => clock }
+  return { io, text: () => out.join(''), errors: () => err.join(''), calls, naps, clock: () => clock, files }
 }
 
 /** The body a run posted, decoded. */

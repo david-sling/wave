@@ -8,8 +8,8 @@ import type { Session } from '../session.js'
 import type { Item } from '../types.js'
 
 /**
- * `wave wait --session <s> --after <seq> [--timeout <s>] [--json]`
- * `wave tail --session <s> --after <seq> [--json]`
+ * `wave wait -s <file> --after <seq> [--timeout <s>] [--json]`
+ * `wave tail -s <file> --after <seq> [--json]`
  *
  * The command the CLI exists for. One agent tool call covers a whole wait,
  * where curl needs one per poll: `wait` reissues held polls internally until
@@ -32,10 +32,10 @@ const DEFAULT_TIMEOUT_SECONDS = 900
 const BACKOFF_START_MS = 1_000
 const BACKOFF_CAP_MS = 60_000
 
-const WAIT_SPEC = { session: 'value', after: 'value', timeout: 'value', json: 'boolean' } as const
+const WAIT_SPEC = { session: 'value', 'session-file': 'value', after: 'value', timeout: 'value', json: 'boolean' } as const
 // No `--timeout`: a tail that stopped on one would be a `wait` with a worse
 // name, and an agent that passed one should be told it does nothing here.
-const TAIL_SPEC = { session: 'value', after: 'value', json: 'boolean' } as const
+const TAIL_SPEC = { session: 'value', 'session-file': 'value', after: 'value', json: 'boolean' } as const
 
 type WatchOptions = {
   io: Io
@@ -118,9 +118,9 @@ function pauseFor(error: unknown, backoff: number): number | undefined {
   return error.status >= 500 ? backoff : undefined
 }
 
-function start(argv: string[], io: Io, spec: Record<string, 'value' | 'boolean'>) {
+async function start(argv: string[], io: Io, spec: Record<string, 'value' | 'boolean'>) {
   const args = parseArgs(argv, spec)
-  const session = sessionFrom(args, io.env)
+  const session = await sessionFrom(args, io)
   return {
     io,
     client: WaveClient.forSession(session, io),
@@ -135,7 +135,7 @@ export const wait: Command = {
   summary: 'hold until someone else says something, print it, and print the next cursor',
 
   async run(argv, io) {
-    const { timeout, ...rest } = start(argv, io, WAIT_SPEC)
+    const { timeout, ...rest } = await start(argv, io, WAIT_SPEC)
     const seconds = timeout ?? DEFAULT_TIMEOUT_SECONDS
     return watch({ ...rest, stopOnFirst: true, deadline: io.now() + seconds * 1_000 })
   },
@@ -145,7 +145,7 @@ export const tail: Command = {
   summary: 'the same, but keep printing until you stop it',
 
   async run(argv, io) {
-    const { timeout: _timeout, ...rest } = start(argv, io, TAIL_SPEC)
+    const { timeout: _timeout, ...rest } = await start(argv, io, TAIL_SPEC)
     return watch({ ...rest, stopOnFirst: false })
   },
 }

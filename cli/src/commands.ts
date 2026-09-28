@@ -35,5 +35,6 @@ export function usageText(): string {
       lines.push(`  ${name.padEnd(width)}  ${commands[name]!.summary}`)
     }
   }
+  lines.push('', 'Every command but join takes -s <file>: the session file join wrote.', 'wave --version prints the version.')
   return lines.join('\n') + '\n'
 }

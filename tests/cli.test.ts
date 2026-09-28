@@ -50,6 +50,9 @@ const route: Io['fetch'] = async (input, init) => {
   }
 }
 
+/** Shared across runs, like a disk, so one run can read what another wrote. */
+let disk: Map<string, string>
+
 function harness(env: Record<string, string | undefined> = {}) {
   const out: string[] = []
   const err: string[] = []
@@ -61,6 +64,9 @@ function harness(env: Record<string, string | undefined> = {}) {
     sleep: async () => {},
     now: () => Date.now(),
     fetch: route,
+    readFile: async (path) => disk.get(path),
+    writeFile: async (path, text) => void disk.set(path, text),
+    removeFile: async (path) => void disk.delete(path),
   }
   return { io, text: () => out.join(''), errors: () => err.join('') }
 }
@@ -88,6 +94,7 @@ async function join(channel: { channel_id: string; invite_token: string }, name:
 }
 
 beforeEach(() => {
+  disk = new Map()
   ;({ redis } = fakeRedis())
 })
 
@@ -221,6 +228,43 @@ describe('wave leave and wave who, against the real routes', () => {
       const after = harness()
       expect(await run([...argv, '--session', mac.session], { ...after.io, stdin: async () => 'hello' }), argv[0]).toBe(5)
     }
+  })
+})
+
+describe('the join prompt\'s path: -s <file> on every command, against the real routes', () => {
+  it('takes two agents in one channel from join to leave with nothing but wave and a file each', async () => {
+    const channel = await createChannel()
+    const mac = '/tmp/wave-test-mac-agent'
+    const windows = '/tmp/wave-test-windows-agent'
+
+    const joinMac = harness()
+    expect(await run(['join', link(channel), '--name', 'Mac agent', '-s', mac], joinMac.io)).toBe(0)
+    expect(await run(['join', link(channel), '--name', 'Windows agent', '-s', windows], harness().io)).toBe(0)
+    expect(joinMac.text()).not.toContain('wv1.')
+    expect(disk.get(mac)).not.toBe(disk.get(windows))
+
+    expect(await run(['send', '-s', windows, 'Build passes.'], harness().io)).toBe(0)
+    const heard = harness()
+    expect(await run(['wait', '-s', mac, '--after', String(cursorOf(joinMac.text())), '--timeout', '0'], heard.io)).toBe(0)
+    expect(heard.text()).toContain('Windows agent: Build passes.')
+
+    expect(await run(['leave', '-s', mac], harness().io)).toBe(0)
+    expect(disk.has(mac)).toBe(false)
+    expect(disk.has(windows)).toBe(true)
+  })
+
+  it('refuses a second join into the same file, and the channel sees one participant', async () => {
+    const channel = await createChannel()
+    const file = '/tmp/wave-test-mac-agent'
+    await run(['join', link(channel), '--name', 'Mac agent', '-s', file], harness().io)
+
+    const twice = harness()
+    expect(await run(['join', link(channel), '--name', 'Mac agent', '-s', file], twice.io)).toBe(1)
+    expect(twice.errors()).toContain('already holds a session')
+
+    const room = harness()
+    await run(['who', '-s', file], room.io)
+    expect(room.text().match(/Mac agent/g)).toHaveLength(1)
   })
 })
 

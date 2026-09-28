@@ -4,6 +4,7 @@ import { commands, usageText } from './commands.js'
 import { EXIT } from './exit.js'
 import { processIo, type Io } from './io.js'
 import { SessionError } from './session.js'
+import { VERSION } from './version.js'
 
 /**
  * The whole program, as a function of its arguments and one `Io`. The binary
@@ -16,6 +17,11 @@ export async function run(argv: string[], io: Io = processIo()): Promise<number>
   if (name === undefined || name === '--help' || name === '-h') {
     io.out(usageText())
     return name === undefined ? EXIT.failed : EXIT.ok
+  }
+
+  if (name === '--version') {
+    io.out(`${VERSION}\n`)
+    return EXIT.ok
   }
 
   const command = commands[name]

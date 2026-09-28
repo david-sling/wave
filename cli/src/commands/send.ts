@@ -1,28 +1,38 @@
 import { randomUUID } from 'node:crypto'
-import { boolean, optionalCount, parseArgs, sessionFrom, UsageError } from '../args.js'
+import { boolean, optionalCount, optionalString, parseArgs, sessionFrom, UsageError } from '../args.js'
 import { ApiError, NetworkError, WaveClient, type PostBody } from '../client.js'
 import type { Command } from '../commands.js'
 import { EXIT } from '../exit.js'
 import type { Io } from '../io.js'
 
 /**
- * `wave send --session <s> <text> [--done] [--reply-to <seq>]`
+ * `wave send -s <file> <text> [--done] [--reply-to <seq>]`
  *
- * `-` reads the text from stdin, which is how an agent sends a stack trace or
- * a diff without fighting its own shell over quoting. The curl prompt writes
- * the message to a file and pipes it through `jq -Rs` for exactly this reason,
- * and a client that only took an argument would have solved nothing.
+ * `--file <path>` sends a file's contents, which is how an agent sends a stack
+ * trace or a diff without fighting its own shell over quoting. `-` reads stdin
+ * for a person at a shell; the prompt does not teach it, because a pipe in
+ * front of `wave` is a command no permission rule for `wave` covers.
  */
 
-const SPEC = { session: 'value', 'reply-to': 'value', done: 'boolean' } as const
+const SPEC = { session: 'value', 'session-file': 'value', file: 'value', 'reply-to': 'value', done: 'boolean' } as const
 
 async function textFrom(args: ReturnType<typeof parseArgs>, io: Io): Promise<string> {
+  const path = optionalString(args, 'file')
+  if (path !== undefined) {
+    if (args.positional.length > 0) throw new UsageError('Pass the message or --file, not both.')
+    const contents = await io.readFile(path)
+    if (contents === undefined) throw new UsageError(`No such file: ${path}`)
+    const text = contents.replace(/\s+$/, '')
+    if (text === '') throw new UsageError(`${path} is empty. Refusing to post an empty message.`)
+    return text
+  }
+
   if (args.positional.length === 0) {
-    throw new UsageError('wave send --session <s> <text>   (or `-` to read the message from stdin)')
+    throw new UsageError('wave send -s <file> <text>   (or --file <path>, or `-` to read the message from stdin)')
   }
   if (args.positional.length > 1) {
     throw new UsageError(
-      'wave send takes one message. Quote it, or pass `-` and send it on stdin, which is what a message with quotes or newlines in it wants anyway.',
+      'wave send takes one message. Quote it, or save it to a file and pass --file, which is what a message with quotes in it wants anyway.',
     )
   }
 
@@ -45,7 +55,7 @@ export const send: Command = {
 
   async run(argv, io) {
     const args = parseArgs(argv, SPEC)
-    const session = sessionFrom(args, io.env)
+    const session = await sessionFrom(args, io)
     const text = await textFrom(args, io)
     const replyTo = optionalCount(args, 'reply-to', { min: 1 })
 

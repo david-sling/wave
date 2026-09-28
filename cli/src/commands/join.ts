@@ -6,10 +6,13 @@ import { cursorLine, renderRoster, sessionLine } from '../render.js'
 import { encodeSession, normalizeHost } from '../session.js'
 
 /**
- * `wave join <channel-url> --name <name> [--client <product>]`
+ * `wave join <channel-url> --name <name> [--client <product>] [-s <file>]`
  *
  * The one command that takes a URL instead of a session, and the only one that
- * produces one.
+ * produces one. With `-s` the session goes into that file and is never
+ * printed, and a file that already holds one is refused before anyone joins:
+ * it is another agent on this machine under the same name, or this one
+ * joining twice, and either way a second participant is the wrong answer.
  */
 
 export type ChannelLink = {
@@ -69,16 +72,16 @@ export function detectClient(env: Record<string, string | undefined>): string | 
   return undefined
 }
 
-const SPEC = { name: 'value', client: 'value', role: 'value' } as const
+const SPEC = { name: 'value', client: 'value', role: 'value', 'session-file': 'value' } as const
 
 export const join: Command = {
-  summary: 'join a channel from its URL, and print the session string to use after',
+  summary: 'join a channel from its URL, and save the session to -s <file>',
 
   async run(argv, io) {
     const args = parseArgs(argv, SPEC)
     const target = args.positional[0]
     if (target === undefined) {
-      throw new UsageError('wave join <channel-url> --name <name> [--client <product>]')
+      throw new UsageError('wave join <channel-url> --name <name> [--client <product>] [-s <file>]')
     }
     if (args.positional.length > 1) {
       throw new UsageError('wave join takes one channel URL. Quote it if your shell is splitting it.')
@@ -89,6 +92,13 @@ export const join: Command = {
     const role = optionalString(args, 'role') ?? 'agent'
     if (role !== 'agent' && role !== 'human') throw new UsageError('--role is agent or human.')
     const client = optionalString(args, 'client') ?? detectClient(io.env)
+    const file = optionalString(args, 'session-file')
+
+    if (file !== undefined && (await io.readFile(file))?.trim()) {
+      throw new UsageError(
+        `${file} already holds a session: another agent on this machine joined with it, or you already did. Use a different file and name, or \`wave leave -s ${file}\` if that session is finished.`,
+      )
+    }
 
     const invited = new WaveClient({ host: link.host, channelId: link.channelId, token: link.invite, fetch: io.fetch })
 
@@ -105,7 +115,12 @@ export const join: Command = {
         participant_id: joined.participant_id,
         token: joined.participant_token,
       })
-      io.err(`wave: ${mismatch}\nYou are in the channel: \`wave leave --session ${session}\` to undo this join.\n`)
+      if (file === undefined) {
+        io.err(`wave: ${mismatch}\nYou are in the channel: \`wave leave --session ${session}\` to undo this join.\n`)
+      } else {
+        await io.writeFile(file, session + '\n')
+        io.err(`wave: ${mismatch}\nYou are in the channel: \`wave leave -s ${file}\` to undo this join.\n`)
+      }
       return EXIT.failed
     }
 
@@ -117,12 +132,14 @@ export const join: Command = {
       ...(link.key === undefined ? {} : { key: link.key }),
     })
 
+    if (file !== undefined) await io.writeFile(file, session + '\n')
+
     const heading = joined.channel.name === '' ? 'Joined as' : `Joined "${joined.channel.name}" as`
     io.out(
       [
         `${heading} "${joined.name}".`,
         ...renderRoster(joined.participants, joined.participant_id),
-        sessionLine(session),
+        file === undefined ? sessionLine(session) : `-- session saved to ${file}`,
         cursorLine(joined.last_seq, false),
         '',
       ].join('\n'),

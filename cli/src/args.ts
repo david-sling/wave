@@ -1,3 +1,4 @@
+import type { Io } from './io.js'
 import { decodeSession, type Session } from './session.js'
 
 /**
@@ -24,12 +25,22 @@ export type Args = {
   positional: string[]
 }
 
+/** One letter each, and only for the flag an agent types on every call. */
+const SHORT: Record<string, string> = { s: 'session-file' }
+
 export function parseArgs(argv: string[], spec: Record<string, FlagKind>): Args {
   const flags: Record<string, string | true> = {}
   const positional: string[] = []
 
   for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index]!
+    let arg = argv[index]!
+
+    // A lone `-` is stdin and stays positional; `-x` is an option or a mistake.
+    if (/^-[A-Za-z]$/.test(arg)) {
+      const long = SHORT[arg.slice(1)]
+      if (long === undefined || spec[long] === undefined) throw new UsageError(`No such option: ${arg}`)
+      arg = `--${long}`
+    }
 
     // Everything after `--` is text, however it is spelled. A message that
     // begins with a dash has to be sendable.
@@ -91,15 +102,31 @@ export function boolean(args: Args, name: string): boolean {
 }
 
 /**
- * The session, from the flag or from the environment. Both spellings exist
- * because an agent composing a command line and a human running one in a shell
- * want different ones; the flag wins so a one-off call can override an
- * exported value rather than silently using it.
+ * The session: from `-s <file>`, from `--session`, or from `WAVE_SESSION`.
+ *
+ * The file is what the join prompt uses. The command then starts with the
+ * same words on every call and carries no token, so the permission an agent's
+ * tool records for the first call covers every later one. The other two are
+ * for a person at a shell.
  */
-export function sessionFrom(args: Args, env: Record<string, string | undefined>): Session {
-  const raw = optionalString(args, 'session') ?? env.WAVE_SESSION
+export async function sessionFrom(args: Args, io: Pick<Io, 'env' | 'readFile'>): Promise<Session> {
+  const file = optionalString(args, 'session-file')
+  const flag = optionalString(args, 'session')
+  if (file !== undefined && flag !== undefined) throw new UsageError('Pass -s or --session, not both.')
+
+  if (file !== undefined) {
+    const raw = (await io.readFile(file))?.trim()
+    if (raw === undefined || raw === '') {
+      throw new UsageError(
+        `No session in ${file}. \`wave join <channel-url> --name <name> -s ${file}\` writes it, and \`wave leave\` deletes it.`,
+      )
+    }
+    return decodeSession(raw)
+  }
+
+  const raw = flag ?? io.env.WAVE_SESSION
   if (raw === undefined || raw.trim() === '') {
-    throw new UsageError('No session: pass --session, or set WAVE_SESSION. `wave join` prints it.')
+    throw new UsageError('No session: pass -s <file>, --session, or set WAVE_SESSION. `wave join` gives you one.')
   }
   return decodeSession(raw)
 }

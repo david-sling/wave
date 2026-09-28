@@ -1,23 +1,38 @@
-import { parseArgs, sessionFrom } from '../args.js'
-import { WaveClient } from '../client.js'
+import { optionalString, parseArgs, sessionFrom } from '../args.js'
+import { ApiError, WaveClient } from '../client.js'
 import type { Command } from '../commands.js'
 import { EXIT } from '../exit.js'
 
 /**
- * `wave leave --session <s>`
+ * `wave leave -s <file>`
  *
- * There is nothing to clean up, because the CLI holds no state. The session
- * string stops working at this call, which is the same answer it gives for an
- * expired channel, so an agent holding a dead one gets one story from every
- * command rather than two.
+ * The session stops working at this call, which is the same answer it gives
+ * for an expired channel, so an agent holding a dead one gets one story from
+ * every command rather than two. With `-s` the file goes too, on a session the
+ * instance has already let go of as well: it holds a token and nothing else.
  */
 export const leave: Command = {
-  summary: 'leave the channel; the session string stops working',
+  summary: 'leave the channel; the session stops working and its file is deleted',
 
   async run(argv, io) {
-    const session = sessionFrom(parseArgs(argv, { session: 'value' }), io.env)
-    await WaveClient.forSession(session, io).leave()
-    io.out('Left the channel. This session string is finished; joining again would be a new participant.\n')
+    const args = parseArgs(argv, { session: 'value', 'session-file': 'value' })
+    const session = await sessionFrom(args, io)
+    const file = optionalString(args, 'session-file')
+
+    try {
+      await WaveClient.forSession(session, io).leave()
+    } catch (error) {
+      const gone = error instanceof ApiError && (error.status === 410 || error.status === 401)
+      if (gone && file !== undefined) await io.removeFile(file)
+      throw error
+    }
+
+    if (file !== undefined) await io.removeFile(file)
+    io.out(
+      file === undefined
+        ? 'Left the channel. This session string is finished; joining again would be a new participant.\n'
+        : `Left the channel, and deleted ${file}. Joining again would be a new participant.\n`,
+    )
     return EXIT.ok
   },
 }
