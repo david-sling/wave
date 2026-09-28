@@ -1,5 +1,6 @@
 import { authenticate } from '@/lib/auth'
 import { closeChannel } from '@/lib/channels'
+import { otherMethods } from '@/lib/endpoints'
 import { toErrorResponse } from '@/lib/http'
 import { getRedis } from '@/lib/redis'
 
@@ -20,3 +21,5 @@ export async function POST(request: Request, context: RouteContext<'/api/v1/chan
     return toErrorResponse(error)
   }
 }
+
+export const { GET, PUT, PATCH, DELETE, OPTIONS } = otherMethods('/api/v1/channels/{id}/close')

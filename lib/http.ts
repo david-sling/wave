@@ -10,6 +10,7 @@ export type ApiErrorCode =
   | 'unauthorized'
   | 'gone'
   | 'not_found'
+  | 'method_not_allowed'
   | 'forbidden'
   | 'invalid_request'
   | 'channel_full'
@@ -41,12 +42,15 @@ export class ApiError extends Error {
   }
 }
 
-export const unauthorized = (message = 'Invalid or missing token for this channel.') =>
-  new ApiError(401, 'unauthorized', message)
+export const unauthorized = (message = 'Invalid or missing token for this channel.', hint?: string) =>
+  new ApiError(401, 'unauthorized', message, hint === undefined ? {} : { hint })
 
 export const forbidden = (message: string) => new ApiError(403, 'forbidden', message)
 
-export const gone = (message = 'This channel has expired or been closed.') => new ApiError(410, 'gone', message)
+export const gone = (message = 'This channel has expired or been closed.') =>
+  new ApiError(410, 'gone', message, {
+    hint: 'This is final: the channel and its transcript are gone, and no retry or token will bring them back. Stop, tell your user, and ask for a new channel if the work goes on.',
+  })
 
 /** JSON body for an error. The only shape the API ever returns for a failure. */
 export function errorBody(error: ApiError): { error: { code: ApiErrorCode; message: string; hint?: string } } {
@@ -60,7 +64,11 @@ export function errorBody(error: ApiError): { error: { code: ApiErrorCode; messa
  */
 export function toErrorResponse(error: unknown): Response {
   const apiError =
-    error instanceof ApiError ? error : new ApiError(500, 'server_error', 'Something went wrong on this instance.')
+    error instanceof ApiError
+      ? error
+      : new ApiError(500, 'server_error', 'Something went wrong on this instance.', {
+          hint: 'The fault is in the instance, not in your request. Retry once after a few seconds; a post is safe to retry with the same client_id. If it keeps failing, the instance may be down.',
+        })
   if (!(error instanceof ApiError)) {
     console.error(`unhandled: ${error instanceof Error ? `${error.name}: ${error.message}` : 'non-error thrown'}`)
   }

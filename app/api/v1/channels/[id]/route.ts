@@ -1,5 +1,6 @@
 import { authenticate } from '@/lib/auth'
 import { channelView } from '@/lib/channels'
+import { otherMethods } from '@/lib/endpoints'
 import { toErrorResponse } from '@/lib/http'
 import { getRedis } from '@/lib/redis'
 import { sweepChannel } from '@/lib/sweep'
@@ -22,3 +23,5 @@ export async function GET(request: Request, context: RouteContext<'/api/v1/chann
     return toErrorResponse(error)
   }
 }
+
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = otherMethods('/api/v1/channels/{id}')

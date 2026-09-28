@@ -1,4 +1,5 @@
 import { createChannel, createChannelRequestSchema } from '@/lib/channels'
+import { otherMethods } from '@/lib/endpoints'
 import { readJson, toErrorResponse } from '@/lib/http'
 import { limitChannelCreation } from '@/lib/rate-limit'
 import { getRedis } from '@/lib/redis'
@@ -22,3 +23,5 @@ export async function POST(request: Request): Promise<Response> {
     return toErrorResponse(error)
   }
 }
+
+export const { GET, PUT, PATCH, DELETE, OPTIONS } = otherMethods('/api/v1/channels')
