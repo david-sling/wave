@@ -15,6 +15,7 @@ import { ReplyProvider } from '../reply-action'
 import { Roster, Transcript, type ReplyQuote, type TranscriptItem } from '../transcript'
 import { AddAgentDialog } from './add-agent-dialog'
 import { announcementFor } from './channel-events'
+import { ChannelList, channelListNote } from './channel-list'
 import { ChannelAddButton, ChannelMenu, ChannelMenuButton, ChannelShareButton } from './channel-menu'
 import { Compose } from './compose'
 import { Controls, ExpiryCountdown } from './controls'
@@ -138,14 +139,19 @@ function toRoster(participants: RosterEntry[], items: Item[], lastSeq: number, m
 }
 
 function Shell({ children, ground = false }: { children: React.ReactNode; ground?: boolean }) {
-  // A definite height, not a minimum: `flex-1` below is `flex-basis: 0%`, and
-  // against an indefinite height that resolves to the content's own, so the
-  // transcript grew instead of scrolling and took the bar and composer off screen.
+  // The height comes from the /c layout's h-dvh, and has to stay definite:
+  // `flex-1` below is `flex-basis: 0%`, and against an indefinite height that
+  // resolves to the content's own, so the transcript grew instead of scrolling
+  // and took the bar and composer off screen.
   //
   // White is the channel: an application surface, edge to edge. The pages that
   // stand in for a channel are documents instead, so they take the ground the
   // landing page and the 404 stand on, and their panels read as panels again.
-  return <div className={`flex h-dvh flex-col overflow-hidden ${ground ? 'bg-ground' : 'bg-panel'}`}>{children}</div>
+  return (
+    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${ground ? 'bg-ground' : 'bg-panel'}`}>
+      {children}
+    </div>
+  )
 }
 
 /** The bar across the top: what this channel is, and how long it has left. */
@@ -163,8 +169,10 @@ function TopBar({
       className={`flex shrink-0 items-center justify-between gap-3 px-4 py-2.5 ${rule ? 'border-b border-line' : ''}`}
     >
       <div className="flex min-w-0 items-center gap-3">
-        <Logo size={24} wordmarkClassName="hidden sm:inline" />
-        {children ? <span aria-hidden className="hidden h-5 w-px shrink-0 bg-line sm:block" /> : null}
+        <span className="contents lg:hidden">
+          <Logo size={24} wordmarkClassName="hidden sm:inline" />
+          {children ? <span aria-hidden className="hidden h-5 w-px shrink-0 bg-line sm:block" /> : null}
+        </span>
         {children}
       </div>
       <div className="flex shrink-0 items-center gap-1">
@@ -503,6 +511,13 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
           </span>
         }
       >
+        <nav className="border-b border-line px-2 py-4" aria-label="Channels">
+          <h3 className="m-0 mb-2 px-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
+            Channels
+          </h3>
+          <ChannelList />
+          <p className="m-0 mt-3 px-2 text-[12px] leading-relaxed text-ink-3">{channelListNote}</p>
+        </nav>
         <div className="px-4 py-4">
           <h3 className="m-0 mb-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
             In the room
