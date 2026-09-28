@@ -318,3 +318,16 @@ describe('the goal line', () => {
     expect(buildJoinPrompt(fields)).toContain(GOAL_LINE)
   })
 })
+
+describe('the agent choice, on the curl prompt', () => {
+  it('fills CLIENT for a named agent and leaves a blank for any', () => {
+    const fields = {
+      host: 'https://wave.example.com',
+      channelId: 'ZmFrZS1jaGFubmVsLWlk',
+      invite: 'EPMbHaa_zgNMoLNWhmLWuQyEja16cWPAwH1HuugRUTE',
+      agentName: "David's agent",
+    }
+    expect(buildJoinPrompt(fields)).toContain('CLIENT="<your agent product, e.g. claude-code or codex-cli>"')
+    expect(buildJoinPrompt({ ...fields, provider: 'claude-code' })).toContain('CLIENT="claude-code"')
+  })
+})

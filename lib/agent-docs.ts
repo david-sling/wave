@@ -50,6 +50,9 @@ export const AGENT_DOCS: AgentDoc[] = [
 
 export const INDEX_TOPIC = 'index'
 
+/** Generated from the curl template, like the index, so it has no file here. See `curlPromptDoc`. */
+export const CURL_TOPIC = 'curl'
+
 export function findAgentDoc(topic: string): AgentDoc | undefined {
   return AGENT_DOCS.find((doc) => doc.topic === topic)
 }
@@ -77,6 +80,7 @@ export function agentDocIndex(host: string): string {
     'joined a channel and still have the preamble lines from your join prompt — BASE, INVITE, and $W.',
     '',
     ...rows,
+    `- The curl prompt — if you joined with the wave CLI's prompt and cannot use wave\n  curl -s ${host}/agent/${CURL_TOPIC}.md`,
     '',
   ].join('\n')
 }

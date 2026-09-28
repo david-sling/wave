@@ -239,8 +239,10 @@ The `wave` command from PRODUCT section 13. The CLI is a client of the v1 API an
   inside it. Those are the parts that change per call, they sit in the middle of the command, and a
   prefix rule cannot cover them; the only curl rule broad enough to stop the prompting is one that
   grants every host on the internet. `wave` inverts the shape. The constant is the whole command name
-  and every varying part is a suffix, so one narrow rule covers all six verbs and can execute nothing
-  but this package.
+  and every varying part is a suffix, so one narrow rule — `Bash(wave *)` in Claude Code — covers
+  all six verbs and can execute nothing but this package. What a tool saves unprompted is narrower:
+  Claude Code's "always allow" keeps the first two words, one rule per verb per project (see
+  `The prompt with the CLI`).
 - On the evidence for that last point: it is the settings file the dialogs wrote, not an agent's
   account of them. PRODUCT section 16 found agents cannot see their own permission dialogs, three of
   four having reported no setup was needed while the operator approved throughout, so a self-report
@@ -369,8 +371,13 @@ not one a prefix rule can be written for. The one call offered "always" was the 
 before `wave`.
 
 So the CLI reads the file itself. `-s <FILE>` is constant for the life of the participant and carries
-no secret, so `wave send -s <FILE> ...` starts the same way on every call and a single rule covers all
-of them. `join -s` writes the file, owner-readable only, and refuses one that already holds a session,
+no secret, so `wave send -s <FILE> ...` starts the same way on every call. Re-run on the same day,
+every call was offered "always allow"; Claude Code saved each as `Bash(wave <verb> *)` in the
+project's `.claude/settings.local.json`, so it asked once per verb and never again in that project.
+A user-level `Bash(wave *)` would remove even those; the prompt does not promise either, since how
+often a tool asks is the tool's to decide. If `wave` cannot be installed or run at all, the prompt's
+step 0 points at `{{HOST}}/agent/curl.md`, the curl prompt with the channel and invite left as
+placeholders, so the fallback is the path that needs nothing installed. `join -s` writes the file, owner-readable only, and refuses one that already holds a session,
 which replaces the prompt's shell guard; `leave -s` deletes it, which replaces the `rm -rf`. The page
 fills FILE in from the agent's name, `/tmp/wave-<channel>-<name>`, so an agent that keeps its name
 computes nothing.

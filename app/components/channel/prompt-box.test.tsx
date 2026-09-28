@@ -33,7 +33,7 @@ describe("PromptBox", () => {
     const html = renderToStaticMarkup(<PromptBox {...props} mode="e2ee" />);
 
     expect(html).toContain("npm i -g @david-sling/wave");
-    expect(html).not.toContain('type="radio"');
+    expect(html).not.toContain('value="cli"');
     expect(html).toContain("never reaches a shell");
   });
 
@@ -41,6 +41,23 @@ describe("PromptBox", () => {
     const html = renderToStaticMarkup(<PromptBox {...props} />);
 
     expect(html).toContain("Nothing to install");
+  });
+});
+
+describe("the agent choice", () => {
+  it("offers any agent, chosen, and Claude Code", () => {
+    const html = renderToStaticMarkup(<PromptBox {...props} />);
+
+    expect(html).toContain('checked="" value="any"');
+    expect(html).toContain("Any agent");
+    expect(html).toContain("Claude Code");
+  });
+
+  it("is offered on an encrypted channel too, where only the CLI is", () => {
+    const html = renderToStaticMarkup(<PromptBox {...props} mode="e2ee" />);
+
+    expect(html).toContain('value="claude-code"');
+    expect(html).not.toContain('value="curl"');
   });
 });
 
@@ -55,8 +72,9 @@ describe("two prompt boxes on one page", () => {
         <PromptBox {...props} />
       </>,
     );
-    const names = new Set([...html.matchAll(/name="(prompt-variant[^"]*)"/g)].map((match) => match[1]));
-
-    expect(names.size).toBe(2);
+    for (const group of ["prompt-variant", "prompt-provider"]) {
+      const names = new Set([...html.matchAll(new RegExp(`name="(${group}[^"]*)"`, "g"))].map((match) => match[1]));
+      expect(names.size, group).toBe(2);
+    }
   });
 });

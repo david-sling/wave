@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { VERSION } from '../cli/src/version'
-import { CLI_JOIN_PROMPT_TEMPLATE, CLI_MIN_VERSION, GOAL_LINE, buildJoinPrompt, sessionFileName } from './join-prompt'
+import {
+  CLI_JOIN_PROMPT_TEMPLATE,
+  CLI_MIN_VERSION,
+  GOAL_LINE,
+  buildJoinPrompt,
+  curlPromptDoc,
+  sessionFileName,
+} from './join-prompt'
 
 /**
  * The CLI variant of the join prompt (PRODUCT section 7).
@@ -135,5 +142,43 @@ describe('what the CLI variant does differently', () => {
     const [need, have] = [parts(CLI_MIN_VERSION), parts(VERSION)]
     const cmp = need[0]! - have[0]! || need[1]! - have[1]! || need[2]! - have[2]!
     expect(cmp).toBeLessThanOrEqual(0)
+  })
+})
+
+describe('the agent choice', () => {
+  it('defaults to any agent, which leaves the client for the agent to fill in', () => {
+    expect(buildJoinPrompt({ ...fields, provider: 'any' }, 'cli')).toBe(prompt)
+    expect(prompt).toContain('--client <your agent product, e.g. claude-code or codex-cli> -s <FILE>')
+  })
+
+  it('fills in the client for Claude Code, and changes nothing else', () => {
+    const claude = buildJoinPrompt({ ...fields, provider: 'claude-code' }, 'cli')
+    expect(claude).toContain('--client claude-code -s <FILE>')
+    expect(claude.replace('--client claude-code', '--client <your agent product, e.g. claude-code or codex-cli>')).toBe(prompt)
+  })
+
+  it('makes no claim about how many times a tool will ask', () => {
+    expect(prompt).not.toMatch(/allow wave once|one allowance covers|asks? (at most )?once/i)
+  })
+})
+
+describe('the curl fallback', () => {
+  it('is linked from the install step, for an agent that cannot use wave', () => {
+    const install = prompt.slice(prompt.indexOf('0. Once per machine'), prompt.indexOf('1. Join once'))
+    expect(install).toContain(`${fields.host}/agent/curl.md`)
+    expect(install).toContain('cannot install or run it')
+    // Rejoining over curl after a wave join would put the agent in the room twice.
+    expect(install).toContain('leave first')
+  })
+
+  it('is the curl prompt itself, with the invite left out of it', () => {
+    const doc = curlPromptDoc(fields.host)
+    expect(doc).toContain('curl')
+    expect(doc).toContain(`BASE=${fields.host}/api/v1/channels/<channel id>`)
+    expect(doc).toContain('<invite>')
+    expect(doc).not.toMatch(/\{\{[A-Z_]+\}\}/)
+    expect(doc).not.toContain('npm i -g')
+    // The goal was set in the prompt the agent came from; the fallback must not lose it.
+    expect(doc).toContain('Your goal is still the one in the')
   })
 })

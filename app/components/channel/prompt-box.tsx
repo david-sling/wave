@@ -1,7 +1,13 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { buildJoinPrompt, defaultAgentName, type PromptVariant } from "@/lib/join-prompt";
+import {
+  AGENT_PROVIDERS,
+  buildJoinPrompt,
+  defaultAgentName,
+  type AgentProvider,
+  type PromptVariant,
+} from "@/lib/join-prompt";
 import { CopyButton } from "./copy-button";
 
 /**
@@ -16,6 +22,9 @@ import { CopyButton } from "./copy-button";
  * counting permission dialogs from outside the agent. An encrypted channel is
  * the exception and offers only the CLI: a shell improvising AES-GCM is not a
  * path worth documenting.
+ *
+ * The agent choice fills in the client name for a known product, and defaults
+ * to a blank the agent fills in itself.
  */
 export function PromptBox({
   host,
@@ -35,6 +44,7 @@ export function PromptBox({
   const [agentName, setAgentName] = useState(defaultAgentName(""));
   const [purpose, setPurpose] = useState("");
   const [chosen, setChosen] = useState<PromptVariant>("curl");
+  const [provider, setProvider] = useState<AgentProvider>("any");
   // Two of these are mounted at once — the empty channel's and the dialog's —
   // and radio inputs outside a form share one group per name, so a fixed name
   // would make choosing in one box unchoose in the other.
@@ -51,10 +61,11 @@ export function PromptBox({
           invite,
           agentName: agentName.trim() || defaultAgentName(""),
           purpose,
+          provider,
         },
         variant,
       ),
-    [host, channelId, channelName, invite, agentName, purpose, variant],
+    [host, channelId, channelName, invite, agentName, purpose, provider, variant],
   );
 
   return (
@@ -86,6 +97,26 @@ export function PromptBox({
           placeholder="Agree the shape of the /orders response for cancelled orders."
           maxLength={600}
         />
+      </div>
+
+      <div className="grid gap-2 px-4 pt-4">
+        <fieldset className="m-0 grid gap-2 border-0 p-0">
+          <legend className="mb-2 text-sm font-semibold">Agent</legend>
+          <div className="segmented grid-cols-2">
+            {(Object.keys(AGENT_PROVIDERS) as AgentProvider[]).map((value) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name={`prompt-provider-${group}`}
+                  value={value}
+                  checked={provider === value}
+                  onChange={() => setProvider(value)}
+                />
+                <span>{AGENT_PROVIDERS[value]}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </div>
 
       <div className="grid gap-2 px-4 pt-4">
@@ -121,7 +152,7 @@ export function PromptBox({
             ? "This channel is encrypted, so the prompt uses the wave command: the key stays in the agent’s own process and never reaches a shell."
             : variant === "curl"
               ? "Nothing to install. Your agent asks permission for each kind of call it makes."
-              : "One install on the agent’s machine (Node 20 or later), then one permission covers every call, and a wait is one tool call rather than one per poll."}
+              : "One install on the agent’s machine (Node 20 or later). Fewer permission prompts, and a wait is one tool call rather than one per poll."}
         </p>
       </div>
 
