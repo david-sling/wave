@@ -7,7 +7,8 @@ other agents in it, and wait for what they say back.
 npm i -g @david-sling/wave
 ```
 
-Node 20 or later. No runtime dependencies.
+Or `pnpm add -g`, `yarn global add` (Yarn 1), or `bun add -g`. Node 20 or later
+whichever you use. No runtime dependencies.
 
 ## Use
 

@@ -3,29 +3,41 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import {
   AGENT_PROVIDERS,
+  INSTALLERS,
+  INSTALL_COMMANDS,
   buildJoinPrompt,
   defaultAgentName,
   type AgentProvider,
-  type PromptVariant,
+  type Installer,
 } from "@/lib/join-prompt";
 import { ClientMark } from "../agent-marks";
 import { TerminalIcon } from "../icons";
 import { CopyButton } from "./copy-button";
+import { InstallCommand } from "./install-command";
 import { useRemembered } from "./remembered";
 
 const PROVIDERS = Object.keys(AGENT_PROVIDERS) as AgentProvider[];
-const VARIANTS: readonly PromptVariant[] = ["curl", "cli"];
+/**
+ * How the agent talks to the channel: curl, or the CLI installed with one of
+ * the package managers. Every package manager gives the same CLI prompt; which
+ * one only changes the install command the person runs and the agent asks for.
+ */
+type Method = "curl" | Installer;
+const METHODS: readonly Method[] = ["curl", ...INSTALLERS];
 
-/** What each method is called on the page. `cli` is installed from npm, so that is its name here. */
-const VARIANT_LABEL: Record<PromptVariant, string> = { curl: "curl", cli: "npm" };
-
-/** What each method costs, said under the choice. */
-const NOTE: Record<PromptVariant | "encrypted", string> = {
-  curl: "Nothing to install. Your agent asks permission for each kind of call it makes.",
-  cli: "One install on the agent’s machine (Node 20 or later). Fewer permission prompts, and a wait is one tool call rather than one per poll.",
-  encrypted:
-    "This channel is encrypted, so the prompt uses the wave command: the key stays in the agent’s own process and never reaches a shell.",
-};
+/** What the chosen method costs, said under the choice. A package manager's note carries its install. */
+function note(method: Method, encrypted: boolean): ReactNode {
+  if (method === "curl") return "Nothing to install. Your agent asks permission for each kind of call it makes.";
+  const lead = encrypted
+    ? "This channel is encrypted, so the prompt uses the wave command: the key stays in the agent’s own process and never reaches a shell."
+    : "Fewer permission prompts, and a wait is one tool call rather than one per poll.";
+  return (
+    <>
+      {lead} Run this once on the agent’s machine first (Node 20 or later):
+      <InstallCommand command={INSTALL_COMMANDS[method]} />
+    </>
+  );
+}
 
 const PROVIDER_MARK: Record<AgentProvider, ReactNode> = {
   any: <TerminalIcon size={17} />,
@@ -68,13 +80,16 @@ export function PromptBox({
   const encrypted = mode !== "standard";
   const [agentName, setAgentName] = useState(defaultAgentName(""));
   const [purpose, setPurpose] = useState("");
-  const [chosen, setChosen] = useRemembered("wave:prompt-method", VARIANTS, "curl");
+  const [chosen, setChosen] = useRemembered("wave:prompt-method", METHODS, "curl");
   const [provider, setProvider] = useRemembered("wave:prompt-agent", PROVIDERS, "any");
   // Two of these are mounted at once — the empty channel's and the dialog's —
   // and radio inputs outside a form share one group per name, so a fixed name
   // would make choosing in one box unchoose in the other.
   const group = useId();
-  const variant = encrypted ? "cli" : chosen;
+  // An encrypted channel has no curl path, so a remembered curl reads as npm there.
+  const offered = encrypted ? INSTALLERS : METHODS;
+  const method: Method = encrypted && chosen === "curl" ? "npm" : chosen;
+  const variant = method === "curl" ? "curl" : "cli";
 
   const prompt = useMemo(
     () =>
@@ -87,10 +102,11 @@ export function PromptBox({
           agentName: agentName.trim() || defaultAgentName(""),
           purpose,
           provider,
+          installer: method === "curl" ? undefined : method,
         },
         variant,
       ),
-    [host, channelId, channelName, invite, agentName, purpose, provider, variant],
+    [host, channelId, channelName, invite, agentName, purpose, provider, method, variant],
   );
 
   return (
@@ -146,36 +162,34 @@ export function PromptBox({
             ))}
           </fieldset>
 
-          {encrypted ? null : (
-            <fieldset className="choice-group">
-              <legend className="sr-only">How it talks to the channel</legend>
-              {VARIANTS.map((value) => (
-                <label key={value} className="choice">
-                  <input
-                    type="radio"
-                    name={`prompt-variant-${group}`}
-                    value={value}
-                    checked={variant === value}
-                    onChange={() => setChosen(value)}
-                  />
-                  <span>{VARIANT_LABEL[value]}</span>
-                </label>
-              ))}
-            </fieldset>
-          )}
+          <fieldset className="choice-group">
+            <legend className="sr-only">How it talks to the channel</legend>
+            {offered.map((value) => (
+              <label key={value} className="choice">
+                <input
+                  type="radio"
+                  name={`prompt-variant-${group}`}
+                  value={value}
+                  checked={method === value}
+                  onChange={() => setChosen(value)}
+                />
+                <span>{value}</span>
+              </label>
+            ))}
+          </fieldset>
         </div>
         {/* Every note is laid out in the same cell and only the current one is
             visible, so the cell is as tall as the longest and switching method
             never resizes the dialog around it. */}
         <div className="grid text-[13px] leading-relaxed text-ink-3">
-          {(encrypted ? (["encrypted"] as const) : VARIANTS).map((key) => (
-            <p
+          {offered.map((key) => (
+            <div
               key={key}
-              className={`col-start-1 row-start-1 m-0 ${key === "encrypted" || key === variant ? "" : "invisible"}`}
-              aria-hidden={key !== "encrypted" && key !== variant}
+              className={`col-start-1 row-start-1 m-0 ${key === method ? "" : "invisible"}`}
+              aria-hidden={key !== method}
             >
-              {NOTE[key]}
-            </p>
+              {note(key, encrypted)}
+            </div>
           ))}
         </div>
       </div>

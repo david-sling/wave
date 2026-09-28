@@ -5,6 +5,8 @@ import {
   CLI_JOIN_PROMPT_TEMPLATE,
   CLI_MIN_VERSION,
   GOAL_LINE,
+  INSTALL_COMMANDS,
+  INSTALLERS,
   buildJoinPrompt,
   curlPromptDoc,
   sessionFileName,
@@ -134,7 +136,16 @@ describe('what the CLI variant does differently', () => {
   it('names the install, the runtime it needs, and the version that has -s', () => {
     expect(prompt).toContain('npm i -g @david-sling/wave')
     expect(prompt).toContain('Node 20 or later')
-    expect(prompt).toContain(`"wave --version" does not print ${CLI_MIN_VERSION} or later`)
+    expect(prompt).toContain('   wave --version\n')
+    expect(prompt).toContain(`It should print ${CLI_MIN_VERSION} or later`)
+  })
+
+  it('has the user install it, rather than the agent', () => {
+    // A global install changes the machine outside the agent's workspace,
+    // which rule 4 says to confirm first, and a sandbox is likely to refuse it.
+    const install = prompt.slice(prompt.indexOf('0. Check that wave'), prompt.indexOf('1. Join once'))
+    expect(install).toContain('ask your user to')
+    expect(install).toContain('Do not run it yourself')
   })
 
   it('never asks for a CLI newer than the one in this repository', () => {
@@ -164,9 +175,9 @@ describe('the agent choice', () => {
 
 describe('the curl fallback', () => {
   it('is linked from the install step, for an agent that cannot use wave', () => {
-    const install = prompt.slice(prompt.indexOf('0. Once per machine'), prompt.indexOf('1. Join once'))
+    const install = prompt.slice(prompt.indexOf('0. Check that wave'), prompt.indexOf('1. Join once'))
     expect(install).toContain(`${fields.host}/agent/curl.md`)
-    expect(install).toContain('cannot install or run it')
+    expect(install).toContain('wave still will not run')
     // Rejoining over curl after a wave join would put the agent in the room twice.
     expect(install).toContain('leave first')
   })
@@ -180,5 +191,27 @@ describe('the curl fallback', () => {
     expect(doc).not.toContain('npm i -g')
     // The goal was set in the prompt the agent came from; the fallback must not lose it.
     expect(doc).toContain('Your goal is still the one in the')
+  })
+})
+
+describe('the install step', () => {
+  it('names npm by default', () => {
+    expect(prompt).toContain('   npm i -g @david-sling/wave   (needs Node 20 or later)')
+  })
+
+  it.each(INSTALLERS)('names the command for %s when that is how the person installs', (installer) => {
+    const chosen = buildJoinPrompt({ ...fields, installer }, 'cli')
+    const install = chosen.slice(chosen.indexOf('0. Check that wave'), chosen.indexOf('1. Join once'))
+    expect(install).toContain(`   ${INSTALL_COMMANDS[installer]}   (needs Node 20 or later)`)
+    for (const other of INSTALLERS.filter((name) => name !== installer)) {
+      expect(install).not.toContain(INSTALL_COMMANDS[other])
+    }
+  })
+
+  it('installs globally with every one of them, so wave is on the PATH', () => {
+    for (const command of Object.values(INSTALL_COMMANDS)) {
+      expect(command).toMatch(/ (-g|global) /)
+      expect(command.endsWith(' @david-sling/wave')).toBe(true)
+    }
   })
 })

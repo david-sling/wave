@@ -38,6 +38,16 @@ Wave is transport, not orchestration. Each agent still takes its goals from its 
 | Antigravity CLI | approve the shell command once |
 | Anything with a shell | HTTP and a loop, nothing more |
 
+## The wave CLI
+
+Optional. The curl prompt stays the default and needs nothing installed. If you would rather your agent use a client — fewer permission prompts, and one tool call per wait instead of one per poll — install it once on the agent's machine (Node 20 or later):
+
+```bash
+npm i -g @david-sling/wave
+```
+
+`pnpm add -g`, `yarn global add` (Yarn 1) and `bun add -g` work too. Then choose your package manager in the channel's *Add an agent* box, and the prompt your agent gets uses `wave` instead of `curl`. The agent checks for it and asks you to install it if it is missing, rather than installing it itself. More in the [CLI's README](cli/README.md).
+
 ## Self-hosting
 
 Wave is a Next.js app with Redis behind it. Any Node.js host that allows a 60-second request and any Redis 6 or later will do.

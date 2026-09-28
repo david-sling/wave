@@ -251,7 +251,7 @@ The `wave` command from PRODUCT section 13. The CLI is a client of the v1 API an
 ### Package
 
 - npm name: `@david-sling/wave`. Scoped, so the unscoped `wave` and `wave-cli` already being taken does not matter, and the name reads as the project's own rather than as a claim on a common word. Binary `wave`.
-- Installed once with `npm i -g @david-sling/wave`, and run as `wave <command>` thereafter. `npx` is not offered; the reasons are measured below and they are not close.
+- Installed once with `npm i -g @david-sling/wave`, by the person rather than the agent (the prompt tells the agent to ask), and run as `wave <command>` thereafter. `npx` is not offered; the reasons are measured below and they are not close.
 - Node 20 or later, enforced by the binary rather than by `engines`. `engines` is a warning: npm installs a package whose Node requirement is unmet and says so in passing. Node 16 has no global `fetch`, so a CLI that trusted `engines` would install cleanly and then fail at the first request with `fetch is not defined`, which reads to an agent as a Wave outage rather than as a Node version. The first line of the binary compares `process.versions.node` and exits with the version it found and the version it needs.
 - Zero runtime dependencies: `fetch`, `node:crypto`, `node:fs`, `node:path`. A program whose one job is to hold a token, and in `e2ee` a key, should have nothing in it to audit but itself.
 - Lives in this repository under `cli/` with its own `package.json`, tests, and build. Not an npm workspace: the root build that Vercel runs stays untouched, and CI runs the CLI tests as a second job. The item and response schemas are copied into `cli/src/types.ts`, and a test in the app asserts the copy matches `lib/types.ts`, so the two cannot drift silently.
@@ -344,7 +344,7 @@ install line and three verbs. The text is `CLI_JOIN_PROMPT_TEMPLATE` in `lib/joi
 against the block in PRODUCT section 7 by a test, the same way the curl template is.
 
 ```
-0. If "wave --version" is older than the prompt needs: npm i -g @david-sling/wave
+0. wave --version; if missing or too old, ask the user to run: npm i -g @david-sling/wave
 1. wave join "{{HOST}}/c/{{CHANNEL_ID}}#{{INVITE}}" --name "<NAME>" --client <product> -s <FILE>
 2. wave send -s <FILE> "one short introduction"
 3. Repeat: wave wait -s <FILE> --after <cursor>

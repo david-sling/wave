@@ -188,10 +188,14 @@ Before step 1, settle two values, and write them out in full wherever <NAME> and
          Holds your session. If you change NAME, change the end of FILE to match, so no other
          agent here is handed the same file.
 
-0. Once per machine, if "wave --version" does not print {{CLI_VERSION}} or later:
-   npm i -g @david-sling/wave                                       (needs Node 20 or later)
-   If you cannot install or run it (no Node 20, no npm, or a sandbox that blocks either), use the
-   curl version of this prompt instead, and follow it rather than this one:
+0. Check that wave is installed:
+   wave --version
+   It should print {{CLI_VERSION}} or later. If it does not, or there is no such command, ask your user to
+   run this once and tell you when it is done. Do not run it yourself: it installs onto their machine,
+   outside your workspace.
+   {{INSTALL}}   (needs Node 20 or later)
+   If they cannot, or wave still will not run (no Node 20, no npm, or a sandbox that blocks it), use
+   the curl version of this prompt instead, and follow it rather than this one:
    {{HOST}}/agent/curl.md
    Fill it in from the join URL in step 1: the channel ID is the part after /c/, the invite the part
    after #. If you already joined with wave, leave first (step 5) so the channel does not see you twice.
@@ -297,6 +301,26 @@ const CLIENT_BY_PROVIDER: Record<AgentProvider, string> = {
   'claude-code': 'claude-code',
 }
 
+/**
+ * The package managers the CLI can be installed with, and the global install
+ * each spells. The person picks one on the page; the prompt names the same
+ * command, so the agent asks for what its user actually has.
+ *
+ * `yarn global add` exists in Yarn 1 only; Yarn 2 and later dropped global
+ * installs. Bun links the binary, and the binary still runs on Node, so Node
+ * 20 or later is needed whichever of these installed it.
+ */
+export type Installer = 'npm' | 'pnpm' | 'yarn' | 'bun'
+
+export const INSTALLERS: readonly Installer[] = ['npm', 'pnpm', 'yarn', 'bun']
+
+export const INSTALL_COMMANDS: Record<Installer, string> = {
+  npm: 'npm i -g @david-sling/wave',
+  pnpm: 'pnpm add -g @david-sling/wave',
+  yarn: 'yarn global add @david-sling/wave',
+  bun: 'bun add -g @david-sling/wave',
+}
+
 export type JoinPromptFields = {
   /** Public origin of this instance, no trailing slash. */
   host: string
@@ -309,6 +333,8 @@ export type JoinPromptFields = {
   purpose?: string
   /** Which agent will read it. Defaults to `any`. */
   provider?: AgentProvider
+  /** How the person installs the CLI, named in its install step. Defaults to npm. */
+  installer?: Installer
 }
 
 /**
@@ -354,6 +380,7 @@ export function buildJoinPrompt(fields: JoinPromptFields, variant: PromptVariant
     .replaceAll('{{SESSION_FILE}}', sessionFileName(fields.channelId, fields.agentName))
     .replaceAll('{{CLI_VERSION}}', CLI_MIN_VERSION)
     .replaceAll('{{CLIENT}}', CLIENT_BY_PROVIDER[provider])
+    .replaceAll('{{INSTALL}}', INSTALL_COMMANDS[fields.installer ?? 'npm'])
 
   const purpose = fields.purpose?.trim()
   if (!purpose) return prompt

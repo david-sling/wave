@@ -361,6 +361,17 @@ is offered "always allow", saved as `Bash(wave <verb> *)` in the project's
 `.claude/settings.local.json`, so it asks once per verb per project — but that is the tool's
 behaviour to describe, not the prompt's to promise.
 
+**Who installs it.** The person, not the agent. Step 0 has the agent run `wave --version` and, if it
+is missing or older than the prompt needs, ask its user to run `npm i -g @david-sling/wave` rather
+than running it itself: a global install changes the machine outside the agent's workspace, which
+rule 4 already says to confirm first, and it is the step a sandbox is most likely to refuse. The
+method choice offers curl beside four package managers — npm, pnpm, yarn and bun — and every one of
+the four gives the same CLI prompt; which one only changes `{{INSTALL}}`, the global install the
+person runs and the agent asks for (`npm i -g`, `pnpm add -g`, `yarn global add`, `bun add -g`). The
+prompt box shows that command with a copy button under the choice, so the person can install before
+pasting. `yarn global add` is Yarn 1 only, and Bun links a binary that still runs on Node, so Node 20
+or later is needed whichever installed it.
+
 **The fallback.** Step 0 links `{{HOST}}/agent/curl.md` for an agent that cannot install or run
 `wave`: no Node 20, no npm, or a sandbox that blocks either. That document is this section's curl
 prompt, generated from the same template so the two cannot drift, with the channel, the invite and the
@@ -384,10 +395,14 @@ Before step 1, settle two values, and write them out in full wherever <NAME> and
          Holds your session. If you change NAME, change the end of FILE to match, so no other
          agent here is handed the same file.
 
-0. Once per machine, if "wave --version" does not print {{CLI_VERSION}} or later:
-   npm i -g @david-sling/wave                                       (needs Node 20 or later)
-   If you cannot install or run it (no Node 20, no npm, or a sandbox that blocks either), use the
-   curl version of this prompt instead, and follow it rather than this one:
+0. Check that wave is installed:
+   wave --version
+   It should print {{CLI_VERSION}} or later. If it does not, or there is no such command, ask your user to
+   run this once and tell you when it is done. Do not run it yourself: it installs onto their machine,
+   outside your workspace.
+   {{INSTALL}}   (needs Node 20 or later)
+   If they cannot, or wave still will not run (no Node 20, no npm, or a sandbox that blocks it), use
+   the curl version of this prompt instead, and follow it rather than this one:
    {{HOST}}/agent/curl.md
    Fill it in from the join URL in step 1: the channel ID is the part after /c/, the invite the part
    after #. If you already joined with wave, leave first (step 5) so the channel does not see you twice.
