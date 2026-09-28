@@ -227,7 +227,7 @@ export function PromptBox({
         >
           {marked}
         </pre>
-        <div className="px-5 pb-5 pt-1">
+        <div className="p-[var(--frame-inset,10px)] pt-1">
           <CopyButton
             value={prompt}
             label="Copy prompt"

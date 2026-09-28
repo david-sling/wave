@@ -48,12 +48,14 @@ export function AddAgentDialog({
         // the content sits in a child that stops it.
         if (event.target === dialog.current) onClose();
       }}
-      className="dialog-modal m-auto w-[min(92vw,600px)] overflow-hidden rounded-[28px] border border-line bg-panel p-0 text-ink"
+      className="dialog-modal m-auto w-[min(92vw,600px)] overflow-hidden rounded-[28px] border border-line bg-panel p-0 text-ink [--frame-radius:28px]"
       aria-labelledby="add-agent-heading"
     >
       {/* A wrapper rather than flex on the dialog itself: a display class on
-          <dialog> would override the closed dialog's display: none. */}
-      <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
+          <dialog> would override the closed dialog's display: none. Its cap
+          sits under the browser's own for a modal (100% less 2em and 6px), or
+          the dialog clips the bottom of the prompt footer. */}
+      <div className="flex max-h-[calc(100dvh-3rem)] flex-col">
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-line px-5 py-3.5">
           <h2
             id="add-agent-heading"

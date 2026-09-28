@@ -149,6 +149,13 @@
   /* A button that spans its container stays where it is on hover: a bar that
      lifts reads as the whole footer moving. It answers with its fill instead,
      a step lighter than ink. */
+  /* Concentric with the frame it sits in: the frame's radius, less its 1px
+     border and the gap to the bar, so the bar's corners follow the frame's
+     curve instead of a pill's. A frame sets `--frame-radius`; the gap is
+     `--frame-inset`, which the bar's wrapper pads by. */
+  .btn-bar {
+    border-radius: max(6px, calc(var(--frame-radius, 28px) - 1px - var(--frame-inset, 10px)));
+  }
   .btn-bar:hover:not(:disabled) {
     transform: none;
     box-shadow: none;
