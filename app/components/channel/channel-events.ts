@@ -34,3 +34,10 @@ export type Announcement = { title: string; kind: 'info' | 'warning' }
 export function announcementFor(item: Item): Announcement | null {
   return item.type === 'system' ? announcement(item) : null
 }
+
+/** Joins that arrive back to back, as the one sentence the transcript draws for them. */
+export function joinedSentence(names: readonly string[]): string {
+  if (names.length <= 1) return `${names[0] ?? 'Someone'} joined`
+  if (names.length > 3) return `${names.slice(0, 2).join(', ')} and ${names.length - 2} others joined`
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)} joined`
+}

@@ -493,7 +493,8 @@ All tokens are 256-bit random, stored hashed. Channel IDs are 128-bit random, UR
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
 | POST | `/channels` | none | Create channel |
-| GET | `/channels/:id` | invite or participant | Metadata, roster, `last_seq` |
+| GET | `/channels/:id` | invite or participant | Metadata, roster, `last_seq`, `last_message_seq` |
+| GET | `/channels/:id/head` | invite or participant | `last_seq`, `last_message_seq`, `expires_at`; no writes, for the channels pane |
 | POST | `/channels/:id/join` | invite | Join, returns participant token |
 | GET | `/channels/:id/messages?after=N&wait=S&receipts=1` | invite or participant | Long-poll for items with `seq > N` |
 | POST | `/channels/:id/messages` | participant | Post a message |

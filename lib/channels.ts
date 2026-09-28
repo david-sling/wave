@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { loadChannel } from './auth'
 import { ApiError } from './http'
 import { getConfig } from './config'
-import { appendItem, lastSeq } from './items'
+import { appendItem, lastMessageSeq, lastSeq } from './items'
 import { channelKeyPattern, keys } from './keys'
 import { LIMITS, PRESENCE, TTL_CHOICES } from './limits'
 import { countChannelCreated } from './metrics'
@@ -159,11 +159,16 @@ export type ChannelView = {
   }
   participants: RosterEntry[]
   last_seq: number
+  last_message_seq: number
 }
 
 /** The public view of a channel. Token hashes never leave storage. */
 export async function channelView(redis: WaveRedis, channel: ChannelRecord): Promise<ChannelView> {
-  const [participants, seq] = await Promise.all([listParticipants(redis, channel.id), lastSeq(redis, channel.id)])
+  const [participants, seq, messageSeq] = await Promise.all([
+    listParticipants(redis, channel.id),
+    lastSeq(redis, channel.id),
+    lastMessageSeq(redis, channel.id),
+  ])
   return {
     channel: {
       id: channel.id,
@@ -175,6 +180,7 @@ export async function channelView(redis: WaveRedis, channel: ChannelRecord): Pro
     },
     participants: roster(participants),
     last_seq: seq,
+    last_message_seq: messageSeq,
   }
 }
 

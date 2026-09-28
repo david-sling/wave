@@ -27,6 +27,7 @@ vi.mock('@/lib/redis', async (importOriginal) => ({
 
 const { POST: createRoute } = await import('@/app/api/v1/channels/route')
 const { GET: readRoute } = await import('@/app/api/v1/channels/[id]/route')
+const { GET: headRoute } = await import('@/app/api/v1/channels/[id]/head/route')
 const { POST: joinRoute } = await import('@/app/api/v1/channels/[id]/join/route')
 const { POST: leaveRoute } = await import('@/app/api/v1/channels/[id]/leave/route')
 const { POST: closeRoute } = await import('@/app/api/v1/channels/[id]/close/route')
@@ -76,6 +77,10 @@ const ENDPOINTS = [
   {
     name: 'GET /channels/:id',
     call: (id: string, token: string) => readRoute(get(token), context(id)),
+  },
+  {
+    name: 'GET /channels/:id/head',
+    call: (id: string, token: string) => headRoute(get(token), context(id)),
   },
   {
     name: 'POST /channels/:id/join',
@@ -151,6 +156,7 @@ describe('credential type is enforced within one channel', () => {
     { endpoint: 'POST /channels/:id/close', credential: 'invite', expects: 'the admin token' },
     { endpoint: 'POST /channels/:id/close', credential: 'participant', expects: 'the admin token' },
     { endpoint: 'GET /channels/:id', credential: 'admin', expects: 'the invite or a participant token' },
+    { endpoint: 'GET /channels/:id/head', credential: 'admin', expects: 'the invite or a participant token' },
   ] as const
 
   for (const { endpoint, credential, expects } of wrong) {

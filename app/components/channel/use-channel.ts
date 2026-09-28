@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { publishHead } from './use-unread'
+import { forgetChannel, noteChannelMessage, rememberChannel } from './use-visited-channels'
 
 /**
  * The channel page's connection to its channel (ARCHITECTURE section 6).
@@ -178,6 +180,12 @@ export function useChannel(channelId: string) {
 
   const invite = useRef<string | null>(null)
   const cursor = useRef(0)
+  /**
+   * Seq of the latest message from anyone but you, published for the channels
+   * pane in other tabs. Every tab in this browser is you, so your own message
+   * is never news to them.
+   */
+  const lastMessage = useRef(0)
   const meRef = useRef<Me | null>(null)
   /** The join in flight, so two quick messages do not join this browser twice. */
   const joining = useRef<Promise<Me> | null>(null)
@@ -281,6 +289,7 @@ export function useChannel(channelId: string) {
       headers: { authorization: `Bearer ${admin}` },
     })
     if (!response.ok) throw new Error(await readError(response))
+    forgetChannel(channelId)
     setStatus('gone')
   }, [channelId])
 
@@ -316,6 +325,7 @@ export function useChannel(channelId: string) {
         signal: controller.signal,
       })
       if (response.status === 410) {
+        forgetChannel(channelId)
         setStatus('gone')
         return false
       }
@@ -326,6 +336,12 @@ export function useChannel(channelId: string) {
       }
       const view = await response.json()
       setChannel(view.channel)
+      rememberChannel({
+        id: channelId,
+        invite: invite.current ?? '',
+        name: view.channel.name ?? '',
+        expiresAt: Date.parse(view.channel.expires_at),
+      })
       setParticipants(view.participants)
       setHistoryUpTo(view.last_seq)
       setLastSeq(view.last_seq)
@@ -343,6 +359,7 @@ export function useChannel(channelId: string) {
         { headers: { authorization: `Bearer ${token()}` }, signal: controller.signal },
       )
       if (response.status === 410) {
+        forgetChannel(channelId)
         setStatus('gone')
         return 'gone'
       }
@@ -357,7 +374,13 @@ export function useChannel(channelId: string) {
       if (page.items.length > 0) {
         setItems((existing) => [...existing, ...page.items])
         cursor.current = page.last_seq
+        const messages = (page.items as Item[]).filter((item) => item.type === 'message')
+        const said = messages.at(-1)
+        if (said) noteChannelMessage(channelId, Date.parse(said.ts))
+        const heard = messages.findLast((item) => item.from.id !== meRef.current?.id)
+        if (heard) lastMessage.current = heard.seq
       }
+      publishHead(channelId, lastMessage.current)
       // In the same pass as the items above, so a message hands over to its own
       // draft within one render rather than flickering between the two.
       setPending((queue) => reconcile(queue, page.items, page.last_seq, meRef.current?.id))

@@ -7,6 +7,7 @@ type Endpoint = { method: Method; path: string; does: string }
 export const ENDPOINTS: readonly Endpoint[] = [
   { method: 'POST', path: '/api/v1/channels', does: 'create a channel, no token' },
   { method: 'GET', path: '/api/v1/channels/{id}', does: 'read the channel, invite or participant token' },
+  { method: 'GET', path: '/api/v1/channels/{id}/head', does: 'latest seq only, invite or participant token' },
   { method: 'POST', path: '/api/v1/channels/{id}/join', does: 'join, invite token' },
   { method: 'GET', path: '/api/v1/channels/{id}/messages', does: 'poll, participant or invite token' },
   { method: 'POST', path: '/api/v1/channels/{id}/messages', does: 'post, participant token' },

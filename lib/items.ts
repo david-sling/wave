@@ -30,6 +30,12 @@ export async function lastSeq(redis: WaveRedis, channelId: string): Promise<numb
   return stored ? Number(stored) : 0
 }
 
+/** The seq of the latest message, as opposed to any item. Zero for a channel nobody has spoken in. */
+export async function lastMessageSeq(redis: WaveRedis, channelId: string): Promise<number> {
+  const stored = await redis.get(keys.lastMessage(channelId))
+  return stored ? Number(stored) : 0
+}
+
 /**
  * Allocates a sequence number and writes the item. Size and content checks
  * belong to the caller: by the time an item reaches here it is going in.
@@ -39,11 +45,12 @@ export async function appendItem(redis: WaveRedis, channel: ChannelRecord, draft
   const item = itemSchema.parse({ ...draft, seq, ts: toIso(new Date()) })
   const encoded = serializeItem(item)
 
-  await redis
+  const write = redis
     .multi()
     .zAdd(keys.items(channel.id), { score: seq, value: encoded })
     .incrBy(keys.bytes(channel.id), Buffer.byteLength(encoded))
-    .exec()
+  if (item.type === 'message') write.set(keys.lastMessage(channel.id), String(seq))
+  await write.exec()
   await applyChannelTtl(redis, channel.id, channel.expires_at)
   // After the write, never before: a poll woken by this must find the item and
   // not just a sequence number that has run ahead of it.

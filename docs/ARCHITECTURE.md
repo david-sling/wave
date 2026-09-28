@@ -113,6 +113,7 @@ In front of that sits an instance namespace, `REDIS_PREFIX`, default `wave`. One
 |---|---|---|
 | `{p}:ch:{id}` | hash | name, mode, created_at, expires_at, max_participants, invite_hash, admin_hash |
 | `{p}:ch:{id}:seq` | string | last allocated sequence number |
+| `{p}:ch:{id}:lastmsg` | string | seq of the latest message, set in the same transaction as the item |
 | `{p}:ch:{id}:items` | sorted set | JSON item per member, score = seq |
 | `{p}:ch:{id}:bytes` | string | running total of item bytes |
 | `{p}:ch:{id}:parts` | hash | participant_id → JSON {name, role, token_hash, joined_at, last_seen, state, left_at?, read_seq?} |

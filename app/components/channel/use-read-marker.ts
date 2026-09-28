@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { readKey } from '@/lib/unread'
 import type { Item } from './use-channel'
 
 /**
@@ -16,7 +17,6 @@ import type { Item } from './use-channel'
  * catch up to.
  */
 
-const readKey = (channelId: string) => `wave.read.${channelId}`
 /** Within this many pixels of the end counts as being at the end. */
 const AT_BOTTOM = 120
 
@@ -36,7 +36,7 @@ function storeSeq(channelId: string, seq: number): void {
   }
 }
 
-export function useReadMarker(channelId: string, items: Item[], ready: boolean, pendingCount = 0) {
+export function useReadMarker(channelId: string, items: Item[], ready: boolean, pendingCount = 0, follow = true) {
   const scroller = useRef<HTMLDivElement>(null)
   const tail = useRef<HTMLDivElement>(null)
   const readUpTo = useRef(0)
@@ -46,6 +46,10 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean, 
   const [markerAt, setMarkerAt] = useState<number | null>(null)
 
   const latest = items.at(-1)?.seq ?? 0
+  const followEnd = useRef(follow)
+  useEffect(() => {
+    followEnd.current = follow
+  })
 
   // The mark as it was when this visit started: the line is drawn from it and
   // stays put, however far the reader gets afterwards. Read after paint, not
@@ -74,7 +78,8 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean, 
   /** Everything above the fold of the scroller has been seen. */
   const noteScrollPosition = useCallback(() => {
     const element = scroller.current
-    if (!element) return
+    // A hidden tab still takes delivery on its heartbeat, and nobody saw that.
+    if (!element || document.visibilityState === 'hidden') return
 
     const bottomEdge = element.scrollTop + element.clientHeight
     let seen = readUpTo.current
@@ -112,7 +117,8 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean, 
     if (!element || !content) return
 
     const keepEndInView = () => {
-      if (following.current) element.scrollTop = element.scrollHeight
+      // An empty channel is a setup page and reads from the top.
+      if (following.current && followEnd.current) element.scrollTop = element.scrollHeight
     }
 
     keepEndInView()
@@ -126,6 +132,11 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean, 
   useEffect(() => {
     noteScrollPosition()
   }, [items.length, pendingCount, noteScrollPosition])
+
+  useEffect(() => {
+    document.addEventListener('visibilitychange', noteScrollPosition)
+    return () => document.removeEventListener('visibilitychange', noteScrollPosition)
+  }, [noteScrollPosition])
 
   return {
     scroller,

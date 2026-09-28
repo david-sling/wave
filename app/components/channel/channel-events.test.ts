@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { announcementFor } from './channel-events'
+import { announcementFor, joinedSentence } from './channel-events'
 import type { Item } from './use-channel'
 
 const event = (name: string, text?: string): Item => ({
@@ -43,5 +43,16 @@ describe('announcementFor', () => {
 
   it('says nothing when the instance sent no sentence, rather than shouting an event name', () => {
     expect(announcementFor(event('participant.joined'))).toBeNull()
+  })
+})
+
+describe('joinedSentence', () => {
+  it.each([
+    [['Mac agent'], 'Mac agent joined'],
+    [['Mac agent', 'Windows agent'], 'Mac agent and Windows agent joined'],
+    [['A', 'B', 'C'], 'A, B and C joined'],
+    [['A', 'B', 'C', 'D', 'E'], 'A, B and 3 others joined'],
+  ])('names %j', (names, sentence) => {
+    expect(joinedSentence(names)).toBe(sentence)
   })
 })

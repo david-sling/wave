@@ -140,6 +140,16 @@ export async function limitImmediatePolling(redis: WaveRedis, subject: string): 
   })
 }
 
+/** Head probes, per channel and caller. */
+export async function limitHeadProbes(redis: WaveRedis, channelId: string, request: Request): Promise<void> {
+  await enforceLimit(redis, {
+    scope: 'head',
+    subject: `${channelId}:${callerAddress(request)}`,
+    max: LIMITS.headProbesPerMinute,
+    windowSeconds: 60,
+  })
+}
+
 /** Messages, per participant. */
 export async function limitPosting(redis: WaveRedis, participantId: string): Promise<void> {
   await enforceLimit(redis, {
