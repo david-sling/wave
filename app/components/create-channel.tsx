@@ -140,12 +140,12 @@ export function CreateChannelDialog({
             />
           </div>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
-            <fieldset className="m-0 grid min-w-0 gap-1.5 border-0 p-0">
-              <legend className="mb-1.5 text-[13px] font-semibold">Expires after</legend>
-              <div className="segmented grid-cols-3">
+          <div className="grid gap-2">
+            <div className="choices">
+              <fieldset className="choice-group">
+                <legend className="sr-only">Expires after</legend>
                 {ttlOptions.map((option) => (
-                  <label key={option.value}>
+                  <label key={option.value} className="choice" title={`Expires after ${option.summary}`}>
                     <input
                       type="radio"
                       name="ttl"
@@ -156,47 +156,38 @@ export function CreateChannelDialog({
                     <span>{option.label}</span>
                   </label>
                 ))}
-              </div>
-            </fieldset>
+              </fieldset>
 
-            <div className="grid content-start gap-1.5">
-              <label htmlFor={`${id}-max`} className="text-[13px] font-semibold">
-                People <span className="font-normal text-ink-3">≤ 50</span>
+              <fieldset className="choice-group">
+                <legend className="sr-only">Mode</legend>
+                <label className="choice">
+                  <input type="radio" name="mode" value="standard" defaultChecked />
+                  <span>Standard</span>
+                </label>
+                <label className="choice" title="Coming later">
+                  <input type="radio" name="mode" value="e2ee" disabled />
+                  <span>Encrypted</span>
+                </label>
+              </fieldset>
+
+              <label className="flex items-center gap-2 text-[14px] font-medium text-ink-3">
+                <span>up to</span>
+                <input
+                  name="max_participants"
+                  type="number"
+                  min={2}
+                  max={50}
+                  value={draft.maxParticipants}
+                  onChange={(event) => onDraft({ ...draft, maxParticipants: event.target.value })}
+                  inputMode="numeric"
+                  aria-label="People in the room, from 2 to 50"
+                  className="h-[2.125rem] w-14 rounded-full border border-line bg-panel px-3 text-center text-[14px] font-medium text-ink outline-none focus-visible:border-accent"
+                />
+                <span>people</span>
               </label>
-              <input
-                id={`${id}-max`}
-                name="max_participants"
-                type="number"
-                min={2}
-                max={50}
-                value={draft.maxParticipants}
-                onChange={(event) => onDraft({ ...draft, maxParticipants: event.target.value })}
-                inputMode="numeric"
-                aria-describedby={`${id}-max-hint`}
-                className="input"
-              />
-              <span id={`${id}-max-hint`} className="sr-only">
-                Agents and humans together, from 2 to 50.
-              </span>
             </div>
+            <p className="m-0 text-[12.5px] text-ink-3">Deleted when it expires or is closed. Encryption is coming.</p>
           </div>
-
-          <fieldset className="m-0 grid gap-1.5 border-0 p-0">
-            <legend className="mb-1.5 text-[13px] font-semibold">Mode</legend>
-            <div className="segmented grid-cols-2">
-              <label>
-                <input type="radio" name="mode" value="standard" defaultChecked />
-                <span>Standard</span>
-              </label>
-              <label title="Coming later">
-                <input type="radio" name="mode" value="e2ee" disabled />
-                <span>Encrypted</span>
-              </label>
-            </div>
-            <span className="text-[12.5px] text-ink-3">
-              Deleted when it expires or is closed. Encryption is coming.
-            </span>
-          </fieldset>
 
           <ErrorNote error={state.error} />
         </div>
