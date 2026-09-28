@@ -18,7 +18,6 @@ import { epochSeconds } from './time'
 import { hashToken, newParticipantId } from './tokens'
 import { parseChannel, serializeParticipant, type ChannelRecord, type ParticipantRecord } from './types'
 
-
 async function storedChannel(redis: WaveRedis, channelId: string): Promise<ChannelRecord> {
   const channel = parseChannel(await redis.hGetAll(keys.channel(channelId)))
   if (!channel) throw new Error('channel was not written')

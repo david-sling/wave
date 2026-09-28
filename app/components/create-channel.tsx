@@ -1,20 +1,20 @@
-"use client";
+'use client'
 
-import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useRef, useState } from "react";
-import { createChannel, type CreateChannelState } from "../actions";
-import { CloseIcon } from "./icons";
+import { useRouter } from 'next/navigation'
+import { useActionState, useEffect, useRef, useState } from 'react'
+import { createChannel, type CreateChannelState } from '../actions'
+import { CloseIcon } from './icons'
 
-const initialState: CreateChannelState = {};
+const initialState: CreateChannelState = {}
 
 /** Where the creator's admin token lives, per ARCHITECTURE section 6. */
-export const adminTokenKey = (channelId: string) => `wave.admin.${channelId}`;
+export const adminTokenKey = (channelId: string) => `wave.admin.${channelId}`
 
 const ttlOptions = [
-  { value: "1h", label: "1 hour", summary: "1 hour" },
-  { value: "24h", label: "24 hours", summary: "24 hours" },
-  { value: "7d", label: "7 days", summary: "7 days" },
-];
+  { value: '1h', label: '1 hour', summary: '1 hour' },
+  { value: '24h', label: '24 hours', summary: '24 hours' },
+  { value: '7d', label: '7 days', summary: '7 days' },
+]
 
 /**
  * The main call to action: a channel name and a button.
@@ -25,22 +25,22 @@ const ttlOptions = [
  * stay in the same form, so the settings submit with the name.
  */
 export function CreateChannelForm() {
-  const [state, formAction, pending] = useActionState(createChannel, initialState);
-  const router = useRouter();
-  const [options, setOptions] = useState(false);
-  const [ttl, setTtl] = useState("24h");
-  const [maxParticipants, setMaxParticipants] = useState("10");
-  const dialog = useRef<HTMLDialogElement>(null);
-  const name = useRef<HTMLInputElement>(null);
+  const [state, formAction, pending] = useActionState(createChannel, initialState)
+  const router = useRouter()
+  const [options, setOptions] = useState(false)
+  const [ttl, setTtl] = useState('24h')
+  const [maxParticipants, setMaxParticipants] = useState('10')
+  const dialog = useRef<HTMLDialogElement>(null)
+  const name = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    const created = state.created;
-    if (!created) return;
+    const created = state.created
+    if (!created) return
 
     // The admin token is the creator's alone: it stays in this browser and is
     // sent only when they close the channel.
     try {
-      window.localStorage.setItem(adminTokenKey(created.channelId), created.adminToken);
+      window.localStorage.setItem(adminTokenKey(created.channelId), created.adminToken)
     } catch {
       // Private browsing, or storage switched off. The channel still works;
       // only the close button on this device is lost.
@@ -48,29 +48,29 @@ export function CreateChannelForm() {
     // The invite rides in the fragment, so it never reaches the server. replace
     // rather than push: going back should not land on a filled-in form that
     // creates a second channel.
-    router.replace(`/c/${created.channelId}#${created.invite}`);
-  }, [state.created, router]);
+    router.replace(`/c/${created.channelId}#${created.invite}`)
+  }, [state.created, router])
 
   useEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    if (options && !element.open) element.showModal();
-    if (!options && element.open) element.close();
-  }, [options]);
+    const element = dialog.current
+    if (!element) return
+    if (options && !element.open) element.showModal()
+    if (!options && element.open) element.close()
+  }, [options])
 
   // Anyone arriving at /#create asked for this form, from the nav or from a
   // closed channel. Put the caret where they were going.
   useEffect(() => {
     const focusOnHash = () => {
-      if (window.location.hash === "#create") name.current?.focus();
-    };
-    focusOnHash();
-    window.addEventListener("hashchange", focusOnHash);
-    return () => window.removeEventListener("hashchange", focusOnHash);
-  }, []);
+      if (window.location.hash === '#create') name.current?.focus()
+    }
+    focusOnHash()
+    window.addEventListener('hashchange', focusOnHash)
+    return () => window.removeEventListener('hashchange', focusOnHash)
+  }, [])
 
-  const busy = pending || Boolean(state.created);
-  const ttlSummary = ttlOptions.find((option) => option.value === ttl)?.summary ?? "24 hours";
+  const busy = pending || Boolean(state.created)
+  const ttlSummary = ttlOptions.find((option) => option.value === ttl)?.summary ?? '24 hours'
 
   return (
     <form action={formAction} id="create" className="grid scroll-mt-8 gap-3">
@@ -89,20 +89,22 @@ export function CreateChannelForm() {
           autoComplete="off"
         />
         <button type="submit" className="btn btn-primary shrink-0" disabled={busy}>
-          {busy ? "Creating…" : "Create a channel"}
+          {busy ? 'Creating…' : 'Create a channel'}
         </button>
       </div>
 
       <p className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-3">
         <span>Free, no account. The name is optional.</span>
-        <span aria-hidden className="hidden sm:inline">·</span>
+        <span aria-hidden className="hidden sm:inline">
+          ·
+        </span>
         <button
           type="button"
           onClick={() => setOptions(true)}
           aria-haspopup="dialog"
           className="cursor-pointer rounded-[6px] border-0 bg-transparent p-0 font-[inherit] text-[13px] text-ink-2 underline decoration-line-strong underline-offset-4 hover:text-ink"
         >
-          {`Expires in ${ttlSummary}, up to ${maxParticipants || "10"} in the room`}
+          {`Expires in ${ttlSummary}, up to ${maxParticipants || '10'} in the room`}
         </button>
       </p>
 
@@ -112,13 +114,13 @@ export function CreateChannelForm() {
         ref={dialog}
         onClose={() => setOptions(false)}
         onClick={(event) => {
-          if (event.target === dialog.current) setOptions(false);
+          if (event.target === dialog.current) setOptions(false)
         }}
         onKeyDown={(event) => {
           // Enter in a settings field means "done here", not "create now".
-          if (event.key === "Enter") {
-            event.preventDefault();
-            setOptions(false);
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            setOptions(false)
           }
         }}
         className="dialog-modal m-auto w-[min(92vw,480px)] rounded-[20px] border border-line bg-panel p-0 text-left text-ink"
@@ -188,8 +190,7 @@ export function CreateChannelForm() {
               </label>
             </div>
             <span className="text-[13px] text-ink-3">
-              Standard: TLS in transit, deleted when the channel expires or is closed. End-to-end
-              encryption is planned.
+              Standard: TLS in transit, deleted when the channel expires or is closed. End-to-end encryption is planned.
             </span>
           </fieldset>
         </div>
@@ -204,10 +205,10 @@ export function CreateChannelForm() {
       <p
         role="status"
         aria-live="polite"
-        className={`error-note m-0 max-w-[42ch] text-sm ${state.error ? "" : "hidden"}`}
+        className={`error-note m-0 max-w-[42ch] text-sm ${state.error ? '' : 'hidden'}`}
       >
         {state.error}
       </p>
     </form>
-  );
+  )
 }

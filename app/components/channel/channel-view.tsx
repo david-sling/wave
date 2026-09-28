@@ -1,26 +1,26 @@
-"use client";
+'use client'
 
-import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { sileo, Toaster } from "sileo";
-import { identityPalette } from "@/lib/identity-color";
-import { quoteOf } from "@/lib/reply-quote";
-import { channelGone } from "@/lib/site";
-import mark from "../../icon.png";
-import { CreateChannelForm } from "../create-channel";
-import { ArrowRightIcon } from "../icons";
-import { Logo } from "../logo";
-import { ReplyProvider } from "../reply-action";
-import { Roster, Transcript, type ReplyQuote, type TranscriptItem } from "../transcript";
-import { AddAgentDialog } from "./add-agent-dialog";
-import { announcementFor } from "./channel-events";
-import { ChannelAddButton, ChannelMenu, ChannelMenuButton, ChannelShareButton } from "./channel-menu";
-import { Compose } from "./compose";
-import { Controls, ExpiryCountdown } from "./controls";
-import { PromptBox } from "./prompt-box";
-import { useReadMarker } from "./use-read-marker";
-import { adminKey, useChannel, type Item, type PendingMessage, type RosterEntry } from "./use-channel";
+import Image from 'next/image'
+import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
+import { sileo, Toaster } from 'sileo'
+import { identityPalette } from '@/lib/identity-color'
+import { quoteOf } from '@/lib/reply-quote'
+import { channelGone } from '@/lib/site'
+import mark from '../../icon.png'
+import { CreateChannelForm } from '../create-channel'
+import { ArrowRightIcon } from '../icons'
+import { Logo } from '../logo'
+import { ReplyProvider } from '../reply-action'
+import { Roster, Transcript, type ReplyQuote, type TranscriptItem } from '../transcript'
+import { AddAgentDialog } from './add-agent-dialog'
+import { announcementFor } from './channel-events'
+import { ChannelAddButton, ChannelMenu, ChannelMenuButton, ChannelShareButton } from './channel-menu'
+import { Compose } from './compose'
+import { Controls, ExpiryCountdown } from './controls'
+import { PromptBox } from './prompt-box'
+import { useReadMarker } from './use-read-marker'
+import { adminKey, useChannel, type Item, type PendingMessage, type RosterEntry } from './use-channel'
 
 /**
  * The channel, as an application surface rather than a document (PRODUCT 6.2).
@@ -40,12 +40,12 @@ import { adminKey, useChannel, type Item, type PendingMessage, type RosterEntry 
  * this page shows; the event name is a fallback for an instance older than
  * that field.
  */
-function describe(item: Extract<Item, { type: "system" }>): string {
-  return item.text ?? item.event;
+function describe(item: Extract<Item, { type: 'system' }>): string {
+  return item.text ?? item.event
 }
 
 function clockTime(ts: string): string {
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 /**
@@ -58,14 +58,14 @@ function clockTime(ts: string): string {
  * build whose retention rules have changed, not for anything reachable today.
  */
 function quoteFor(bySeq: Map<number, Item>, seq: number): ReplyQuote | undefined {
-  const answered = bySeq.get(seq);
-  if (!answered) return undefined;
-  if (answered.type === "system") return { seq, text: quoteOf(describe(answered)) };
+  const answered = bySeq.get(seq)
+  if (!answered) return undefined
+  if (answered.type === 'system') return { seq, text: quoteOf(describe(answered)) }
   return {
     seq,
     from: { name: answered.from.name, role: answered.from.role },
     text: quoteOf(answered.text),
-  };
+  }
 }
 
 /**
@@ -76,40 +76,40 @@ function quoteFor(bySeq: Map<number, Item>, seq: number): ReplyQuote | undefined
  * React keeps the node and only the dimming changes.
  */
 function toTranscript(items: Item[], pending: PendingMessage[]): TranscriptItem[] {
-  const bySeq = new Map(items.map((item) => [item.seq, item]));
+  const bySeq = new Map(items.map((item) => [item.seq, item]))
   const said: TranscriptItem[] = items.map((item) =>
-    item.type === "system"
-      ? { seq: item.seq, type: "system", text: describe(item) }
+    item.type === 'system'
+      ? { seq: item.seq, type: 'system', text: describe(item) }
       : {
           seq: item.seq,
-          type: "message",
+          type: 'message',
           from: { name: item.from.name, role: item.from.role },
           time: clockTime(item.ts),
           text: item.text,
           ...(item.reply_to === undefined ? {} : { replyTo: quoteFor(bySeq, item.reply_to) }),
         },
-  );
+  )
 
   for (const draft of pending) {
     said.push({
-      type: "message",
-      from: { name: draft.name, role: "human" },
+      type: 'message',
+      from: { name: draft.name, role: 'human' },
       time: clockTime(draft.ts),
       text: draft.text,
       ...(draft.replyTo === undefined ? {} : { replyTo: quoteFor(bySeq, draft.replyTo) }),
       pending: true,
-    });
+    })
   }
-  return said;
+  return said
 }
 
 /** When each participant last spoke, read off the transcript the page already holds. */
 function lastMessageByParticipant(items: Item[]): Map<string, string> {
-  const spoken = new Map<string, string>();
+  const spoken = new Map<string, string>()
   for (const item of items) {
-    if (item.type === "message") spoken.set(item.from.id, item.ts);
+    if (item.type === 'message') spoken.set(item.from.id, item.ts)
   }
-  return spoken;
+  return spoken
 }
 
 /**
@@ -121,20 +121,20 @@ function lastMessageByParticipant(items: Item[]): Map<string, string> {
  * "caught up" would be a claim nobody made.
  */
 function behind(participant: RosterEntry, lastSeq: number, meId: string | undefined): number | undefined {
-  if (participant.read_seq === undefined || participant.id === meId) return undefined;
-  return Math.max(0, lastSeq - participant.read_seq);
+  if (participant.read_seq === undefined || participant.id === meId) return undefined
+  return Math.max(0, lastSeq - participant.read_seq)
 }
 
 function toRoster(participants: RosterEntry[], items: Item[], lastSeq: number, meId: string | undefined) {
-  const spoken = lastMessageByParticipant(items);
+  const spoken = lastMessageByParticipant(items)
   return participants.map((participant) => ({
     name: participant.name,
     role: participant.role,
-    client: participant.client ?? "",
+    client: participant.client ?? '',
     presence: participant.presence,
     lastMessageAt: spoken.get(participant.id) ?? null,
     behind: behind(participant, lastSeq, meId),
-  }));
+  }))
 }
 
 function Shell({ children, ground = false }: { children: React.ReactNode; ground?: boolean }) {
@@ -145,9 +145,7 @@ function Shell({ children, ground = false }: { children: React.ReactNode; ground
   // White is the channel: an application surface, edge to edge. The pages that
   // stand in for a channel are documents instead, so they take the ground the
   // landing page and the 404 stand on, and their panels read as panels again.
-  return (
-    <div className={`flex h-dvh flex-col overflow-hidden ${ground ? "bg-ground" : "bg-panel"}`}>{children}</div>
-  );
+  return <div className={`flex h-dvh flex-col overflow-hidden ${ground ? 'bg-ground' : 'bg-panel'}`}>{children}</div>
 }
 
 /** The bar across the top: what this channel is, and how long it has left. */
@@ -156,13 +154,13 @@ function TopBar({
   menu,
   rule = true,
 }: {
-  children?: React.ReactNode;
-  menu?: React.ReactNode;
-  rule?: boolean;
+  children?: React.ReactNode
+  menu?: React.ReactNode
+  rule?: boolean
 }) {
   return (
     <header
-      className={`flex shrink-0 items-center justify-between gap-3 px-4 py-2.5 ${rule ? "border-b border-line" : ""}`}
+      className={`flex shrink-0 items-center justify-between gap-3 px-4 py-2.5 ${rule ? 'border-b border-line' : ''}`}
     >
       <div className="flex min-w-0 items-center gap-3">
         <Logo size={24} wordmarkClassName="hidden sm:inline" />
@@ -178,7 +176,7 @@ function TopBar({
         {menu}
       </div>
     </header>
-  );
+  )
 }
 
 /**
@@ -192,17 +190,17 @@ function NoticePage({
   children,
   aside,
 }: {
-  hand?: boolean;
-  heading: { regular: string; bold: string };
-  children: React.ReactNode;
-  aside?: React.ReactNode;
+  hand?: boolean
+  heading: { regular: string; bold: string }
+  children: React.ReactNode
+  aside?: React.ReactNode
 }) {
   return (
     <Shell ground>
       <TopBar rule={false} />
       <div className="pane-scroll min-h-0 flex-1 overflow-y-auto px-6 py-12 md:py-16">
         <div
-          className={`mx-auto grid w-full max-w-5xl gap-10 lg:items-start lg:gap-14 ${aside ? "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]" : ""}`}
+          className={`mx-auto grid w-full max-w-5xl gap-10 lg:items-start lg:gap-14 ${aside ? 'lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]' : ''}`}
         >
           <div className="grid gap-5">
             {hand ? (
@@ -223,14 +221,14 @@ function NoticePage({
         </div>
       </div>
     </Shell>
-  );
+  )
 }
 
 const closedRoom: TranscriptItem[] = [
-  { type: "system", text: "The channel closed" },
-  { type: "system", text: "Every message and key in it was deleted" },
-  { type: "system", text: "Nothing is kept after that" },
-];
+  { type: 'system', text: 'The channel closed' },
+  { type: 'system', text: 'Every message and key in it was deleted' },
+  { type: 'system', text: 'Nothing is kept after that' },
+]
 
 /** The room as it is now: its last three lines, and nobody left in it. */
 function ClosedRoom() {
@@ -247,7 +245,7 @@ function ClosedRoom() {
         <p className="m-0 text-[13px] text-ink-3">Nobody. The keys went with the room.</p>
       </aside>
     </div>
-  );
+  )
 }
 
 /**
@@ -267,17 +265,12 @@ function ShyHands() {
     // A gap rather than letter-spacing: spacing trails the last glyph too, and
     // would push the pair off the centre it is meant to sit on. In `em`, so the
     // fingertips keep their distance as the hands scale.
-    <div
-      aria-hidden
-      className="flex justify-center gap-[0.05em] text-[clamp(4rem,11vw,7rem)] leading-none lg:pt-6"
-    >
+    <div aria-hidden className="flex justify-center gap-[0.05em] text-[clamp(4rem,11vw,7rem)] leading-none lg:pt-6">
       <span>&#x1F449;</span>
       <span>&#x1F448;</span>
     </div>
-  );
+  )
 }
-
-
 
 /** A whole-page state with nothing to show but a sentence: opening, or failing to. */
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
@@ -291,91 +284,93 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
         </div>
       </div>
     </Shell>
-  );
+  )
 }
 
 export function ChannelView({ channelId, host }: { channelId: string; host: string }) {
   const { status, channel, items, pending, participants, me, error, invite, historyUpTo, lastSeq, post, closeChannel } =
-    useChannel(channelId);
-  const [adding, setAdding] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+    useChannel(channelId)
+  const [adding, setAdding] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   /** The seq the next message answers, set by a row's Reply and cleared once it is sent. */
-  const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const { scroller, tail, markerAt, onScroll } = useReadMarker(channelId, items, status === "ready", pending.length);
+  const [replyingTo, setReplyingTo] = useState<number | null>(null)
+  const { scroller, tail, markerAt, onScroll } = useReadMarker(channelId, items, status === 'ready', pending.length)
 
   // The toast store is a module singleton, and Next hands each client boundary
   // its own copy, so the calls have to be made from the module that renders the
   // Toaster. Everything up to historyUpTo was already there when the page
   // opened: announcing it would replay an hour of joins on every load.
-  const announcedUpTo = useRef<number | null>(null);
+  const announcedUpTo = useRef<number | null>(null)
   useEffect(() => {
-    if (historyUpTo === null) return;
-    announcedUpTo.current ??= historyUpTo;
+    if (historyUpTo === null) return
+    announcedUpTo.current ??= historyUpTo
 
     for (const item of items) {
-      if (item.seq <= announcedUpTo.current) continue;
-      const said = announcementFor(item);
-      if (!said) continue;
-      if (said.kind === "warning") sileo.warning({ title: said.title, duration: 6_000 });
-      else sileo.info({ title: said.title, duration: 4_000 });
+      if (item.seq <= announcedUpTo.current) continue
+      const said = announcementFor(item)
+      if (!said) continue
+      if (said.kind === 'warning') sileo.warning({ title: said.title, duration: 6_000 })
+      else sileo.info({ title: said.title, duration: 4_000 })
     }
-    announcedUpTo.current = items.at(-1)?.seq ?? announcedUpTo.current;
-  }, [items, historyUpTo]);
+    announcedUpTo.current = items.at(-1)?.seq ?? announcedUpTo.current
+  }, [items, historyUpTo])
 
-  if (status === "no-invite") {
+  if (status === 'no-invite') {
     return (
-      <NoticePage heading={{ regular: "This link is broken,", bold: "and nothing opens from it." }} aside={<ShyHands />}>
+      <NoticePage
+        heading={{ regular: 'This link is broken,', bold: 'and nothing opens from it.' }}
+        aside={<ShyHands />}
+      >
         <p className="m-0">Ask whoever shared the channel to send it again, or open a room of your own.</p>
         <CreateChannelForm />
       </NoticePage>
-    );
+    )
   }
 
-  if (status === "gone") {
+  if (status === 'gone') {
     return (
       <NoticePage hand heading={channelGone.heading} aside={<ClosedRoom />}>
         <p className="m-0">{channelGone.description}</p>
         <CreateChannelForm />
         <Link href="/" className="link inline-block w-fit text-[14px] font-medium">
-          Back to the front page{" "}
-          <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
+          Back to the front page <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
         </Link>
       </NoticePage>
-    );
+    )
   }
 
-  if (status === "error") {
+  if (status === 'error') {
     return (
       <Notice title="This channel could not be opened">
-        <p className="m-0">{error ?? "The instance did not answer."}</p>
+        <p className="m-0">{error ?? 'The instance did not answer.'}</p>
       </Notice>
-    );
+    )
   }
 
-  if (status === "loading" || !channel || !invite) {
+  if (status === 'loading' || !channel || !invite) {
     return (
       <Notice title="Opening the channel…">
         <p className="m-0">Reading the roster and the transcript.</p>
       </Notice>
-    );
+    )
   }
 
   // One palette for the whole page, so a name reads the same in the room and the transcript.
-  const colorFor = identityPalette(participants);
+  const colorFor = identityPalette(participants)
   // Joins alone do not start a conversation: the prompt stays put while agents
   // are still arriving, and steps aside once one of them says something.
-  const started = pending.length > 0 || items.some((item) => item.type === "message");
-  const room = toRoster(participants, items, lastSeq, me?.id);
-  const replyQuote = replyingTo === null ? null : (quoteFor(new Map(items.map((i) => [i.seq, i])), replyingTo) ?? null);
+  const started = pending.length > 0 || items.some((item) => item.type === 'message')
+  const room = toRoster(participants, items, lastSeq, me?.id)
+  const replyQuote = replyingTo === null ? null : (quoteFor(new Map(items.map((i) => [i.seq, i])), replyingTo) ?? null)
   // Cleared on success only: a post that failed hands its text back to the
   // composer, and it would be handing back a reply that no longer knows what
   // it answers.
   const send = async (text: string, name: string) => {
-    await post(text, name, replyingTo ?? undefined);
-    setReplyingTo(null);
-  };
-  const shareUrl = `${host}/c/${channelId}#${invite}`;
-  const canClose = typeof window !== "undefined" && window.localStorage.getItem(adminKey(channelId)) !== null;
+    await post(text, name, replyingTo ?? undefined)
+    setReplyingTo(null)
+  }
+  const shareUrl = `${host}/c/${channelId}#${invite}`
+  const canClose = typeof window !== 'undefined' && window.localStorage.getItem(adminKey(channelId)) !== null
 
   return (
     <Shell>
@@ -389,7 +384,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
         }
       >
         <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-2">
-          <b className="truncate font-semibold text-ink">{channel.name || "Unnamed channel"}</b>
+          <b className="truncate font-semibold text-ink">{channel.name || 'Unnamed channel'}</b>
           <span aria-hidden>·</span>
           <span className="whitespace-nowrap">{channel.mode}</span>
           <span aria-hidden className="hidden sm:inline">
@@ -416,7 +411,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
           >
             {/* A running conversation sits on the composer; an empty channel
                 centres its one piece of business instead. */}
-            <div className={`mx-auto w-full max-w-[92ch] ${started ? "mt-auto" : "my-auto"}`}>
+            <div className={`mx-auto w-full max-w-[92ch] ${started ? 'mt-auto' : 'my-auto'}`}>
               {started ? (
                 <ReplyProvider onReply={setReplyingTo}>
                   <Transcript
@@ -436,7 +431,13 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
                     </p>
                   </div>
                   <div className="overflow-hidden rounded-[16px] border border-line bg-panel-2 [--frame-radius:16px]">
-                    <PromptBox host={host} channelId={channelId} channelName={channel.name} invite={invite} mode={channel.mode} />
+                    <PromptBox
+                      host={host}
+                      channelId={channelId}
+                      channelName={channel.name}
+                      invite={invite}
+                      mode={channel.mode}
+                    />
                   </div>
                 </div>
               )}
@@ -480,11 +481,11 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
               </button>
             ) : null}
             <Controls
-            shareUrl={shareUrl}
-            canClose={canClose}
-            onClose={closeChannel}
-            transcript={{ channel, items, participants }}
-          />
+              shareUrl={shareUrl}
+              canClose={canClose}
+              onClose={closeChannel}
+              transcript={{ channel, items, participants }}
+            />
           </div>
         </aside>
       </div>
@@ -518,8 +519,8 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
               type="button"
               className="btn btn-sm btn-primary mb-4 w-full"
               onClick={() => {
-                setMenuOpen(false);
-                setAdding(true);
+                setMenuOpen(false)
+                setAdding(true)
               }}
             >
               Add an agent
@@ -558,5 +559,5 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
         </p>
       ) : null}
     </Shell>
-  );
+  )
 }

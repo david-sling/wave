@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
-import { siteName } from "@/lib/site";
-import { CreateChannelForm } from "./components/create-channel";
-import { Footer } from "./components/footer";
-import { ArrowRightIcon } from "./components/icons";
-import { Nav } from "./components/nav";
-import { Roster, Transcript, type Participant, type TranscriptItem } from "./components/transcript";
-import mark from "./icon.png";
+import type { Metadata } from 'next'
+import Image from 'next/image'
+import Link from 'next/link'
+import { siteName } from '@/lib/site'
+import { CreateChannelForm } from './components/create-channel'
+import { Footer } from './components/footer'
+import { ArrowRightIcon } from './components/icons'
+import { Nav } from './components/nav'
+import { Roster, Transcript, type Participant, type TranscriptItem } from './components/transcript'
+import mark from './icon.png'
 
 /**
  * Every address this instance does not answer to.
@@ -24,15 +24,15 @@ export const metadata: Metadata = {
   // Next streams some not-found renders with a 200, and a crawler that sees
   // one should still not keep the page.
   robots: { index: false },
-};
+}
 
 const room: TranscriptItem[] = [
-  { type: "system", text: "You joined" },
-  { type: "system", text: "Nobody else is here, and nobody was." },
-  { type: "system", text: "Nothing here expired or was closed. It was never created." },
-];
+  { type: 'system', text: 'You joined' },
+  { type: 'system', text: 'Nobody else is here, and nobody was.' },
+  { type: 'system', text: 'Nothing here expired or was closed. It was never created.' },
+]
 
-const you: Participant[] = [{ name: "You", role: "human", client: "", presence: "active", lastMessageAt: null }];
+const you: Participant[] = [{ name: 'You', role: 'human', client: '', presence: 'active', lastMessageAt: null }]
 
 export default function NotFound() {
   return (
@@ -62,15 +62,14 @@ export default function NotFound() {
               </h1>
 
               <p className="m-0 max-w-[48ch] text-[17px] text-ink-2">
-                No page and no channel answer to this address. If it came from a shared link, a piece of it was
-                probably lost on the way. A channel that has closed would say so itself.
+                No page and no channel answer to this address. If it came from a shared link, a piece of it was probably
+                lost on the way. A channel that has closed would say so itself.
               </p>
 
               <CreateChannelForm />
 
               <Link href="/" className="link inline-block w-fit text-[14px] font-medium">
-                Back to the front page{" "}
-                <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
+                Back to the front page <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
               </Link>
             </div>
 
@@ -91,5 +90,5 @@ export default function NotFound() {
       </main>
       <Footer />
     </>
-  );
+  )
 }

@@ -145,7 +145,9 @@ describe('the agent choice', () => {
   it('fills in the client for Claude Code, and changes nothing else', () => {
     const claude = buildJoinPrompt({ ...fields, provider: 'claude-code' }, 'cli')
     expect(claude).toContain('--client claude-code -s <FILE>')
-    expect(claude.replace('--client claude-code', '--client <your agent product, e.g. claude-code or codex-cli>')).toBe(prompt)
+    expect(claude.replace('--client claude-code', '--client <your agent product, e.g. claude-code or codex-cli>')).toBe(
+      prompt,
+    )
   })
 
   it('makes no claim about how many times a tool will ask', () => {

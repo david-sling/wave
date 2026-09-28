@@ -7,7 +7,7 @@
  * standing in for a drawn mark.
  */
 
-type IconProps = { size?: number; className?: string };
+type IconProps = { size?: number; className?: string }
 
 function Icon({ size = 16, className, children }: IconProps & { children: React.ReactNode }) {
   return (
@@ -26,7 +26,7 @@ function Icon({ size = 16, className, children }: IconProps & { children: React.
     >
       {children}
     </svg>
-  );
+  )
 }
 
 export function CloseIcon(props: IconProps) {
@@ -35,7 +35,7 @@ export function CloseIcon(props: IconProps) {
       <path d="M18 6 6 18" />
       <path d="m6 6 12 12" />
     </Icon>
-  );
+  )
 }
 
 export function CheckIcon(props: IconProps) {
@@ -43,7 +43,7 @@ export function CheckIcon(props: IconProps) {
     <Icon {...props}>
       <path d="M20 6 9 17l-5-5" />
     </Icon>
-  );
+  )
 }
 
 export function DesktopIcon(props: IconProps) {
@@ -53,7 +53,7 @@ export function DesktopIcon(props: IconProps) {
       <path d="M8 20h8" />
       <path d="M12 16v4" />
     </Icon>
-  );
+  )
 }
 
 export function CopyIcon(props: IconProps) {
@@ -62,7 +62,7 @@ export function CopyIcon(props: IconProps) {
       <rect x="8" y="8" width="12" height="12" rx="2.5" />
       <path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8" />
     </Icon>
-  );
+  )
 }
 
 export function PlusIcon(props: IconProps) {
@@ -71,7 +71,7 @@ export function PlusIcon(props: IconProps) {
       <path d="M12 5v14" />
       <path d="M5 12h14" />
     </Icon>
-  );
+  )
 }
 
 export function ShareIcon(props: IconProps) {
@@ -81,7 +81,7 @@ export function ShareIcon(props: IconProps) {
       <path d="m7.5 7.5 4.5-4.5 4.5 4.5" />
       <path d="M20 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6" />
     </Icon>
-  );
+  )
 }
 
 /** Vertical: the bar it sits in is a row, so the menu it opens reads as a column. */
@@ -92,7 +92,7 @@ export function MoreIcon(props: IconProps) {
       <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
       <circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none" />
     </Icon>
-  );
+  )
 }
 
 export function ChevronLeftIcon(props: IconProps) {
@@ -100,7 +100,7 @@ export function ChevronLeftIcon(props: IconProps) {
     <Icon {...props}>
       <path d="m15 18-6-6 6-6" />
     </Icon>
-  );
+  )
 }
 
 export function ChevronRightIcon(props: IconProps) {
@@ -108,7 +108,7 @@ export function ChevronRightIcon(props: IconProps) {
     <Icon {...props}>
       <path d="m9 18 6-6-6-6" />
     </Icon>
-  );
+  )
 }
 
 export function ArrowRightIcon(props: IconProps) {
@@ -117,7 +117,7 @@ export function ArrowRightIcon(props: IconProps) {
       <path d="M5 12h14" />
       <path d="m13 5 7 7-7 7" />
     </Icon>
-  );
+  )
 }
 
 /** The arrow turns back on itself: this one answers something already said. */
@@ -127,7 +127,7 @@ export function ReplyIcon(props: IconProps) {
       <path d="m9 17-5-5 5-5" />
       <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
     </Icon>
-  );
+  )
 }
 
 export function PersonIcon(props: IconProps) {
@@ -136,7 +136,7 @@ export function PersonIcon(props: IconProps) {
       <circle cx="12" cy="8" r="3.25" />
       <path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" />
     </Icon>
-  );
+  )
 }
 
 /** Stands in for an agent that reports no client mark: any shell that can run curl and loop. */
@@ -147,5 +147,5 @@ export function TerminalIcon(props: IconProps) {
       <path d="m8 10 3 2.5-3 2.5" />
       <path d="M13 15.5h3" />
     </Icon>
-  );
+  )
 }

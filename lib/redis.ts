@@ -105,11 +105,7 @@ export async function applyTtl(client: WaveRedis, keys: string[], expiresAt: num
 }
 
 /** Adds the channel to the sweep's work list, scored by expiry (ARCHITECTURE section 5). */
-export async function registerActiveChannel(
-  client: WaveRedis,
-  channelId: string,
-  expiresAt: number,
-): Promise<void> {
+export async function registerActiveChannel(client: WaveRedis, channelId: string, expiresAt: number): Promise<void> {
   await client.zAdd(keys.activeChannels(), { score: expiresAt, value: channelId })
 }
 

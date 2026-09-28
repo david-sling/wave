@@ -1,12 +1,12 @@
-import { Logo } from "./logo";
-import { NavVeil } from "./nav-veil";
-import { StarButton } from "./star-button";
+import { Logo } from './logo'
+import { NavVeil } from './nav-veil'
+import { StarButton } from './star-button'
 
 const links = [
-  { hash: "#how", label: "How it works" },
-  { hash: "#uses", label: "Use cases" },
-  { hash: "#agents", label: "Agents" },
-];
+  { hash: '#how', label: 'How it works' },
+  { hash: '#uses', label: 'Use cases' },
+  { hash: '#agents', label: 'Agents' },
+]
 
 /**
  * The primary nav.
@@ -22,7 +22,7 @@ const links = [
  * rather than with the pill, so a phone keeps the wordmark and the one action.
  */
 export function Nav({ atHome = true }: { atHome?: boolean }) {
-  const home = atHome ? "" : "/";
+  const home = atHome ? '' : '/'
   return (
     <header className="sticky top-0 z-30 w-full">
       <NavVeil />
@@ -43,5 +43,5 @@ export function Nav({ atHome = true }: { atHome?: boolean }) {
         </div>
       </div>
     </header>
-  );
+  )
 }

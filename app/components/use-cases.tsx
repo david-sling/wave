@@ -1,10 +1,10 @@
-"use client";
+'use client'
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { casePath, headingText, useCases } from "@/lib/use-cases";
-import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "./icons";
-import { Roster, Transcript } from "./transcript";
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { casePath, headingText, useCases } from '@/lib/use-cases'
+import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from './icons'
+import { Roster, Transcript } from './transcript'
 
 /**
  * The six use cases, one at a time, each with the channel it would happen in.
@@ -14,46 +14,46 @@ import { Roster, Transcript } from "./transcript";
  * thing on the page is still a real channel, now one the reader can change.
  */
 export function UseCaseCarousel() {
-  const [active, setActive] = useState(0);
-  const current = useCases[active];
-  const step = (by: number) => setActive((i) => (i + by + useCases.length) % useCases.length);
+  const [active, setActive] = useState(0)
+  const current = useCases[active]
+  const step = (by: number) => setActive((i) => (i + by + useCases.length) % useCases.length)
 
   // Below `sm` the picker is one scrolling row, so a case chosen by swipe or
   // arrow has to bring its own label back into view.
-  const rail = useRef<HTMLDivElement>(null);
+  const rail = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const track = rail.current;
-    if (!track) return;
+    const track = rail.current
+    if (!track) return
     const centre = () => {
-      if (track.scrollWidth <= track.clientWidth) return;
+      if (track.scrollWidth <= track.clientWidth) return
       // `nearest` vertically: this must never move the page, only the rail.
-      track.children[active]?.scrollIntoView({ inline: "center", block: "nearest" });
-    };
-    centre();
+      track.children[active]?.scrollIntoView({ inline: 'center', block: 'nearest' })
+    }
+    centre()
     // A rotation changes how much of the rail fits, and the offset survives it,
     // so re-centre rather than leave the chosen label scrolled out of sight.
-    const observer = new ResizeObserver(centre);
-    observer.observe(track);
-    return () => observer.disconnect();
-  }, [active]);
+    const observer = new ResizeObserver(centre)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [active])
 
   // On a touch screen a carousel is something you swipe. The radios stay the
   // real control; this is the gesture that a phone reader will try first.
-  const touch = useRef<{ x: number; y: number } | null>(null);
+  const touch = useRef<{ x: number; y: number } | null>(null)
   const onTouchStart = (e: React.TouchEvent) => {
-    const { clientX, clientY } = e.touches[0];
-    touch.current = { x: clientX, y: clientY };
-  };
+    const { clientX, clientY } = e.touches[0]
+    touch.current = { x: clientX, y: clientY }
+  }
   const onTouchEnd = (e: React.TouchEvent) => {
-    const start = touch.current;
-    touch.current = null;
-    if (!start) return;
-    const dx = e.changedTouches[0].clientX - start.x;
-    const dy = e.changedTouches[0].clientY - start.y;
+    const start = touch.current
+    touch.current = null
+    if (!start) return
+    const dx = e.changedTouches[0].clientX - start.x
+    const dy = e.changedTouches[0].clientY - start.y
     // Deliberate and horizontal, or it was the page being scrolled.
-    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    step(dx < 0 ? 1 : -1);
-  };
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    step(dx < 0 ? 1 : -1)
+  }
 
   return (
     <div>
@@ -113,23 +113,16 @@ export function UseCaseCarousel() {
         onTouchEnd={onTouchEnd}
       >
         <div>
-          <h2
-            id="use-case-title"
-            className="m-0 text-[19px] font-bold leading-tight tracking-[-0.01em]"
-          >
+          <h2 id="use-case-title" className="m-0 text-[19px] font-bold leading-tight tracking-[-0.01em]">
             {current.title}
           </h2>
           <p className="m-0 mt-1.5 text-[14.5px] leading-relaxed text-ink-2">{current.body}</p>
           {/* The case's own page, named with the sentence somebody would have
               searched for rather than with a bare "read more". */}
-          <Link
-            href={casePath(current.slug)}
-            className="link mt-3.5 inline-block text-[14px] font-medium"
-          >
+          <Link href={casePath(current.slug)} className="link mt-3.5 inline-block text-[14px] font-medium">
             {/* The arrow flows with the text rather than sitting beside it, so
                 a heading that wraps keeps it after the last word. */}
-            {headingText(current)}{" "}
-            <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
+            {headingText(current)} <ArrowRightIcon size={14} className="link-arrow inline-block translate-y-px" />
           </Link>
         </div>
 
@@ -150,5 +143,5 @@ export function UseCaseCarousel() {
         </aside>
       </div>
     </div>
-  );
+  )
 }

@@ -22,18 +22,18 @@
  * that refuses to start.
  */
 export const agents = [
-  { name: "Claude Code", note: "allowlist the Wave host once" },
-  { name: "Codex CLI", note: "enable network for the session" },
-  { name: "Cursor agent", note: "approve the curl command once" },
-  { name: "Antigravity CLI", note: "approve the shell command once" },
-  { name: "Any agent with a shell", note: "HTTP and a loop, nothing more" },
-] as const;
+  { name: 'Claude Code', note: 'allowlist the Wave host once' },
+  { name: 'Codex CLI', note: 'enable network for the session' },
+  { name: 'Cursor agent', note: 'approve the curl command once' },
+  { name: 'Antigravity CLI', note: 'approve the shell command once' },
+  { name: 'Any agent with a shell', note: 'HTTP and a loop, nothing more' },
+] as const
 
-export type Agent = (typeof agents)[number];
-export type AgentName = Agent["name"];
+export type Agent = (typeof agents)[number]
+export type AgentName = Agent['name']
 
 /** The one setting to know about for a named agent. */
 export function agentSetting(name: AgentName): string {
   // The name is the union, so the list always has it.
-  return agents.find((agent) => agent.name === name)!.note;
+  return agents.find((agent) => agent.name === name)!.note
 }

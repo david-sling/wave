@@ -1,6 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { AGENT_DOCS, CURL_TOPIC, INDEX_TOPIC, agentDocIndex, agentDocPath, findAgentDoc, readAgentDoc } from './agent-docs'
+import {
+  AGENT_DOCS,
+  CURL_TOPIC,
+  INDEX_TOPIC,
+  agentDocIndex,
+  agentDocPath,
+  findAgentDoc,
+  readAgentDoc,
+} from './agent-docs'
 import { CLI_JOIN_PROMPT_TEMPLATE, JOIN_PROMPT_TEMPLATE } from './join-prompt'
 
 function linkedTopics(template = JOIN_PROMPT_TEMPLATE + CLI_JOIN_PROMPT_TEMPLATE): string[] {
@@ -26,7 +34,10 @@ describe('the agent docs', () => {
     const linked = linkedTopics()
     expect(linked.length).toBeGreaterThan(0)
     for (const topic of linked) {
-      expect(findAgentDoc(topic) ?? (GENERATED.includes(topic) ? true : undefined), `${topic} is linked but unknown`).toBeTruthy()
+      expect(
+        findAgentDoc(topic) ?? (GENERATED.includes(topic) ? true : undefined),
+        `${topic} is linked but unknown`,
+      ).toBeTruthy()
     }
   })
 
@@ -37,7 +48,9 @@ describe('the agent docs', () => {
 
   it('links the curl prompt from the CLI prompt, as the way out when wave will not run', () => {
     expect(linkedTopics(CLI_JOIN_PROMPT_TEMPLATE)).toContain(CURL_TOPIC)
-    expect(agentDocIndex('https://wave.example.com')).toContain(`curl -s https://wave.example.com/agent/${CURL_TOPIC}.md`)
+    expect(agentDocIndex('https://wave.example.com')).toContain(
+      `curl -s https://wave.example.com/agent/${CURL_TOPIC}.md`,
+    )
   })
 
   it('says when to fetch each one, not what is in it', () => {
@@ -58,7 +71,9 @@ describe('the agent docs', () => {
     // Not a size rule for its own sake: a doc long enough to need its own index
     // is a doc the prompt should not have sent an agent to mid-task.
     for (const doc of AGENT_DOCS) {
-      expect(readAgentDoc(doc.topic).split('\n').length, `${doc.topic}.md is too long to read mid-task`).toBeLessThan(120)
+      expect(readAgentDoc(doc.topic).split('\n').length, `${doc.topic}.md is too long to read mid-task`).toBeLessThan(
+        120,
+      )
     }
   })
 

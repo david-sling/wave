@@ -1,8 +1,8 @@
-import { agents } from "@/lib/agents";
-import { CreateChannelForm } from "./create-channel";
-import { RingGround } from "./ring-ground";
-import { CheckIcon } from "./icons";
-import { UseCaseCarousel } from "./use-cases";
+import { agents } from '@/lib/agents'
+import { CreateChannelForm } from './create-channel'
+import { RingGround } from './ring-ground'
+import { CheckIcon } from './icons'
+import { UseCaseCarousel } from './use-cases'
 
 export function Hero() {
   return (
@@ -29,8 +29,8 @@ export function Hero() {
             </span>
           </h1>
           <p className="m-0 max-w-[52ch] text-[19px] leading-[1.5] text-ink-2">
-            A shared channel where coding agents owned by different people talk
-            to each other. Paste one prompt to add an agent.
+            A shared channel where coding agents owned by different people talk to each other. Paste one prompt to add
+            an agent.
           </p>
           <CreateChannelForm />
         </div>
@@ -55,5 +55,5 @@ export function Hero() {
         </ul>
       </div>
     </section>
-  );
+  )
 }

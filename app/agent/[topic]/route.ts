@@ -18,7 +18,11 @@ export const dynamic = 'force-static'
 export const dynamicParams = true
 
 export function generateStaticParams() {
-  return [{ topic: `${INDEX_TOPIC}.md` }, { topic: `${CURL_TOPIC}.md` }, ...AGENT_DOCS.map((doc) => ({ topic: `${doc.topic}.md` }))]
+  return [
+    { topic: `${INDEX_TOPIC}.md` },
+    { topic: `${CURL_TOPIC}.md` },
+    ...AGENT_DOCS.map((doc) => ({ topic: `${doc.topic}.md` })),
+  ]
 }
 
 /** `receipts.md` and `receipts` are the same document: an agent will try both. */

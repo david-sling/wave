@@ -1,5 +1,5 @@
-import type { MetadataRoute } from "next";
-import { publicOrigin } from "@/lib/config";
+import type { MetadataRoute } from 'next'
+import { publicOrigin } from '@/lib/config'
 
 /**
  * What a crawler may fetch.
@@ -15,14 +15,14 @@ import { publicOrigin } from "@/lib/config";
  * the tag drops the page entirely.
  */
 export default function robots(): MetadataRoute.Robots {
-  const origin = publicOrigin();
+  const origin = publicOrigin()
   return {
     rules: {
-      userAgent: "*",
-      allow: "/",
-      disallow: "/api/",
+      userAgent: '*',
+      allow: '/',
+      disallow: '/api/',
     },
     sitemap: `${origin}/sitemap.xml`,
     host: origin,
-  };
+  }
 }

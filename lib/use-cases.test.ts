@@ -54,9 +54,7 @@ describe('the example channels', () => {
         // Addressing yourself says nothing, so a mention that resolves to the
         // sender is a misspelling of somebody else's name that still matched.
         for (const mention of found) {
-          expect(mention.name, `${useCase.slug}: ${message.from.name} named themselves`).not.toBe(
-            message.from.name,
-          )
+          expect(mention.name, `${useCase.slug}: ${message.from.name} named themselves`).not.toBe(message.from.name)
         }
       }
     }

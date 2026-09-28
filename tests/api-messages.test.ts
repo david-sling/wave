@@ -56,7 +56,10 @@ beforeEach(() => {
 describe('POST /api/v1/channels/:id/messages', () => {
   it('posts and returns the sequence number and timestamp', async () => {
     const { channel, agent } = await openChannel()
-    const response = await postRoute(post({ text: 'Build passes.' }, agent.participant_token), context(channel.channel_id))
+    const response = await postRoute(
+      post({ text: 'Build passes.' }, agent.participant_token),
+      context(channel.channel_id),
+    )
 
     expect(response.status).toBe(201)
     const body = await response.json()
@@ -286,9 +289,12 @@ describe('a conversation', () => {
       await pollRoute(poll(`?after=${agent.last_seq}`, agent.participant_token), context(channel.channel_id))
     ).json()
 
-    expect(
-      body.items.map((item: { type: string; event?: string; kind?: string }) => item.event ?? item.kind),
-    ).toEqual(['participant.joined', 'message', 'done', 'participant.left'])
+    expect(body.items.map((item: { type: string; event?: string; kind?: string }) => item.event ?? item.kind)).toEqual([
+      'participant.joined',
+      'message',
+      'done',
+      'participant.left',
+    ])
     expect(body.participants.map((p: { presence: string }) => p.presence)).toEqual(['active', 'gone'])
   })
 })

@@ -1,7 +1,7 @@
-import type { MetadataRoute } from "next";
-import { publicOrigin } from "@/lib/config";
-import { landingUpdated } from "@/lib/site";
-import { casePath, useCases } from "@/lib/use-cases";
+import type { MetadataRoute } from 'next'
+import { publicOrigin } from '@/lib/config'
+import { landingUpdated } from '@/lib/site'
+import { casePath, useCases } from '@/lib/use-cases'
 
 /**
  * The indexable surface of this instance: the landing page and the six
@@ -16,21 +16,21 @@ import { casePath, useCases } from "@/lib/use-cases";
  * both and acts on `lastmod` alone.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const origin = publicOrigin();
+  const origin = publicOrigin()
   return [
     {
       // Trailing slash: the root's URL has a path, and this is the spelling
       // every crawler normalises to anyway.
       url: `${origin}/`,
       lastModified: landingUpdated,
-      changeFrequency: "weekly",
+      changeFrequency: 'weekly',
       priority: 1,
     },
     ...useCases.map((useCase) => ({
       url: `${origin}${casePath(useCase.slug)}`,
       lastModified: useCase.updated,
-      changeFrequency: "monthly" as const,
+      changeFrequency: 'monthly' as const,
       priority: 0.8,
     })),
-  ];
+  ]
 }

@@ -55,7 +55,9 @@ describe('wave send', () => {
   it('carries --done and --reply-to into the body', async () => {
     const test = harness({ handler: posted })
 
-    expect(await run(['send', '--session', SESSION, '--done', '--reply-to', '7', 'Signing off.'], test.io)).toBe(EXIT.ok)
+    expect(await run(['send', '--session', SESSION, '--done', '--reply-to', '7', 'Signing off.'], test.io)).toBe(
+      EXIT.ok,
+    )
     expect(sentBody(test.calls[0]!.init)).toMatchObject({ text: 'Signing off.', kind: 'done', reply_to: 7 })
   })
 
@@ -97,7 +99,9 @@ describe('wave send', () => {
     const flaky: Handler = (_url, init) => {
       seen.push((sentBody(init) as { client_id: string }).client_id)
       attempts += 1
-      return attempts === 1 ? apiError(503, 'server_error', 'Something went wrong on this instance.') : posted(_url, init)
+      return attempts === 1
+        ? apiError(503, 'server_error', 'Something went wrong on this instance.')
+        : posted(_url, init)
     }
     const test = harness({ handler: flaky })
 

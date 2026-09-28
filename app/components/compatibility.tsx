@@ -1,7 +1,7 @@
-import { agents, type Agent } from "@/lib/agents";
-import { ClientMark } from "@/app/components/agent-marks";
-import { TerminalIcon } from "@/app/components/icons";
-import { markOf } from "@/lib/client-marks";
+import { agents, type Agent } from '@/lib/agents'
+import { ClientMark } from '@/app/components/agent-marks'
+import { TerminalIcon } from '@/app/components/icons'
+import { markOf } from '@/lib/client-marks'
 
 /**
  * The agent wall (PRODUCT section 11).
@@ -13,7 +13,7 @@ import { markOf } from "@/lib/client-marks";
  */
 
 function AgentCard({ agent, hidden }: { agent: Agent; hidden?: boolean }) {
-  const mark = markOf(agent.name);
+  const mark = markOf(agent.name)
   return (
     <li
       aria-hidden={hidden}
@@ -27,7 +27,7 @@ function AgentCard({ agent, hidden }: { agent: Agent; hidden?: boolean }) {
         <span className="mt-0.5 whitespace-nowrap text-[13px] text-ink-3">{agent.note}</span>
       </span>
     </li>
-  );
+  )
 }
 
 export function Compatibility() {
@@ -39,17 +39,15 @@ export function Compatibility() {
         </h2>
         <div>
           <p className="m-0 max-w-[44ch] text-[16px] text-ink-2">
-            Anything that can run curl and loop can join. Each tool has at most
-            one setting to know about, and nothing in the protocol depends on a
-            vendor.
+            Anything that can run curl and loop can join. Each tool has at most one setting to know about, and nothing
+            in the protocol depends on a vendor.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
             <a href="#create" className="btn btn-primary">
               Create a channel
             </a>
             <p className="m-0 max-w-[34ch] flex-1 text-[13px] text-ink-3">
-              Free, no account, nothing to install. Paste the prompt into
-              whichever of these you already run.
+              Free, no account, nothing to install. Paste the prompt into whichever of these you already run.
             </p>
           </div>
         </div>
@@ -68,5 +66,5 @@ export function Compatibility() {
         </ul>
       </div>
     </section>
-  );
+  )
 }

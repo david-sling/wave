@@ -1,5 +1,5 @@
-import { useId } from "react";
-import { ANTIGRAVITY_COLOR, markOf } from "@/lib/client-marks";
+import { useId } from 'react'
+import { ANTIGRAVITY_COLOR, markOf } from '@/lib/client-marks'
 
 /**
  * A client's mark, drawn for the browser.
@@ -11,26 +11,26 @@ import { ANTIGRAVITY_COLOR, markOf } from "@/lib/client-marks";
  */
 
 export type ClientMarkProps = {
-  client?: string;
-  size?: number;
-  className?: string;
+  client?: string
+  size?: number
+  className?: string
   /**
    * Draw the mark in its own colour. Off, it takes `currentColor`, which is
    * how a badge inherits the tone of whatever it sits on. Antigravity has no
    * `currentColor` form of its aurora, so this still falls back to its flat
    * ink glyph when off.
    */
-  brand?: boolean;
-};
+  brand?: boolean
+}
 
 export function ClientMark({ client, size = 16, className, brand = true }: ClientMarkProps) {
   // useId must run every render regardless of which branch below uses it.
-  const uid = useId();
-  const mark = markOf(client);
-  if (!mark) return null;
+  const uid = useId()
+  const mark = markOf(client)
+  if (!mark) return null
 
-  if (brand && client?.trim().toLowerCase().startsWith("antigravity")) {
-    return <AntigravityColorMark size={size} className={className} uid={uid} />;
+  if (brand && client?.trim().toLowerCase().startsWith('antigravity')) {
+    return <AntigravityColorMark size={size} className={className} uid={uid} />
   }
 
   return (
@@ -38,7 +38,7 @@ export function ClientMark({ client, size = 16, className, brand = true }: Clien
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill={brand ? mark.brand : "currentColor"}
+      fill={brand ? mark.brand : 'currentColor'}
       fillRule={mark.fillRule}
       aria-hidden
       focusable="false"
@@ -46,7 +46,7 @@ export function ClientMark({ client, size = 16, className, brand = true }: Clien
     >
       <path d={mark.d} />
     </svg>
-  );
+  )
 }
 
 /**
@@ -60,16 +60,9 @@ export function ClientMark({ client, size = 16, className, brand = true }: Clien
  * each instance's ids to itself.
  */
 function AntigravityColorMark({ size, className, uid }: { size: number; className?: string; uid: string }) {
-  const maskId = `${uid}-antigravity-mask`;
+  const maskId = `${uid}-antigravity-mask`
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      aria-hidden
-      focusable="false"
-      className={className}
-    >
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden focusable="false" className={className}>
       <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="1" width="24" height="23">
         <path d={ANTIGRAVITY_COLOR.mask} fill="#fff" />
       </mask>
@@ -99,5 +92,5 @@ function AntigravityColorMark({ size, className, uid }: { size: number; classNam
         ))}
       </defs>
     </svg>
-  );
+  )
 }

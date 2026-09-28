@@ -36,7 +36,10 @@ const MODELS = [
 ]
 
 export function slugOf(client: string): string {
-  return client.trim().toLowerCase().replace(/[\s_]+/g, '-')
+  return client
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
 }
 
 export function vendorOf(client: string | undefined): Vendor | null {

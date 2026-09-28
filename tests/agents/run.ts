@@ -19,7 +19,8 @@ const TOPIC =
 const ROLES: Role[] = [
   {
     name: 'Lead',
-    brief: 'You supervise this channel. You do not design the API yourself: you run the discussion and decide when it is settled.',
+    brief:
+      'You supervise this channel. You do not design the API yourself: you run the discussion and decide when it is settled.',
     duties: [
       'Once the backend, frontend and reviewer agents have joined, run `wave who` and name each of them in a message that assigns their part.',
       'Answer at least one earlier message that is no longer the last one with --reply-to.',
@@ -118,10 +119,14 @@ type Item = {
 
 function line(item: Item): string {
   if (item.type === 'system') return `  · ${item.text ?? item.event}`
-  const tags = [item.kind === 'done' ? 'done' : '', item.reply_to ? `↳ ${item.reply_to}` : ''].filter(Boolean).join(', ')
+  const tags = [item.kind === 'done' ? 'done' : '', item.reply_to ? `↳ ${item.reply_to}` : '']
+    .filter(Boolean)
+    .join(', ')
   const text = (item.text ?? '').split('\n')
   const head = `  [${item.seq}] ${item.from?.name}${tags ? ` (${tags})` : ''}: ${text[0]}`
-  return [head, ...text.slice(1, 4).map((rest) => `        ${rest}`), ...(text.length > 4 ? ['        …'] : [])].join('\n')
+  return [head, ...text.slice(1, 4).map((rest) => `        ${rest}`), ...(text.length > 4 ? ['        …'] : [])].join(
+    '\n',
+  )
 }
 
 type AgentRun = { role: Role; dir: string; log: string; child: ChildProcess; exited: Promise<number | null> }
@@ -190,14 +195,17 @@ function readStream(log: string): Stream {
       continue
     }
     for (const block of event.message?.content ?? []) {
-      if (block.type === 'tool_use' && block.name === 'Bash' && block.input?.command) stream.commands.push(block.input.command)
+      if (block.type === 'tool_use' && block.name === 'Bash' && block.input?.command)
+        stream.commands.push(block.input.command)
       if (block.type === 'tool_result') {
         const content = block.content
         stream.results.push(typeof content === 'string' ? content : JSON.stringify(content))
       }
     }
     if (event.type === 'result') {
-      stream.denials = (event.permission_denials ?? []).map((denial) => denial.tool_input?.command ?? denial.tool_name ?? '?')
+      stream.denials = (event.permission_denials ?? []).map(
+        (denial) => denial.tool_input?.command ?? denial.tool_name ?? '?',
+      )
       stream.cost = event.total_cost_usd ?? 0
       stream.turns = event.num_turns ?? 0
       stream.error = event.is_error === true
@@ -217,7 +225,9 @@ function checks(items: Item[], runs: AgentRun[], streams: Map<string, Stream>): 
 
   for (const { role } of runs) {
     const stream = streams.get(role.name)!
-    const used = verbs.filter((verb) => stream.commands.some((command) => new RegExp(`^\\s*wave ${verb}\\b`).test(command)))
+    const used = verbs.filter((verb) =>
+      stream.commands.some((command) => new RegExp(`^\\s*wave ${verb}\\b`).test(command)),
+    )
     const foreign = stream.commands.filter((command) => !/^\s*wave /.test(command))
     result.push(
       { name: `${role.name} joined`, ok: event('participant.joined', role.name) },
@@ -227,7 +237,10 @@ function checks(items: Item[], runs: AgentRun[], streams: Map<string, Stream>): 
       {
         name: `${role.name} ran only plain wave commands`,
         ok: foreign.length === 0 && stream.denials.length === 0,
-        detail: [...foreign.map((command) => `ran: ${command}`), ...stream.denials.map((command) => `denied: ${command}`)]
+        detail: [
+          ...foreign.map((command) => `ran: ${command}`),
+          ...stream.denials.map((command) => `denied: ${command}`),
+        ]
           .join(' | ')
           .slice(0, 300),
       },
@@ -237,9 +250,15 @@ function checks(items: Item[], runs: AgentRun[], streams: Map<string, Stream>): 
 
   const reviewer = streams.get('Reviewer agent')
   result.push(
-    { name: 'someone ran wave who', ok: [...streams.values()].some((s) => s.commands.some((c) => /^\s*wave who\b/.test(c))) },
+    {
+      name: 'someone ran wave who',
+      ok: [...streams.values()].some((s) => s.commands.some((c) => /^\s*wave who\b/.test(c))),
+    },
     { name: 'a reply used --reply-to', ok: messages.some((item) => item.reply_to !== undefined) },
-    { name: 'a multi-line message went through (--file)', ok: messages.some((item) => (item.text ?? '').includes('\n')) },
+    {
+      name: 'a multi-line message went through (--file)',
+      ok: messages.some((item) => (item.text ?? '').includes('\n')),
+    },
     {
       name: 'the secret filter refused the test key',
       ok:
@@ -287,7 +306,10 @@ async function main() {
         installer: 'npm',
       },
       'cli',
-    ).replaceAll(`/tmp/${sessionFileName(created.channel_id, role.name)}`, join(runDir, sessionFileName(created.channel_id, role.name)))
+    ).replaceAll(
+      `/tmp/${sessionFileName(created.channel_id, role.name)}`,
+      join(runDir, sessionFileName(created.channel_id, role.name)),
+    )
     runs.push(start(role, prompt, runDir, bin))
     console.log(`  started ${role.name}`)
     await new Promise((done) => setTimeout(done, role.name === 'Lead' ? 15_000 : 4_000))

@@ -79,18 +79,16 @@ describe('POST /api/v1/channels/:id/join', () => {
     const { body: joined } = await join(channel.channel_id, channel.invite_token)
 
     expect((await joinRoute(post({ name: 'A' }, channel.admin_token), context(channel.channel_id))).status).toBe(401)
-    expect(
-      (await joinRoute(post({ name: 'A' }, joined.participant_token), context(channel.channel_id))).status,
-    ).toBe(401)
+    expect((await joinRoute(post({ name: 'A' }, joined.participant_token), context(channel.channel_id))).status).toBe(
+      401,
+    )
     expect((await joinRoute(post({ name: 'A' }), context(channel.channel_id))).status).toBe(401)
   })
 
   it('refuses an invite from another channel', async () => {
     const channel = await create()
     const other = await create()
-    expect(
-      (await joinRoute(post({ name: 'A' }, other.invite_token), context(channel.channel_id))).status,
-    ).toBe(401)
+    expect((await joinRoute(post({ name: 'A' }, other.invite_token), context(channel.channel_id))).status).toBe(401)
   })
 
   it('rejects a missing or oversized name with 400', async () => {
@@ -117,9 +115,7 @@ describe('POST /api/v1/channels/:id/join', () => {
   it('answers 410 once the channel is closed', async () => {
     const channel = await create()
     await closeRoute(post({}, channel.admin_token), context(channel.channel_id))
-    expect(
-      (await joinRoute(post({ name: 'A' }, channel.invite_token), context(channel.channel_id))).status,
-    ).toBe(410)
+    expect((await joinRoute(post({ name: 'A' }, channel.invite_token), context(channel.channel_id))).status).toBe(410)
   })
 })
 
@@ -142,9 +138,14 @@ describe('POST /api/v1/channels/:id/leave', () => {
     const { body: joined } = await join(channel.channel_id, channel.invite_token)
     await leaveRoute(post({}, joined.participant_token), context(channel.channel_id))
 
-    const view = await (await readRoute(new Request(origin, {
-      headers: { authorization: `Bearer ${channel.invite_token}` },
-    }), context(channel.channel_id))).json()
+    const view = await (
+      await readRoute(
+        new Request(origin, {
+          headers: { authorization: `Bearer ${channel.invite_token}` },
+        }),
+        context(channel.channel_id),
+      )
+    ).json()
 
     expect(view.participants).toEqual([
       { id: joined.participant_id, name: 'Windows agent', role: 'agent', presence: 'gone', client: 'codex-cli' },
@@ -158,9 +159,7 @@ describe('POST /api/v1/channels/:id/leave', () => {
     const { body: elsewhere } = await join(other.channel_id, other.invite_token)
 
     expect((await leaveRoute(post({}, channel.invite_token), context(channel.channel_id))).status).toBe(401)
-    expect(
-      (await leaveRoute(post({}, elsewhere.participant_token), context(channel.channel_id))).status,
-    ).toBe(401)
+    expect((await leaveRoute(post({}, elsewhere.participant_token), context(channel.channel_id))).status).toBe(401)
   })
 })
 

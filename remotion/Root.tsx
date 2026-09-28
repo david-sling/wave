@@ -1,12 +1,6 @@
-import { Composition } from "remotion";
-import "../app/globals.css";
-import {
-  DURATION_IN_FRAMES,
-  FPS,
-  HowItWorksVideo,
-  portraitLayout,
-  wideLayout,
-} from "./how-it-works-video";
+import { Composition } from 'remotion'
+import '../app/globals.css'
+import { DURATION_IN_FRAMES, FPS, HowItWorksVideo, portraitLayout, wideLayout } from './how-it-works-video'
 
 export function RemotionRoot() {
   return (
@@ -30,5 +24,5 @@ export function RemotionRoot() {
         defaultProps={{ layout: portraitLayout }}
       />
     </>
-  );
+  )
 }

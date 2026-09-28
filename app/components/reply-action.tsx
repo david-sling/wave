@@ -1,7 +1,7 @@
-"use client";
+'use client'
 
-import { createContext, useContext, type ReactNode } from "react";
-import { ReplyIcon } from "./icons";
+import { createContext, useContext, type ReactNode } from 'react'
+import { ReplyIcon } from './icons'
 
 /**
  * The "Reply" control on a transcript row, and the channel that carries the
@@ -17,12 +17,12 @@ import { ReplyIcon } from "./icons";
  * right for those pages: an example conversation has nowhere to put a reply.
  */
 
-type Replier = (seq: number) => void;
+type Replier = (seq: number) => void
 
-const ReplyContext = createContext<Replier | null>(null);
+const ReplyContext = createContext<Replier | null>(null)
 
 export function ReplyProvider({ onReply, children }: { onReply: Replier; children: ReactNode }) {
-  return <ReplyContext.Provider value={onReply}>{children}</ReplyContext.Provider>;
+  return <ReplyContext.Provider value={onReply}>{children}</ReplyContext.Provider>
 }
 
 /**
@@ -36,8 +36,8 @@ export function ReplyProvider({ onReply, children }: { onReply: Replier; childre
  * lighting up never reflows the message beside it.
  */
 export function ReplyAction({ seq, author }: { seq?: number; author: string }) {
-  const onReply = useContext(ReplyContext);
-  if (!onReply || seq === undefined) return null;
+  const onReply = useContext(ReplyContext)
+  if (!onReply || seq === undefined) return null
 
   // The arrow, not the word. On a touch screen every row shows this control at
   // once, and eight instances of "Reply" down the edge compete with the names
@@ -55,11 +55,11 @@ export function ReplyAction({ seq, author }: { seq?: number; author: string }) {
     >
       <ReplyIcon size={15} />
     </button>
-  );
+  )
 }
 
 /** How long the answered message keeps the highlight after you are taken to it. */
-const FLASH_MS = 1_400;
+const FLASH_MS = 1_400
 
 /**
  * Takes the reader to the message a quote points at, and says which one it is.
@@ -74,24 +74,24 @@ const FLASH_MS = 1_400;
  * break the link the reader would go on to share.
  */
 function reveal(seq: number): void {
-  const target = document.querySelector(`[data-seq="${seq}"]`);
-  if (!(target instanceof HTMLElement)) return;
+  const target = document.querySelector(`[data-seq="${seq}"]`)
+  if (!(target instanceof HTMLElement)) return
 
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   // Only when it is not already there to be read. The whole of an example
   // channel is on screen at once, so centring a row a reader can already see
   // would move the page under them to show them what they were looking at.
-  const box = target.getBoundingClientRect();
+  const box = target.getBoundingClientRect()
   if (box.top < 0 || box.bottom > window.innerHeight) {
-    target.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+    target.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' })
   }
 
-  target.classList.remove("seq-flash");
+  target.classList.remove('seq-flash')
   // Reading a layout property between the two restarts the transition, so
   // clicking the same quote twice lights the row up twice.
-  void target.offsetWidth;
-  target.classList.add("seq-flash");
-  window.setTimeout(() => target.classList.remove("seq-flash"), FLASH_MS);
+  void target.offsetWidth
+  target.classList.add('seq-flash')
+  window.setTimeout(() => target.classList.remove('seq-flash'), FLASH_MS)
 }
 
 export function JumpToSeq({ seq, label, children }: { seq: number; label: string; children: ReactNode }) {
@@ -99,5 +99,5 @@ export function JumpToSeq({ seq, label, children }: { seq: number; label: string
     <button type="button" onClick={() => reveal(seq)} className="block w-full min-w-0 text-left" aria-label={label}>
       {children}
     </button>
-  );
+  )
 }

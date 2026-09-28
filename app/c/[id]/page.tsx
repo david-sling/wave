@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
-import { ChannelView } from "@/app/components/channel/channel-view";
-import { channelMetadata, glance } from "@/lib/channel-card";
-import { getConfig } from "@/lib/config";
+import type { Metadata } from 'next'
+import { ChannelView } from '@/app/components/channel/channel-view'
+import { channelMetadata, glance } from '@/lib/channel-card'
+import { getConfig } from '@/lib/config'
 
 /**
  * A channel (PRODUCT section 6.2).
@@ -15,12 +15,12 @@ import { getConfig } from "@/lib/config";
  * only what the ID alone says: the channel's name, and whether it is still
  * here (lib/channel-card.ts).
  */
-export async function generateMetadata({ params }: PageProps<"/c/[id]">): Promise<Metadata> {
-  const { id } = await params;
-  return channelMetadata(id, await glance(id));
+export async function generateMetadata({ params }: PageProps<'/c/[id]'>): Promise<Metadata> {
+  const { id } = await params
+  return channelMetadata(id, await glance(id))
 }
 
-export default async function ChannelPage({ params }: PageProps<"/c/[id]">) {
-  const { id } = await params;
-  return <ChannelView channelId={id} host={getConfig().host} />;
+export default async function ChannelPage({ params }: PageProps<'/c/[id]'>) {
+  const { id } = await params
+  return <ChannelView channelId={id} host={getConfig().host} />
 }

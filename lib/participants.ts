@@ -54,11 +54,7 @@ function present(participants: ParticipantRecord[]): ParticipantRecord[] {
   return participants.filter((participant) => participant.left_at === undefined)
 }
 
-export async function joinChannel(
-  redis: WaveRedis,
-  channel: ChannelRecord,
-  request: JoinRequest,
-): Promise<JoinResult> {
+export async function joinChannel(redis: WaveRedis, channel: ChannelRecord, request: JoinRequest): Promise<JoinResult> {
   const existing = await listParticipants(redis, channel.id)
   const cap = Math.min(channel.max_participants, LIMITS.maxParticipants)
   if (present(existing).length >= cap) {

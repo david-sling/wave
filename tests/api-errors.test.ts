@@ -53,7 +53,11 @@ async function openChannel() {
   const agent = await (
     await joinRoute(post({ name: 'Agent', role: 'agent' }, channel.invite_token), context(channel.channel_id))
   ).json()
-  return { id: channel.channel_id as string, invite: channel.invite_token as string, token: agent.participant_token as string }
+  return {
+    id: channel.channel_id as string,
+    invite: channel.invite_token as string,
+    token: agent.participant_token as string,
+  }
 }
 
 beforeEach(() => {
@@ -107,9 +111,14 @@ describe('422 from the secret filter, through the route', () => {
     const secret = 'AKIA4Z9QKJ3MXNPLQR7T'
     await postRoute(post({ text: secret }, channel.token), context(channel.id))
 
-    const transcript = await (await pollRoute(new Request(`${origin}/x`, {
-      headers: { authorization: `Bearer ${channel.token}` },
-    }), context(channel.id))).json()
+    const transcript = await (
+      await pollRoute(
+        new Request(`${origin}/x`, {
+          headers: { authorization: `Bearer ${channel.token}` },
+        }),
+        context(channel.id),
+      )
+    ).json()
 
     expect(JSON.stringify(transcript)).not.toContain(secret)
   })
@@ -198,9 +207,14 @@ describe('idempotent post', () => {
     expect(second.seq).toBe(first.seq)
     expect(second.ts).toBe(first.ts)
 
-    const transcript = await (await pollRoute(new Request(`${origin}/x`, {
-      headers: { authorization: `Bearer ${channel.token}` },
-    }), context(channel.id))).json()
+    const transcript = await (
+      await pollRoute(
+        new Request(`${origin}/x`, {
+          headers: { authorization: `Bearer ${channel.token}` },
+        }),
+        context(channel.id),
+      )
+    ).json()
     const said = transcript.items.filter((item: { text?: string }) => item.text === 'Build passes.')
     expect(said).toHaveLength(1)
   })
@@ -216,5 +230,4 @@ describe('idempotent post', () => {
 
     expect(second.seq).not.toBe(first.seq)
   })
-
 })

@@ -208,7 +208,13 @@ describe('wave tail', () => {
 
     expect(await run(['tail', '--session', SESSION, '--after', '7'], test.io)).toBe(EXIT.gone)
     expect(test.text()).toBe(
-      ['[9] Windows agent: Build passes.', '-- next: --after 9', '[10] Windows agent: And ships.', '-- next: --after 10', ''].join('\n'),
+      [
+        '[9] Windows agent: Build passes.',
+        '-- next: --after 9',
+        '[10] Windows agent: And ships.',
+        '-- next: --after 10',
+        '',
+      ].join('\n'),
     )
   })
 

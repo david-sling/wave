@@ -14,7 +14,13 @@ const DEFAULT_TIMEOUT_SECONDS = 900
 const BACKOFF_START_MS = 1_000
 const BACKOFF_CAP_MS = 60_000
 
-const WAIT_SPEC = { session: 'value', 'session-file': 'value', after: 'value', timeout: 'value', json: 'boolean' } as const
+const WAIT_SPEC = {
+  session: 'value',
+  'session-file': 'value',
+  after: 'value',
+  timeout: 'value',
+  json: 'boolean',
+} as const
 const TAIL_SPEC = { session: 'value', 'session-file': 'value', after: 'value', json: 'boolean' } as const
 
 type WatchOptions = {
@@ -55,7 +61,9 @@ async function watch(options: WatchOptions): Promise<number> {
       const napMs = pauseFor(error, backoff)
       if (napMs === undefined) throw error
       backoff = Math.min(backoff * 2, BACKOFF_CAP_MS)
-      io.err(`wave: ${error instanceof Error ? error.message : String(error)} — retrying in ${Math.round(napMs / 1_000)}s\n`)
+      io.err(
+        `wave: ${error instanceof Error ? error.message : String(error)} — retrying in ${Math.round(napMs / 1_000)}s\n`,
+      )
       await io.sleep(napMs)
       continue
     }

@@ -1,46 +1,44 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { CreateChannelForm } from "@/app/components/create-channel";
-import { Footer } from "@/app/components/footer";
-import { ArrowRightIcon, CheckIcon } from "@/app/components/icons";
-import { Nav } from "@/app/components/nav";
-import { Roster, Transcript } from "@/app/components/transcript";
-import { agentSetting } from "@/lib/agents";
-import { caseBySlug, casePath, headingText, useCases, type UseCase } from "@/lib/use-cases";
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { CreateChannelForm } from '@/app/components/create-channel'
+import { Footer } from '@/app/components/footer'
+import { ArrowRightIcon, CheckIcon } from '@/app/components/icons'
+import { Nav } from '@/app/components/nav'
+import { Roster, Transcript } from '@/app/components/transcript'
+import { agentSetting } from '@/lib/agents'
+import { caseBySlug, casePath, headingText, useCases, type UseCase } from '@/lib/use-cases'
 
 /** Six pages, all of them known at build time. Anything else is a 404. */
-export const dynamicParams = false;
+export const dynamicParams = false
 
 export function generateStaticParams() {
-  return useCases.map((useCase) => ({ slug: useCase.slug }));
+  return useCases.map((useCase) => ({ slug: useCase.slug }))
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps<"/uses/[slug]">): Promise<Metadata> {
-  const { slug } = await params;
-  const useCase = caseBySlug(slug);
-  if (!useCase) return {};
+export async function generateMetadata({ params }: PageProps<'/uses/[slug]'>): Promise<Metadata> {
+  const { slug } = await params
+  const useCase = caseBySlug(slug)
+  if (!useCase) return {}
 
-  const heading = headingText(useCase);
-  const url = casePath(useCase.slug);
+  const heading = headingText(useCase)
+  const url = casePath(useCase.slug)
   return {
     title: `${heading} · Wave`,
     description: useCase.description,
     alternates: { canonical: url },
     openGraph: {
-      type: "article",
+      type: 'article',
       title: `${heading} · Wave`,
       description: useCase.description,
       url,
-      siteName: "Wave",
-      locale: "en_US",
+      siteName: 'Wave',
+      locale: 'en_US',
     },
     // No `twitter` block: with an `opengraph-image` beside this page, Next
     // derives the card from the Open Graph fields and asks for the large one.
     // Naming the card here would pin it back to the small summary.
-  };
+  }
 }
 
 /**
@@ -52,18 +50,18 @@ export async function generateMetadata({
  */
 const steps = [
   {
-    title: "Create a channel",
-    body: "Name it, pick how long it lives, and you get a link. No account.",
+    title: 'Create a channel',
+    body: 'Name it, pick how long it lives, and you get a link. No account.',
   },
   {
-    title: "Paste the prompt into each agent",
-    body: "The channel gives you a join prompt with the agent’s name filled in. Paste it into yours, send it to your colleague for theirs. Nothing to install.",
+    title: 'Paste the prompt into each agent',
+    body: 'The channel gives you a join prompt with the agent’s name filled in. Paste it into yours, send it to your colleague for theirs. Nothing to install.',
   },
   {
-    title: "Watch and steer",
-    body: "Messages arrive in the browser as they happen. Type into the channel when the agents need a decision, and close it when you are done.",
+    title: 'Watch and steer',
+    body: 'Messages arrive in the browser as they happen. Type into the channel when the agents need a decision, and close it when you are done.',
   },
-];
+]
 
 /** The example channel, framed the way the landing carousel frames it. */
 function ExampleChannel({ useCase }: { useCase: UseCase }) {
@@ -83,7 +81,7 @@ function ExampleChannel({ useCase }: { useCase: UseCase }) {
         <Roster participants={useCase.room} />
       </aside>
     </div>
-  );
+  )
 }
 
 /** The one setting each tool in this example needs, from the agent wall. */
@@ -104,7 +102,7 @@ function Settings({ useCase }: { useCase: UseCase }) {
         and anything else that runs curl
       </Link>
     </div>
-  );
+  )
 }
 
 /** A row in the tail: the next case, named the way somebody would search for it. */
@@ -116,21 +114,18 @@ function CaseRow({ href, children }: { href: string; children: React.ReactNode }
         className="group -mx-3 flex items-baseline justify-between gap-4 rounded-[12px] px-3 py-4 text-[16px] font-medium text-ink no-underline transition-colors hover:bg-panel"
       >
         {children}
-        <ArrowRightIcon
-          size={16}
-          className="link-arrow shrink-0 translate-y-px text-ink-3 group-hover:text-ink"
-        />
+        <ArrowRightIcon size={16} className="link-arrow shrink-0 translate-y-px text-ink-3 group-hover:text-ink" />
       </Link>
     </li>
-  );
+  )
 }
 
-export default async function UseCasePage({ params }: PageProps<"/uses/[slug]">) {
-  const { slug } = await params;
-  const useCase = caseBySlug(slug);
-  if (!useCase) notFound();
+export default async function UseCasePage({ params }: PageProps<'/uses/[slug]'>) {
+  const { slug } = await params
+  const useCase = caseBySlug(slug)
+  if (!useCase) notFound()
 
-  const others = useCases.filter((other) => other.slug !== useCase.slug);
+  const others = useCases.filter((other) => other.slug !== useCase.slug)
 
   return (
     <>
@@ -194,5 +189,5 @@ export default async function UseCasePage({ params }: PageProps<"/uses/[slug]">)
       </main>
       <Footer />
     </>
-  );
+  )
 }

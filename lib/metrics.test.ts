@@ -179,7 +179,12 @@ describe('what gets counted', () => {
     await postMessage(redis, channel, alphaRecord, postMessageRequestSchema.parse({ text: 'one', kind: 'message' }))
     expect(await readMetric(redis, 'channels_exchanged')).toBe(0)
 
-    await postMessage(redis, channel, alphaRecord, postMessageRequestSchema.parse({ text: 'still me', kind: 'message' }))
+    await postMessage(
+      redis,
+      channel,
+      alphaRecord,
+      postMessageRequestSchema.parse({ text: 'still me', kind: 'message' }),
+    )
     expect(await readMetric(redis, 'channels_exchanged')).toBe(0)
 
     await postMessage(redis, channel, betaRecord, postMessageRequestSchema.parse({ text: 'and me', kind: 'message' }))
@@ -194,8 +199,18 @@ describe('what gets counted', () => {
     const alpha = await join(created.channel_id, 'Alpha')
     const beta = await join(created.channel_id, 'Beta')
 
-    await postMessage(redis, channel, await participant(created.channel_id, alpha.participant_id), postMessageRequestSchema.parse({ text: 'done here', kind: 'done' }))
-    await postMessage(redis, channel, await participant(created.channel_id, beta.participant_id), postMessageRequestSchema.parse({ text: 'and here', kind: 'done' }))
+    await postMessage(
+      redis,
+      channel,
+      await participant(created.channel_id, alpha.participant_id),
+      postMessageRequestSchema.parse({ text: 'done here', kind: 'done' }),
+    )
+    await postMessage(
+      redis,
+      channel,
+      await participant(created.channel_id, beta.participant_id),
+      postMessageRequestSchema.parse({ text: 'and here', kind: 'done' }),
+    )
 
     expect(await readMetric(redis, 'channels_done')).toBe(1)
   })
@@ -205,7 +220,12 @@ describe('the privacy promise', () => {
   it('writes no channel or participant identifier into any metric key', async () => {
     const { created, channel } = await openChannel()
     const alpha = await join(created.channel_id, 'Alpha', 'claude-code')
-    await postMessage(redis, channel, await participant(created.channel_id, alpha.participant_id), postMessageRequestSchema.parse({ text: 'hello', kind: 'message' }))
+    await postMessage(
+      redis,
+      channel,
+      await participant(created.channel_id, alpha.participant_id),
+      postMessageRequestSchema.parse({ text: 'hello', kind: 'message' }),
+    )
 
     const metricKeys = fake.keys().filter((key) => key.includes(`:m:${metricDay()}:`))
     expect(metricKeys.length).toBeGreaterThan(0)
@@ -231,8 +251,18 @@ describe('the privacy promise', () => {
     const { created, channel } = await openChannel()
     const alpha = await join(created.channel_id, 'Alpha')
     const beta = await join(created.channel_id, 'Beta')
-    await postMessage(redis, channel, await participant(created.channel_id, alpha.participant_id), postMessageRequestSchema.parse({ text: 'one', kind: 'message' }))
-    await postMessage(redis, channel, await participant(created.channel_id, beta.participant_id), postMessageRequestSchema.parse({ text: 'two', kind: 'message' }))
+    await postMessage(
+      redis,
+      channel,
+      await participant(created.channel_id, alpha.participant_id),
+      postMessageRequestSchema.parse({ text: 'one', kind: 'message' }),
+    )
+    await postMessage(
+      redis,
+      channel,
+      await participant(created.channel_id, beta.participant_id),
+      postMessageRequestSchema.parse({ text: 'two', kind: 'message' }),
+    )
 
     for (const key of [keys.emitted(created.channel_id), keys.firstPoster(created.channel_id)]) {
       expect(fake.ttlOf(key)).toBeDefined()
@@ -252,15 +282,18 @@ describe('a counter never breaks a request', () => {
       get(target, property, receiver) {
         if (property === 'incr') {
           return async (key: string) =>
-            key.includes(':m:')
-              ? Promise.reject(new Error('the counter store is having a day'))
-              : target.incr(key)
+            key.includes(':m:') ? Promise.reject(new Error('the counter store is having a day')) : target.incr(key)
         }
         return Reflect.get(target, property, receiver)
       },
     }) as WaveRedis
 
-    const posted = await postMessage(broken, channel, record, postMessageRequestSchema.parse({ text: 'still gets through', kind: 'message' }))
+    const posted = await postMessage(
+      broken,
+      channel,
+      record,
+      postMessageRequestSchema.parse({ text: 'still gets through', kind: 'message' }),
+    )
     expect(posted.seq).toBeGreaterThan(0)
   })
 })
