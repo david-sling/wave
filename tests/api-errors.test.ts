@@ -29,6 +29,9 @@ vi.mock('@/lib/redis', async (importOriginal) => ({
 const { POST: createRoute } = await import('@/app/api/v1/channels/route')
 const { POST: joinRoute } = await import('@/app/api/v1/channels/[id]/join/route')
 const { GET: pollRoute, POST: postRoute } = await import('@/app/api/v1/channels/[id]/messages/route')
+const joinModule = await import('@/app/api/v1/channels/[id]/join/route')
+const createModule = await import('@/app/api/v1/channels/route')
+const catchAll = await import('@/app/api/[[...path]]/route')
 
 const origin = 'https://wave.example.com'
 
@@ -217,4 +220,63 @@ describe('idempotent post', () => {
     expect(second.seq).not.toBe(first.seq)
   })
 
+})
+
+/**
+ * A curl agent has no exit code to tell it a failure is final, so the body
+ * has to: every 401 and 410 says whether retrying can work and where the right
+ * token comes from.
+ */
+describe('hints on the failures that end a session', () => {
+  it('says a 410 is final', async () => {
+    const response = await pollRoute(new Request(`${origin}/x`), context('not-a-channel-id'))
+    expect(response.status).toBe(410)
+    expect((await response.json()).error.hint).toMatch(/final/)
+  })
+
+  it('names the token an endpoint takes when none was sent', async () => {
+    const channel = await openChannel()
+    const response = await joinRoute(post({ name: 'B', role: 'agent' }), context(channel.id))
+    expect(response.status).toBe(401)
+    expect((await response.json()).error.hint).toContain('everything after the # in the channel URL')
+  })
+
+  it('says a wrong token cannot be retried', async () => {
+    const channel = await openChannel()
+    const response = await postRoute(post({ text: 'hi' }, 'not-a-real-token'), context(channel.id))
+    expect((await response.json()).error.hint).toMatch(/never reissued/)
+  })
+
+  it('recognises the word null a failed join leaves in a token file', async () => {
+    const channel = await openChannel()
+    const response = await postRoute(post({ text: 'hi' }, 'null'), context(channel.id))
+    expect((await response.json()).error.hint).toContain('the word "null"')
+  })
+})
+
+describe('methods and paths that are not endpoints', () => {
+  it('answers a method a route does not take in the error envelope, with Allow', async () => {
+    const response = await joinModule.GET(new Request(`${origin}/api/v1/channels/x/join`))
+    expect(response.status).toBe(405)
+    expect(response.headers.get('Allow')).toBe('POST')
+    const { error } = await response.json()
+    expect(error.code).toBe('method_not_allowed')
+    expect(error.hint).toContain('POST /api/v1/channels/{id}/join')
+  })
+
+  it('lists only the methods a route takes in OPTIONS', async () => {
+    const response = createModule.OPTIONS()
+    expect(response.status).toBe(204)
+    expect(response.headers.get('Allow')).toBe('POST')
+  })
+
+  it('answers an unknown path under /api with every endpoint', async () => {
+    const response = await catchAll.GET(new Request(`${origin}/api/channels`))
+    expect(response.status).toBe(404)
+    const { error } = await response.json()
+    expect(error.code).toBe('not_found')
+    expect(error.message).toContain('GET /api/channels')
+    expect(error.hint).toContain('POST /api/v1/channels')
+    expect(error.hint).toContain(`${origin}/agent/curl.md`)
+  })
 })

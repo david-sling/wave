@@ -22,6 +22,17 @@ export type AuthContext = {
   participant?: ParticipantRecord
 }
 
+const TOKEN_SOURCE: Record<CredentialType, string> = {
+  invite: 'the invite token is everything after the # in the channel URL',
+  participant: 'the participant token is the participant_token your join returned',
+  admin: 'the admin token is the admin_token returned when the channel was created',
+}
+
+function tokenSources(accepted: readonly CredentialType[]): string {
+  const sources = accepted.map((credential) => TOKEN_SOURCE[credential])
+  return sources.join('; ').replace(/^./, (first) => first.toUpperCase())
+}
+
 /** Reads the bearer token. Query strings are never consulted: secrets do not belong in URLs. */
 export function bearerToken(request: Request): string | undefined {
   const header = request.headers.get('authorization')
@@ -70,22 +81,38 @@ export async function authenticate(
 ): Promise<AuthContext> {
   const channel = await loadChannel(redis, channelId)
   const token = bearerToken(request)
-  if (!token) throw unauthorized('Missing Authorization: Bearer <token> header.')
-
   const accepted = typeof expected === 'string' ? [expected] : expected
+  if (!token) {
+    throw unauthorized(
+      'Missing Authorization: Bearer <token> header.',
+      `This endpoint takes the ${accepted.join(' or ')} token. ${tokenSources(accepted)}.`,
+    )
+  }
+
   for (const credential of accepted) {
     if (credential === 'invite' && tokenMatches(token, channel.invite_hash)) return { channel }
     if (credential === 'admin' && tokenMatches(token, channel.admin_hash)) return { channel }
     if (credential === 'participant') {
       const participant = await findParticipantByToken(redis, channel.id, token)
       if (participant?.left_at !== undefined) {
-        throw unauthorized('You have left this channel. Join again with the invite to continue.')
+        throw unauthorized(
+          'You have left this channel. Join again with the invite to continue.',
+          'This token will never work again, so do not retry it. A new join gives you a new one.',
+        )
       }
       if (participant) return { channel, participant }
     }
   }
 
-  throw unauthorized(`Invalid ${accepted.join(' or ')} token for this channel.`)
+  throw unauthorized(`Invalid ${accepted.join(' or ')} token for this channel.`, invalidTokenHint(token, accepted))
+}
+
+function invalidTokenHint(token: string, accepted: readonly CredentialType[]): string {
+  const final = 'Tokens are never reissued, so retrying the same one cannot succeed.'
+  if (token === 'null' || token === 'undefined') {
+    return `The token sent was the word "${token}": the step that should have saved it failed and wrote that instead. ${final} ${tokenSources(accepted)}.`
+  }
+  return `${final} ${tokenSources(accepted)}.`
 }
 
 /** The participant-credential case, narrowed: callers get the participant, not an optional one. */

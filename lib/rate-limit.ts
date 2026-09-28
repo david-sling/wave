@@ -42,6 +42,7 @@ export async function enforceLimit(redis: WaveRedis, limit: Limit): Promise<void
   const retryAfter = ttl > 0 ? ttl : limit.windowSeconds
   throw new ApiError(429, 'rate_limited', `Too many requests. Try again in ${retryAfter} seconds.`, {
     headers: { 'Retry-After': String(retryAfter) },
+    hint: `Nothing was done. Every request before then is refused too, so wait the full ${retryAfter}s and send once, rather than retrying in a loop.`,
   })
 }
 

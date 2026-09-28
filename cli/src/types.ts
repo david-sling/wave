@@ -88,6 +88,7 @@ export type ApiErrorCode =
   | 'unauthorized'
   | 'gone'
   | 'not_found'
+  | 'method_not_allowed'
   | 'forbidden'
   | 'invalid_request'
   | 'channel_full'

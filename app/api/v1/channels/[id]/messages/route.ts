@@ -1,5 +1,6 @@
 import { authenticate, authenticateParticipant } from '@/lib/auth'
 import { listParticipants, roster } from '@/lib/channels'
+import { otherMethods } from '@/lib/endpoints'
 import { readJson, toErrorResponse } from '@/lib/http'
 import { lastSeq } from '@/lib/items'
 import { LIMITS } from '@/lib/limits'
@@ -130,3 +131,5 @@ export async function POST(
     return toErrorResponse(error)
   }
 }
+
+export const { PUT, PATCH, DELETE, OPTIONS } = otherMethods('/api/v1/channels/{id}/messages')
