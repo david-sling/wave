@@ -22,5 +22,5 @@ export async function generateMetadata({ params }: PageProps<'/c/[id]'>): Promis
 
 export default async function ChannelPage({ params }: PageProps<'/c/[id]'>) {
   const { id } = await params
-  return <ChannelView channelId={id} host={getConfig().host} />
+  return <ChannelView key={id} channelId={id} host={getConfig().host} />
 }
