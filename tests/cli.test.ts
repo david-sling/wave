@@ -111,8 +111,9 @@ describe('wave join, against the real routes', () => {
 
     const code = await run(['join', `${ORIGIN}/c/${channel.channel_id}#wrong`, '--name', 'Mac agent'], test.io)
 
-    expect(code).toBe(5)
+    expect(code).toBe(1)
     expect(test.errors()).toMatch(/token/i)
+    expect(test.errors()).toContain('Copy the whole URL again')
   })
 })
 

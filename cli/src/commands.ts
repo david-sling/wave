@@ -7,6 +7,7 @@ import { who } from './commands/who.js'
 
 export type Command = {
   readonly summary: string
+  readonly usage: string
   run(argv: string[], io: Io): Promise<number>
 }
 

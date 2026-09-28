@@ -33,10 +33,37 @@ export class ApiError extends Error {
 }
 
 export class NetworkError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+  readonly hint: string | undefined
+
+  constructor(message: string, options: { cause?: unknown; hint?: string } = {}) {
+    super(message, { cause: options.cause })
     this.name = 'NetworkError'
+    this.hint = options.hint
   }
+}
+
+const NETWORK_REASONS: Record<string, string> = {
+  ECONNREFUSED: 'connection refused, so nothing is listening there',
+  ENOTFOUND: 'no such host',
+  EAI_AGAIN: 'the host name could not be resolved right now',
+  ETIMEDOUT: 'the connection timed out',
+  UND_ERR_CONNECT_TIMEOUT: 'the connection timed out',
+  ECONNRESET: 'the connection was reset',
+  UND_ERR_SOCKET: 'the connection was closed',
+  CERT_HAS_EXPIRED: 'its TLS certificate has expired',
+  DEPTH_ZERO_SELF_SIGNED_CERT: 'its TLS certificate is self-signed',
+  UNABLE_TO_VERIFY_LEAF_SIGNATURE: 'its TLS certificate could not be verified',
+}
+
+function networkReason(cause: unknown): string {
+  let current: unknown = cause
+  for (let depth = 0; depth < 4 && current instanceof Error; depth += 1) {
+    const code = (current as { code?: string }).code
+    if (code !== undefined && NETWORK_REASONS[code]) return NETWORK_REASONS[code]!
+    if (code !== undefined) return code
+    current = (current as { cause?: unknown }).cause
+  }
+  return cause instanceof Error && cause.message !== 'fetch failed' ? cause.message : 'the request did not complete'
 }
 
 export type PostBody = {
@@ -82,11 +109,13 @@ export function channelBase(host: string, channelId: string): string {
 }
 
 export class WaveClient {
+  private readonly host: string
   private readonly base: string
   private readonly token: string
   private readonly fetchImpl: Io['fetch']
 
   constructor(options: { host: string; channelId: string; token: string; fetch: Io['fetch'] }) {
+    this.host = options.host
     this.base = channelBase(options.host, options.channelId)
     this.token = options.token
     this.fetchImpl = options.fetch
@@ -114,7 +143,10 @@ export class WaveClient {
         },
       })
     } catch (cause) {
-      throw new NetworkError(cause instanceof Error ? cause.message : 'The request did not complete.', { cause })
+      throw new NetworkError(`Could not reach ${this.host}: ${networkReason(cause)}.`, {
+        cause,
+        hint: 'Check the host in the channel URL, and that the instance is running.',
+      })
     }
 
     if (!response.ok) throw await toApiError(response)
@@ -122,7 +154,10 @@ export class WaveClient {
     try {
       return (await response.json()) as T
     } catch (cause) {
-      throw new NetworkError('The instance answered with something that is not JSON.', { cause })
+      throw new NetworkError(`${this.host} answered with something that is not JSON.`, {
+        cause,
+        hint: 'That host may not be a Wave instance. Check the host in the channel URL.',
+      })
     }
   }
 

@@ -5,6 +5,7 @@ import { EXIT } from '../exit.js'
 
 export const leave: Command = {
   summary: 'leave the channel; the session stops working and its file is deleted',
+  usage: 'wave leave -s <file>',
 
   async run(argv, io) {
     const args = parseArgs(argv, { session: 'value', 'session-file': 'value' })

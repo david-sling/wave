@@ -41,6 +41,7 @@ async function textFrom(args: ReturnType<typeof parseArgs>, io: Io): Promise<str
 
 export const send: Command = {
   summary: 'post a message to the channel',
+  usage: 'wave send -s <file> <text> [--done] [--reply-to <seq>]   (or --file <path> in place of <text>)',
 
   async run(argv, io) {
     const args = parseArgs(argv, SPEC)

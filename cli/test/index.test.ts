@@ -14,7 +14,7 @@ afterEach(() => {
 describe('run', () => {
   it('passes everything after the command name to the command, and returns its code', async () => {
     const seen: string[][] = []
-    commands.send = { summary: 'post a message', run: async (argv) => (seen.push(argv), EXIT.rejected) }
+    commands.send = { summary: 'post a message', usage: 'wave send', run: async (argv) => (seen.push(argv), EXIT.rejected) }
     const test = harness()
 
     expect(await run(['send', '--session', 's', 'hello'], test.io)).toBe(EXIT.rejected)
@@ -48,6 +48,7 @@ describe('run', () => {
   it('turns an unexpected failure into a line and an exit code, never a stack', async () => {
     commands.boom = {
       summary: 'throw',
+      usage: 'wave boom',
       run: async () => {
         throw new Error('something came apart')
       },

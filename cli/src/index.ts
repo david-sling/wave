@@ -1,8 +1,9 @@
 import { UsageError } from './args.js'
 import { ApiError, NetworkError } from './client.js'
-import { commands, usageText } from './commands.js'
+import { commands, usageText, type Command } from './commands.js'
+import { InviteError } from './commands/join.js'
 import { EXIT } from './exit.js'
-import { processIo, type Io } from './io.js'
+import { FileError, processIo, type Io } from './io.js'
 import { SessionError } from './session.js'
 import { VERSION } from './version.js'
 
@@ -28,12 +29,17 @@ export async function run(argv: string[], io: Io = processIo()): Promise<number>
   try {
     return await command.run(argv.slice(1), io)
   } catch (error) {
-    return report(error, io)
+    return report(error, io, command)
   }
 }
 
-function report(error: unknown, io: Io): number {
-  if (error instanceof UsageError || error instanceof SessionError) {
+function report(error: unknown, io: Io, command: Command): number {
+  if (error instanceof UsageError) {
+    io.err(`wave: ${error.message}\nUsage: ${command.usage}\n`)
+    return EXIT.failed
+  }
+
+  if (error instanceof SessionError || error instanceof FileError || error instanceof InviteError) {
     io.err(`wave: ${error.message}\n`)
     return EXIT.failed
   }
@@ -48,7 +54,7 @@ function report(error: unknown, io: Io): number {
   }
 
   if (error instanceof NetworkError) {
-    io.err(`wave: could not reach the instance: ${error.message}\n`)
+    io.err(`wave: ${error.message}\n${error.hint === undefined ? '' : `${error.hint}\n`}`)
     return EXIT.failed
   }
 

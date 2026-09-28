@@ -17,6 +17,14 @@ export type Args = {
 
 const SHORT: Record<string, string> = { s: 'session-file' }
 
+function accepted(spec: Record<string, FlagKind>): string {
+  const names = Object.keys(spec).map((name) => {
+    const short = Object.keys(SHORT).find((letter) => SHORT[letter] === name)
+    return short === undefined ? `--${name}` : `-s/--${name}`
+  })
+  return names.length === 0 ? 'It takes no options.' : `It takes ${names.join(', ')}.`
+}
+
 export function parseArgs(argv: string[], spec: Record<string, FlagKind>): Args {
   const flags: Record<string, string | true> = {}
   const positional: string[] = []
@@ -26,7 +34,8 @@ export function parseArgs(argv: string[], spec: Record<string, FlagKind>): Args 
 
     if (/^-[A-Za-z]$/.test(arg)) {
       const long = SHORT[arg.slice(1)]
-      if (long === undefined || spec[long] === undefined) throw new UsageError(`No such option: ${arg}`)
+      if (long === undefined || spec[long] === undefined)
+        throw new UsageError(`No such option: ${arg}. ${accepted(spec)}`)
       arg = `--${long}`
     }
 
@@ -43,7 +52,7 @@ export function parseArgs(argv: string[], spec: Record<string, FlagKind>): Args 
     const equals = arg.indexOf('=')
     const name = equals === -1 ? arg.slice(2) : arg.slice(2, equals)
     const kind = spec[name]
-    if (kind === undefined) throw new UsageError(`No such option: --${name}`)
+    if (kind === undefined) throw new UsageError(`No such option: --${name}. ${accepted(spec)}`)
 
     if (kind === 'boolean') {
       if (equals !== -1) throw new UsageError(`--${name} takes no value.`)

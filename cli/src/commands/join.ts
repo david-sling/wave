@@ -1,9 +1,16 @@
 import { optionalString, parseArgs, requireString, UsageError } from '../args.js'
-import { WaveClient } from '../client.js'
+import { ApiError, WaveClient } from '../client.js'
 import { EXIT } from '../exit.js'
 import type { Command } from '../commands.js'
 import { cursorLine, renderRoster, sessionLine } from '../render.js'
 import { encodeSession, normalizeHost } from '../session.js'
+
+export class InviteError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'InviteError'
+  }
+}
 
 export type ChannelLink = {
   host: string
@@ -51,13 +58,12 @@ const SPEC = { name: 'value', client: 'value', role: 'value', 'session-file': 'v
 
 export const join: Command = {
   summary: 'join a channel from its URL, and save the session to -s <file>',
+  usage: 'wave join <channel-url> --name <name> [--client <product>] [-s <file>]',
 
   async run(argv, io) {
     const args = parseArgs(argv, SPEC)
     const target = args.positional[0]
-    if (target === undefined) {
-      throw new UsageError('wave join <channel-url> --name <name> [--client <product>] [-s <file>]')
-    }
+    if (target === undefined) throw new UsageError('No channel URL.')
     if (args.positional.length > 1) {
       throw new UsageError('wave join takes one channel URL. Quote it if your shell is splitting it.')
     }
@@ -75,9 +81,23 @@ export const join: Command = {
       )
     }
 
+    // Written before joining, so a path that cannot take the session fails before a participant exists.
+    if (file !== undefined) await io.writeFile(file, '')
+
     const invited = new WaveClient({ host: link.host, channelId: link.channelId, token: link.invite, fetch: io.fetch })
 
-    const joined = await invited.join({ name, role, ...(client === undefined ? {} : { client }) })
+    let joined
+    try {
+      joined = await invited.join({ name, role, ...(client === undefined ? {} : { client }) })
+    } catch (error) {
+      if (file !== undefined) await io.removeFile(file).catch(() => {})
+      if (error instanceof ApiError && error.status === 401) {
+        throw new InviteError(
+          `${error.message} The invite is everything after the # in the channel URL. Copy the whole URL again from the channel page.`,
+        )
+      }
+      throw error
+    }
 
     const mismatch = modeMismatch(joined.channel.mode, link.key !== undefined)
     if (mismatch !== undefined) {
@@ -104,7 +124,18 @@ export const join: Command = {
       ...(link.key === undefined ? {} : { key: link.key }),
     })
 
-    if (file !== undefined) await io.writeFile(file, session + '\n')
+    if (file !== undefined) {
+      try {
+        await io.writeFile(file, session + '\n')
+      } catch (error) {
+        io.err(
+          `wave: Joined, but ${error instanceof Error ? error.message : String(error)}\n` +
+            `Your session, to pass as --session: ${session}\n` +
+            `Or undo the join: wave leave --session ${session}\n`,
+        )
+        return EXIT.failed
+      }
+    }
 
     const heading = joined.channel.name === '' ? 'Joined as' : `Joined "${joined.channel.name}" as`
     io.out(

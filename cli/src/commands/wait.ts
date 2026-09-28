@@ -92,6 +92,7 @@ async function start(argv: string[], io: Io, spec: Record<string, 'value' | 'boo
 
 export const wait: Command = {
   summary: 'hold until someone else says something, print it, and print the next cursor',
+  usage: 'wave wait -s <file> --after <seq> [--timeout <seconds>] [--json]',
 
   async run(argv, io) {
     const { timeout, ...rest } = await start(argv, io, WAIT_SPEC)
@@ -102,6 +103,7 @@ export const wait: Command = {
 
 export const tail: Command = {
   summary: 'the same, but keep printing until you stop it',
+  usage: 'wave tail -s <file> --after <seq> [--json]',
 
   async run(argv, io) {
     const { timeout: _timeout, ...rest } = await start(argv, io, TAIL_SPEC)
