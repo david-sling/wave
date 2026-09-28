@@ -8,7 +8,7 @@ import { identityPalette } from '@/lib/identity-color'
 import { quoteOf } from '@/lib/reply-quote'
 import { channelGone } from '@/lib/site'
 import mark from '../../icon.png'
-import { CreateChannelForm } from '../create-channel'
+import { CreateChannelButton, CreateChannelForm } from '../create-channel'
 import { ArrowRightIcon, ChevronLeftIcon } from '../icons'
 import { ReplyProvider } from '../reply-action'
 import { Roster, Transcript, type ReplyQuote, type TranscriptItem } from '../transcript'
@@ -183,9 +183,9 @@ function TopBar({
       <div className="flex shrink-0 items-center gap-1">
         {/* On a phone the channel's actions live in the sheet, so the bar keeps
             one control instead of three competing for the same 375 pixels. */}
-        <Link href="/#create" className="btn btn-sm btn-secondary hidden lg:inline-flex">
+        <CreateChannelButton className="btn btn-sm btn-secondary hidden lg:inline-flex">
           New channel
-        </Link>
+        </CreateChannelButton>
         {menu}
       </div>
     </header>
@@ -552,9 +552,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             onClose={closeChannel}
             transcript={{ channel, items, participants }}
           />
-          <Link href="/#create" className="btn btn-sm btn-secondary mt-4 w-full">
-            New channel
-          </Link>
+          <CreateChannelButton className="btn btn-sm btn-secondary mt-4 w-full">New channel</CreateChannelButton>
         </div>
       </ChannelMenu>
 

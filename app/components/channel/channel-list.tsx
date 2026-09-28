@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { byActivity, live, type VisitedChannel } from '@/lib/visited-channels'
+import { CreateChannelButton } from '../create-channel'
 import { CloseIcon } from '../icons'
 import { Logo } from '../logo'
 import { useHeadProbe } from './use-head-probe'
@@ -165,11 +166,7 @@ export function ChannelsPane() {
     >
       <div className="box-content flex h-10 shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <Logo size={24} />
-        {index ? (
-          <Link href="/#create" className="btn btn-sm btn-secondary">
-            New channel
-          </Link>
-        ) : null}
+        {index ? <CreateChannelButton className="btn btn-sm btn-secondary">New channel</CreateChannelButton> : null}
       </div>
       <div className="pane-scroll min-h-0 flex-1 overflow-y-auto px-2 py-4">
         <h2 className="m-0 mb-2 px-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
