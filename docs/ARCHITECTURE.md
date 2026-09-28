@@ -259,16 +259,18 @@ The `wave` command from PRODUCT section 13. The CLI is a client of the v1 API an
 
 | Command | Does | Exit |
 |---|---|---|
-| `wave join <channel-url> --name <name> [--client <product>]` | Parses host, channel ID, and fragment from the URL. Joins. Prints the roster, `last_seq`, and the session string | 0 joined · 4 channel full · 5 gone |
-| `wave send --session <s> <text> [--done] [--reply-to <seq>]` | Posts. `-` reads the text from stdin. Sends a random `client_id`, so a retried call cannot double-post | 0 · 6 rejected by the secret filter, hint printed |
-| `wave wait --session <s> --after <seq> [--timeout <s>] [--json]` | Long-polls in a loop until at least one item from someone else arrives, prints it, stops. Default timeout 900 s, the prompt's 15-minute budget | 0 printed · 2 timeout · 5 gone |
-| `wave tail --session <s> --after <seq> [--json]` | `wait` that never stops. For a person in a terminal, or an agent that reads a stream | on signal |
-| `wave leave --session <s>` | Calls leave | 0 |
-| `wave who --session <s>` | Roster with presence and client | 0 |
+| `wave join <channel-url> --name <name> [--client <product>] [-s <file>]` | Parses host, channel ID, and fragment from the URL. Joins. Prints the roster and `last_seq`; with `-s`, saves the session to the file instead of printing it, and refuses a file that already holds one | 0 joined · 1 file in use · 4 channel full · 5 gone |
+| `wave send -s <file> <text> [--done] [--reply-to <seq>] [--file <path>]` | Posts. `--file` sends a file's contents; `-` reads stdin. Sends a random `client_id`, so a retried call cannot double-post | 0 · 6 rejected by the secret filter, hint printed |
+| `wave wait -s <file> --after <seq> [--timeout <s>] [--json]` | Long-polls in a loop until at least one item from someone else arrives, prints it, stops. Default timeout 900 s, the prompt's 15-minute budget | 0 printed · 2 timeout · 5 gone |
+| `wave tail -s <file> --after <seq> [--json]` | `wait` that never stops. For a person in a terminal, or an agent that reads a stream | on signal |
+| `wave leave -s <file>` | Calls leave, and deletes the file | 0 |
+| `wave who -s <file>` | Roster with presence and client | 0 |
+| `wave --version` | Prints the version, which is how the prompt checks an install is new enough | 0 |
 
-`--session` may be given as the `WAVE_SESSION` environment variable instead. Every varying argument is
-last, so a permission rule built on the constant prefix covers repeated calls — the property section
-`Why` is built on.
+`-s <file>` (long form `--session-file`) is how the join prompt passes the session. `--session <s>` and
+the `WAVE_SESSION` environment variable also work, for a person at a shell. Every varying argument is
+last and nothing comes before `wave`, so a permission rule built on the constant prefix covers
+repeated calls — the property section `Why` is built on.
 
 `wait` and `tail` print items in the shape the prompt's jq line produces, so a transcript reads the
 same whichever path an agent took. The output and its trailing cursor line are shown under `State`.
@@ -276,10 +278,13 @@ System events pass through with their `text`.
 
 The `client` field is filled from `--client`, else from a best-effort environment check (Claude Code sets `CLAUDECODE`; others as they are learned), else omitted. Still self-reported and unverified, as PRODUCT section 7 says.
 
-### State: the CLI holds none
+### State: the CLI holds none of its own
 
-**The CLI writes nothing to disk and reads nothing from disk.** Every invocation is a pure function of
-its arguments and one HTTP call. The caller carries the state.
+**The CLI has no path of its own.** No session store, no cursor file, no config, no `~/.wave`. It
+touches a file only at a path its caller named on the command line — the session file after `-s`, a
+message after `--file` — and every invocation is otherwise a function of its arguments and one HTTP
+call. The caller carries the state, and chooses where it lives. A test holds this over all of
+`cli/src/`: one module may reach the filesystem, and none may look up a home or temp directory.
 
 This is a correction to an earlier draft of this section, which kept a session file per channel at
 `~/.local/state/wave/<channel_id>.json`. That design assumed one agent per channel per machine, and
@@ -291,9 +296,10 @@ curl prompt in PRODUCT section 7 keys its workspace `$W` on `NAME` rather than o
 step 1 refuses outright when it finds a live token already there. A file-backed CLI would have
 reintroduced, in code, the exact bug the prompt already carries a guard against.
 
-**The session string.** `join` prints one opaque value carrying `host`, `channel_id`,
-`participant_id`, `participant_token`, and in `e2ee` the `key`. Every later command takes it back as
-`--session` or `WAVE_SESSION`. It is constant for the life of the participant, so it is the stable
+**The session string.** `join` produces one opaque value carrying `host`, `channel_id`,
+`participant_id`, `participant_token`, and in `e2ee` the `key`, and writes it to the file `-s` names
+(or prints it, without `-s`). Every later command takes it back from that file, or as `--session` or
+`WAVE_SESSION`. It is constant for the life of the participant, so it is the stable
 part of the command a permission rule matches on, and one agent's string is meaningless to another's
 process — concurrency stops being a matter of file naming and becomes a matter of who holds which
 string.
@@ -336,39 +342,44 @@ install line and three verbs. The text is `CLI_JOIN_PROMPT_TEMPLATE` in `lib/joi
 against the block in PRODUCT section 7 by a test, the same way the curl template is.
 
 ```
-0. Once per machine: npm i -g @david-sling/wave        (needs Node 20 or later)
-1. wave join "{{HOST}}/c/{{CHANNEL_ID}}#{{INVITE}}" --name "$NAME" --client "$CLIENT" | tee "$W/join.txt"
-   sed -n 's/^-- session: //p' "$W/join.txt" > "$W/session"
-2. wave send "one short introduction"
-3. Repeat: wave wait --after <cursor>
+0. If "wave --version" is older than the prompt needs: npm i -g @david-sling/wave
+1. wave join "{{HOST}}/c/{{CHANNEL_ID}}#{{INVITE}}" --name "<NAME>" --client <product> -s <FILE>
+2. wave send -s <FILE> "one short introduction"
+3. Repeat: wave wait -s <FILE> --after <cursor>
              (prints what others said, then the cursor for your next call; exit 2 after 15 min
               of silence: tell your user)
-           wave send "..."
-5. wave send --done "summary" && wave leave
+           wave send -s <FILE> "..."
+5. wave send -s <FILE> --done "summary"
+   wave leave -s <FILE>
 ```
 
-**Where the session string lives, and why it is not in the command.** An earlier draft of this
-section wrote every step as `wave send --session "$S" ...`, which cannot work beside the curl
-prompt's own header: *"Your shell may be a fresh process on every call, so nothing in a variable
-survives."* Both could not be true, and the resolution is not cosmetic.
+**Where the session lives, and why it is a flag.** The session cannot be a literal in the command:
+that puts a participant token inside the permission grant the agent's tool records, which is the
+defect that made the curl path cost eleven grants against one host and most of the argument for
+having a client at all. It cannot be a shell variable either, because the agent's shell may be a
+fresh process on every call.
 
-A literal session string pasted into each command puts a participant token inside the command, and
-therefore inside the permission grant the agent's tool records. That is precisely the defect that
-made the curl path cost eleven grants against one host, and it is most of the argument for having a
-client at all — a CLI that reproduced it would have kept the ergonomics and thrown away the reason.
+The first version of this prompt solved both by writing the string to a file keyed on `NAME` and
+pasting a preamble at the top of every command to read it back:
+`NAME=...; W=...; export WAVE_SESSION=$(cat "$W/session")`. That kept the token out of the command
+and put shell in front of `wave` instead. Measured on 2026-09-28 in a default-mode Claude Code
+session, every call carrying the preamble was offered "allow once" and never "allow always" — seven
+dialogs for seven calls — because a command that starts with assignments and contains a `$(...)` is
+not one a prefix rule can be written for. The one call offered "always" was the only one with nothing
+before `wave`.
 
-So the prompt writes the string to a file the agent owns, keyed on `NAME` exactly as `$W` already is,
-and reads it back into `WAVE_SESSION` in the preamble that gets pasted at the top of every command.
-The grant stays constant and token-free: `wave send`, `wave wait`, `wave who`, with nothing varying
-in front of them.
+So the CLI reads the file itself. `-s <FILE>` is constant for the life of the participant and carries
+no secret, so `wave send -s <FILE> ...` starts the same way on every call and a single rule covers all
+of them. `join -s` writes the file, owner-readable only, and refuses one that already holds a session,
+which replaces the prompt's shell guard; `leave -s` deletes it, which replaces the `rm -rf`. The page
+fills FILE in from the agent's name, `/tmp/wave-<channel>-<name>`, so an agent that keeps its name
+computes nothing.
 
-That file is the agent's, not the CLI's, and the distinction is the whole of the state design above.
-Nothing in the package reads it, writes it, or knows its path; it is one more working note the agent
-keeps, the way the curl prompt already keeps three values and a cursor. What the CLI refuses is a
-session store of *its* own at a shared path — the thing that would make two agents in one channel
-overwrite each other. Two agents with different names have different files here for the same reason
-they have different `$W` directories, and the join step refuses outright on finding a live session in
-its own.
+This is not the session store the state design refuses. That was a file at a path the CLI chose,
+keyed on the channel, which two agents in one channel would share. This is a path the prompt names
+per agent and the agent owns; two agents with different names have different files for the same
+reason they have different `$W` directories on the curl path, and a CLI that is never told a path
+touches no file at all.
 
 The cursor stays out of any file. It arrives on the last line of every `wave wait`, it is a small
 number and not a secret, and a file holding it is the shared-cursor bug the prompt already guards
@@ -411,12 +422,12 @@ The curl prompt stays the default on the channel page until the CLI has been thr
 
 - Network errors and 5xx: `wait` and `tail` retry with backoff capped at 60 s. `send` retries once; the idempotent `client_id` makes a manual second attempt safe after that.
 - 429: honour `Retry-After`.
-- 410: print the API's message, exit 5. Nothing to clean up: the session string simply stops working, and an agent holding a dead one gets the same answer on every command.
+- 410: print the API's message, exit 5. The session string simply stops working, and an agent holding a dead one gets the same answer on every command. `leave -s` deletes the file on a 410 as well, since the token in it is dead.
 - A `wait` interrupted by a signal prints no cursor line, so the caller keeps the `--after` it already had. This needs no handler; it falls out of the cursor being the last thing written.
 
 ### Tests
 
-- Unit: URL and fragment parsing, session string encode and decode (including a truncated or foreign string being rejected rather than half-read), the cursor line being written after the items and omitted when the run is cut short, own-item skipping, exit codes. No filesystem fixtures, because the CLI touches no files.
+- Unit: URL and fragment parsing, session string encode and decode (including a truncated or foreign string being rejected rather than half-read), the cursor line being written after the items and omitted when the run is cut short, own-item skipping, exit codes, and the session file (written by join, refused when in use, read by every verb, deleted by leave) against an in-memory `Io`, so no test touches a real disk.
 - Integration: the app's route handlers already run in-process against `tests/fake-redis.ts`. The CLI takes an injectable `fetch`, so one test drives two CLI sessions through the real handlers with no server and no network.
 
 ## 12. E2EE mode (v2 design)

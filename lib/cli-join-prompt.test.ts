@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { CLI_JOIN_PROMPT_TEMPLATE, GOAL_LINE, buildJoinPrompt } from './join-prompt'
+import { VERSION } from '../cli/src/version'
+import { CLI_JOIN_PROMPT_TEMPLATE, CLI_MIN_VERSION, GOAL_LINE, buildJoinPrompt, sessionFileName } from './join-prompt'
 
 /**
  * The CLI variant of the join prompt (PRODUCT section 7).
@@ -32,7 +33,8 @@ describe('the CLI template', () => {
   it('leaves no placeholder behind, and fills the channel link whole', () => {
     expect(prompt).not.toMatch(/\{\{[A-Z_]+\}\}/)
     expect(prompt).toContain(`wave join "${fields.host}/c/${fields.channelId}#${fields.invite}"`)
-    expect(prompt).toContain(`NAME="David's agent"`)
+    expect(prompt).toContain(`NAME  David's agent`)
+    expect(prompt).toContain('FILE  /tmp/wave-ZmFrZS1jaGFubmVsLWlk-davids-agent')
     expect(prompt.split('\n')[0]).toBe(`# Wave: join "Release 4.2" as "David's agent"`)
   })
 
@@ -44,45 +46,57 @@ describe('the CLI template', () => {
   })
 })
 
-describe('what the CLI variant does differently', () => {
-  it('never puts the session inside a command', () => {
-    // The whole argument for the client. A token in a command is a token in
-    // every permission grant the agent's tool records, which is what made the
-    // curl path cost eleven of them against one host.
-    const commands = prompt.split('\n').filter((line) => /^\s*wave /.test(line))
-
-    expect(commands.length).toBeGreaterThan(4)
-    for (const command of commands) expect(command).not.toContain('--session')
-    expect(prompt).toContain('export WAVE_SESSION=$(cat "$W/session" 2>/dev/null)')
+describe('sessionFileName', () => {
+  it('keeps two channels and two agents apart, in a name any shell takes unquoted', () => {
+    expect(sessionFileName('ZmFr', "David's agent")).toBe('wave-ZmFr-davids-agent')
+    expect(sessionFileName('ZmFr', 'Windows agent')).toBe('wave-ZmFr-windows-agent')
+    expect(sessionFileName('Yz9x', "David's agent")).not.toBe(sessionFileName('ZmFr', "David's agent"))
+    expect(sessionFileName('ZmFr', "<MY NAME>'s agent")).toMatch(/^wave-ZmFr-[a-z0-9-]+$/)
+    expect(sessionFileName('ZmFr', '???')).toBe('wave-ZmFr-agent')
   })
+})
 
-  it('keeps the preamble pasteable, because a fresh shell keeps nothing', () => {
-    expect(prompt).toContain('nothing in a variable survives')
-    // The count in that sentence has to match the block above it, or an agent
-    // pastes three of four lines and the session is empty.
-    const preamble = prompt.split('\n\n')[1]!.split('\n')
-    expect(preamble).toHaveLength(4)
-    expect(prompt).toContain('Paste all four\nlines above')
+describe('what the CLI variant does differently', () => {
+  // A command line, not a prose line that happens to start with the verb.
+  const commands = prompt.split('\n').filter((line) => /^\s*wave \w+ (-s |")/.test(line))
+
+  it('makes every command plain wave, with nothing a permission rule cannot cover', () => {
+    // Measured, not predicted: a preamble of assignments and $(cat ...) in
+    // front of each call got "allow once" and never "allow always" from
+    // Claude Code, one dialog per call. Nothing may come before `wave`, and
+    // nothing inside it may need a shell to expand.
+    expect(commands.length).toBeGreaterThan(6)
+    for (const command of commands) {
+      expect(command, command).toContain('-s <FILE>')
+      expect(command.replace(/<[^>]*>/g, ''), command).not.toMatch(/\$|\||;|&&|`|>|</)
+      expect(command, command).not.toContain('--session ')
+    }
+    expect(prompt).not.toMatch(/^\s*(export |[A-Z]+=)/m)
+    expect(prompt).toContain('exactly as written, each on its own')
   })
 
   it('refuses a second join into a live session, the way the curl prompt does', () => {
-    expect(prompt).toContain('[ -s "$W/session" ] &&')
-    expect(prompt).toContain('REFUSING')
+    expect(prompt).toContain('It refuses if FILE already holds a')
     expect(prompt).toContain('Join once only')
   })
 
-  it('checks that the join worked before anything depends on it', () => {
-    // The curl prompt learned this the hard way: a failed join wrote "null"
-    // into the token file and every later call went out as `Bearer null`.
-    expect(prompt).toContain(`[ -s "$W/session" ] || { echo 'JOIN FAILED`)
+  it('leaves no file behind to clean up by hand', () => {
+    expect(prompt).not.toContain('rm -rf')
+    expect(prompt).toContain('wave leave -s <FILE>')
+    expect(prompt).toContain('deletes FILE')
   })
 
   it('keeps the cursor out of any file', () => {
-    expect(prompt).not.toMatch(/\$W\/(seq|cursor)/)
+    expect(prompt).not.toMatch(/(seq|cursor)\.txt|\/(seq|cursor)\b/)
     expect(prompt).toContain('belongs in your notes')
     // And says where a cursor comes from, which is the one number an agent has
     // been observed taking from the wrong place.
     expect(prompt).toContain('the seq wave send prints is where your message landed, not what you have read')
+  })
+
+  it('sends a diff through a file, not a pipe', () => {
+    expect(prompt).toContain('wave send -s <FILE> --file <path>')
+    expect(prompt).not.toMatch(/wave send -s <FILE> -(\s|$)/m)
   })
 
   it('says what each exit code means where the agent will need it', () => {
@@ -110,9 +124,16 @@ describe('what the CLI variant does differently', () => {
     expect(prompt.split('\n').length).toBeLessThan(buildJoinPrompt(fields).split('\n').length)
   })
 
-  it('names the install, the runtime it needs, and how to tell it is there', () => {
+  it('names the install, the runtime it needs, and the version that has -s', () => {
     expect(prompt).toContain('npm i -g @david-sling/wave')
     expect(prompt).toContain('Node 20 or later')
-    expect(prompt).toContain('wave --help')
+    expect(prompt).toContain(`"wave --version" does not print ${CLI_MIN_VERSION} or later`)
+  })
+
+  it('never asks for a CLI newer than the one in this repository', () => {
+    const parts = (version: string) => version.split('.').map(Number)
+    const [need, have] = [parts(CLI_MIN_VERSION), parts(VERSION)]
+    const cmp = need[0]! - have[0]! || need[1]! - have[1]! || need[2]! - have[2]!
+    expect(cmp).toBeLessThanOrEqual(0)
   })
 })
