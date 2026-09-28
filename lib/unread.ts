@@ -45,3 +45,33 @@ export function unreadState(head: Head | null, readSeq: number, now: number): Un
   if (head.seq > readSeq) return 'unread'
   return now - head.at <= HEAD_FRESH_MS ? 'read' : 'unknown'
 }
+
+/**
+ * The background probe's throttle (#74), the only part of the pane that adds
+ * requests. A visible tab probes every 90s, give or take 15, so two tabs open
+ * side by side drift apart rather than firing together.
+ */
+export const PROBE = {
+  intervalMs: 90_000,
+  jitterMs: 15_000,
+  /** Rooms per round. Past this, rooms take turns, stalest first. */
+  perRound: 3,
+  /** A head another tab confirmed this recently needs no probe. */
+  skipFresherThanMs: 60_000,
+} as const
+
+/** Which rooms to ask about this round: not the one on screen, not one a tab has just answered, stalest first. */
+export function probeCandidates(
+  ids: readonly string[],
+  heads: ReadonlyMap<string, Head | null>,
+  currentId: string | undefined,
+  now: number,
+): string[] {
+  return ids
+    .filter((id) => id !== currentId)
+    .map((id) => ({ id, at: heads.get(id)?.at ?? 0 }))
+    .filter(({ at }) => now - at >= PROBE.skipFresherThanMs)
+    .sort((a, b) => a.at - b.at)
+    .slice(0, PROBE.perRound)
+    .map(({ id }) => id)
+}

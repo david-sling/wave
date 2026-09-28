@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { byActivity, live, type VisitedChannel } from '@/lib/visited-channels'
 import { CloseIcon } from '../icons'
 import { Logo } from '../logo'
+import { useHeadProbe } from './use-head-probe'
 import { unreadOf, useUnreadVersion } from './use-unread'
 import { forgetChannel, rememberChannel, useVisitedChannels } from './use-visited-channels'
 
@@ -151,6 +152,7 @@ export const channelListNote = 'Kept in this browser only, and gone when each ro
  * beside it is swapped.
  */
 export function ChannelsPane() {
+  useHeadProbe()
   return (
     <nav className="hidden w-[240px] shrink-0 flex-col border-r border-line bg-panel-2 lg:flex" aria-label="Channels">
       <div className="flex h-10 shrink-0 box-content items-center border-b border-line px-4 py-2.5">
