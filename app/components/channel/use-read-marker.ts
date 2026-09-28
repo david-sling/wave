@@ -20,11 +20,9 @@ import type { Item } from './use-channel'
 /** Within this many pixels of the end counts as being at the end. */
 const AT_BOTTOM = 120
 
-/** Null on a first visit, when nothing has been read here yet. */
-function storedSeq(channelId: string): number | null {
+function storedSeq(channelId: string): number {
   try {
-    const stored = window.localStorage.getItem(readKey(channelId))
-    return stored === null ? null : Number(stored) || 0
+    return Number(window.localStorage.getItem(readKey(channelId)) ?? 0) || 0
   } catch {
     return 0
   }
@@ -48,32 +46,29 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean, 
   const [markerAt, setMarkerAt] = useState<number | null>(null)
 
   const latest = items.at(-1)?.seq ?? 0
-  const latestSeq = useRef(latest)
   const followEnd = useRef(follow)
   useEffect(() => {
-    latestSeq.current = latest
     followEnd.current = follow
   })
 
   // The mark as it was when this visit started: the line is drawn from it and
   // stays put, however far the reader gets afterwards. Read after paint, not
   // during render — the server has no localStorage, and a marker that differed
-  // between the two renders would be a hydration mismatch.
+  // between the two renders would be a hydration mismatch. Captured on mount,
+  // ahead of the effects below that advance it.
+  const markAtStart = useRef<number | null>(null)
+  useEffect(() => {
+    const stored = storedSeq(channelId)
+    markAtStart.current = stored
+    readUpTo.current = Math.max(readUpTo.current, stored)
+  }, [channelId])
+
   useEffect(() => {
     if (!ready) return
     let cancelled = false
     void Promise.resolve().then(() => {
       if (cancelled) return
-      setMarkerAt((current) => {
-        if (current !== null) return current
-        // A first visit has no line to draw: everything already here is the
-        // channel as you found it, not news. Only what arrives from now is new.
-        const found = storedSeq(channelId)
-        const stored = found ?? latestSeq.current
-        if (found === null) storeSeq(channelId, stored)
-        readUpTo.current = stored
-        return stored
-      })
+      setMarkerAt((current) => current ?? markAtStart.current ?? storedSeq(channelId))
     })
     return () => {
       cancelled = true
