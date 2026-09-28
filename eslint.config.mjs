@@ -17,6 +17,7 @@ const eslintConfig = defineConfig([
     ".impeccable/**",
     // Build output from `vercel build`, gitignored but present locally.
     ".vercel/**",
+    "cli/**",
   ]),
   {
     rules: {

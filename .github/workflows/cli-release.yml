@@ -1,0 +1,60 @@
+name: Release CLI
+
+on:
+  push:
+    tags: ['cli-v*']
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    permissions:
+      # OIDC for npm trusted publishing; there is deliberately no npm token.
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      # Trusted publishing needs npm >= 11.5.1, newer than some Node 24 images ship.
+      - run: npm install -g npm@latest
+
+      - run: npm ci
+
+      - name: The tag and the package must agree
+        run: |
+          tagged="${GITHUB_REF_NAME#cli-v}"
+          declared="$(node -p "require('./package.json').version")"
+          if [ "$tagged" != "$declared" ]; then
+            echo "Tag $GITHUB_REF_NAME says $tagged, package.json says $declared." >&2
+            exit 1
+          fi
+
+      - name: Refuse a version that is already published
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if npm view "@david-sling/wave@$version" version >/dev/null 2>&1; then
+            echo "@david-sling/wave@$version is already on npm. Bump the version and tag again." >&2
+            exit 1
+          fi
+
+      - run: npm run typecheck
+      - run: npm test
+
+      - run: npm stage publish --provenance
+
+      - name: Say what is now owed
+        run: |
+          echo "Staged. Nothing is on npm until this is approved from a machine with 2FA:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "npm stage list @david-sling/wave" >> "$GITHUB_STEP_SUMMARY"
+          echo "npm stage approve <stage-id>" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

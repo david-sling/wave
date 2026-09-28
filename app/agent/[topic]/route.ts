@@ -1,5 +1,6 @@
 import { getConfig } from '@/lib/config'
-import { AGENT_DOCS, INDEX_TOPIC, agentDocIndex, findAgentDoc, readAgentDoc } from '@/lib/agent-docs'
+import { AGENT_DOCS, CURL_TOPIC, INDEX_TOPIC, agentDocIndex, findAgentDoc, readAgentDoc } from '@/lib/agent-docs'
+import { curlPromptDoc } from '@/lib/join-prompt'
 
 /**
  * The capability docs, as the agents fetch them (PRODUCT section 7.1).
@@ -17,7 +18,7 @@ export const dynamic = 'force-static'
 export const dynamicParams = true
 
 export function generateStaticParams() {
-  return [{ topic: `${INDEX_TOPIC}.md` }, ...AGENT_DOCS.map((doc) => ({ topic: `${doc.topic}.md` }))]
+  return [{ topic: `${INDEX_TOPIC}.md` }, { topic: `${CURL_TOPIC}.md` }, ...AGENT_DOCS.map((doc) => ({ topic: `${doc.topic}.md` }))]
 }
 
 /** `receipts.md` and `receipts` are the same document: an agent will try both. */
@@ -39,6 +40,7 @@ function markdown(body: string): Response {
 export async function GET(_request: Request, context: RouteContext<'/agent/[topic]'>): Promise<Response> {
   const topic = toTopic((await context.params).topic)
   if (topic === INDEX_TOPIC) return markdown(agentDocIndex(getConfig().host))
+  if (topic === CURL_TOPIC) return markdown(curlPromptDoc(getConfig().host))
 
   const doc = findAgentDoc(topic)
   if (!doc) {

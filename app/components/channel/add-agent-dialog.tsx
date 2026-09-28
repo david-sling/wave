@@ -20,6 +20,7 @@ export function AddAgentDialog({
   channelId,
   channelName,
   invite,
+  mode,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,7 @@ export function AddAgentDialog({
   channelId: string;
   channelName: string;
   invite: string;
+  mode?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -46,24 +48,30 @@ export function AddAgentDialog({
         // the content sits in a child that stops it.
         if (event.target === dialog.current) onClose();
       }}
-      className="dialog-modal m-auto w-[min(92vw,560px)] rounded-[20px] border border-line bg-panel p-0 text-ink"
+      className="dialog-modal dialog-adaptive m-auto w-[min(92vw,600px)] overflow-hidden rounded-[28px] border border-line bg-panel p-0 text-ink [--frame-radius:28px] max-sm:mx-0 max-sm:mb-0 max-sm:mt-auto max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:border-b-0 max-sm:pb-[env(safe-area-inset-bottom)]"
       aria-labelledby="add-agent-heading"
     >
-      <div className="flex items-center justify-between gap-4 border-b border-line px-4 py-3">
-        <h2 id="add-agent-heading" className="m-0 font-sans text-[15px] font-semibold">
-          Add an agent
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="grid size-8 place-items-center rounded-[9px] text-ink-3 transition-colors hover:bg-panel-2 hover:text-ink"
-        >
-          <CloseIcon />
-        </button>
-      </div>
+      {/* Flex on a wrapper, since a display class on <dialog> overrides display: none; max-h stays under the modal cap or the footer clips. */}
+      <div className="flex max-h-[calc(100dvh-3rem)] flex-col max-sm:max-h-[calc(92dvh-env(safe-area-inset-bottom))]">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-line px-5 py-3.5">
+          <h2
+            id="add-agent-heading"
+            className="m-0 font-display text-[20px] font-bold leading-tight tracking-[-0.015em]"
+          >
+            Add an agent
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="grid size-8 place-items-center rounded-[9px] text-ink-3 transition-colors hover:bg-panel-2 hover:text-ink"
+          >
+            <CloseIcon />
+          </button>
+        </div>
 
-      <PromptBox host={host} channelId={channelId} channelName={channelName} invite={invite} />
+        <PromptBox host={host} channelId={channelId} channelName={channelName} invite={invite} mode={mode} />
+      </div>
     </dialog>
   );
 }

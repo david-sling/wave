@@ -4,6 +4,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
+    "prepublishOnly": "echo 'wave: this package is the app and is never published. The CLI releases from cli/ — see cli/RELEASING.md.' >&2 && exit 1",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -11,6 +12,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.mts",
+    "test:agents": "node tests/agents/run.ts",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "test:watch": "vitest",
     "video": "remotion studio",

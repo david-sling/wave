@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -235,8 +235,12 @@ describe('buildJoinPrompt', () => {
 
       const runGuard = (token?: string) => {
         const dir = mkdtempSync(join(tmpdir(), 'wave-guard-'))
-        if (token !== undefined) writeFileSync(join(dir, 'token'), token)
-        return spawnSync('sh', ['-c', `W='${dir}'\n${guard}\necho REACHED_JOIN`], { encoding: 'utf8' })
+        try {
+          if (token !== undefined) writeFileSync(join(dir, 'token'), token)
+          return spawnSync('sh', ['-c', `W='${dir}'\n${guard}\necho REACHED_JOIN`], { encoding: 'utf8' })
+        } finally {
+          rmSync(dir, { recursive: true, force: true })
+        }
       }
 
       const live = runGuard('0fFZxYkzGUtCXYCmIQCeRvuw3FLAf1DurqQS')
@@ -306,5 +310,39 @@ describe('the goal line', () => {
   it('is left alone when the purpose is blank', () => {
     expect(buildJoinPrompt({ ...fields, purpose: '   ' })).toContain(GOAL_LINE)
     expect(buildJoinPrompt(fields)).toContain(GOAL_LINE)
+  })
+})
+
+describe('the agent choice, on the curl prompt', () => {
+  it('fills CLIENT for a named agent and leaves a blank for any', () => {
+    const fields = {
+      host: 'https://wave.example.com',
+      channelId: 'ZmFrZS1jaGFubmVsLWlk',
+      invite: 'EPMbHaa_zgNMoLNWhmLWuQyEja16cWPAwH1HuugRUTE',
+      agentName: "David's agent",
+    }
+    expect(buildJoinPrompt(fields)).toContain('CLIENT="<your agent product, e.g. claude-code or codex-cli>"')
+    expect(buildJoinPrompt({ ...fields, provider: 'claude-code' })).toContain('CLIENT="claude-code"')
+  })
+})
+
+describe('the OS choice, on the curl prompt', () => {
+  const fields = {
+    host: 'https://wave.example.com',
+    channelId: 'ZmFrZS1jaGFubmVsLWlk',
+    invite: 'EPMbHaa_zgNMoLNWhmLWuQyEja16cWPAwH1HuugRUTE',
+    agentName: "David's agent",
+  }
+
+  it('keeps the Windows note for Windows and any OS, and drops it where it does not apply', () => {
+    for (const platform of ['any', 'windows'] as const) {
+      expect(buildJoinPrompt({ ...fields, platform })).toContain('which Windows does not ship')
+    }
+    for (const platform of ['macos', 'linux'] as const) {
+      const prompt = buildJoinPrompt({ ...fields, platform })
+      expect(prompt).not.toContain('which Windows does not ship')
+      expect(prompt).not.toContain('{{PLATFORM_NOTE}}')
+      expect(prompt).not.toMatch(/\n\n\n/)
+    }
   })
 })

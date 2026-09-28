@@ -145,6 +145,17 @@
     background: var(--color-peach);
   }
 
+  /* Concentric with its frame: --frame-radius less the 1px border and the --frame-inset gap. */
+  .btn-bar {
+    border-radius: max(6px, calc(var(--frame-radius, 28px) - 1px - var(--frame-inset, 10px)));
+  }
+  .btn-bar:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+  .btn-bar.btn-primary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-ink) 88%, var(--color-panel));
+  }
   /* Copied: the presence green, used here as confirmation rather than status. */
   .btn-copied {
     background: var(--color-ok);
@@ -380,6 +391,177 @@
     cursor: not-allowed;
   }
 
+  .choices {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem;
+  }
+  .choice-group {
+    display: inline-flex;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--color-line);
+    border-radius: 9999px;
+    background: var(--color-panel);
+  }
+  .choice {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.125rem;
+    padding: 0 0.8125rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-ink-3);
+    cursor: pointer;
+    transition:
+      background-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .choice + .choice {
+    border-left: 1px solid var(--color-line);
+  }
+  /* Rounded end options instead of overflow clipping on the group, which would cut off the tooltip. */
+  .choice-group > .choice:first-of-type {
+    border-radius: 9999px 0 0 9999px;
+  }
+  .choice-group > .choice:last-of-type {
+    border-radius: 0 9999px 9999px 0;
+  }
+  .choice-mark {
+    width: 2.375rem;
+    padding: 0;
+  }
+  .choice input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .choice:hover {
+    color: var(--color-ink-2);
+    background: var(--color-panel-2);
+  }
+  .choice:has(input:checked) {
+    color: var(--color-ink);
+    background: var(--color-line-2);
+    box-shadow: inset 0 1px 2px rgba(21, 22, 26, 0.08);
+  }
+  .choice:has(input:focus-visible) {
+    z-index: 1;
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+  .choice-mark svg {
+    transition:
+      filter 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .choice-mark:not(:has(input:checked)) svg {
+    filter: grayscale(1);
+    opacity: 0.55;
+  }
+  .choice-mark:not(:has(input:checked)):hover svg {
+    opacity: 0.85;
+  }
+  .choice-tip {
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 50%;
+    z-index: 2;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    background: var(--color-ink);
+    color: var(--color-panel);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    translate: -50% 3px;
+    transition:
+      opacity 140ms cubic-bezier(0.16, 1, 0.3, 1),
+      translate 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .choice:hover .choice-tip,
+  .choice:has(input:focus-visible) .choice-tip {
+    opacity: 1;
+    translate: -50% 0;
+    transition-delay: 120ms;
+  }
+  @media (pointer: coarse) {
+    .choice {
+      height: 2.75rem;
+    }
+    .choice-mark {
+      width: 3rem;
+    }
+  }
+  @media (max-width: 30rem) {
+    .choice-group:not(:has(.choice-mark)) {
+      flex: 1 1 100%;
+    }
+    .choice-group:not(:has(.choice-mark)) .choice {
+      flex: 1;
+      padding: 0 0.5rem;
+    }
+    .choice-mark {
+      width: 2.75rem;
+    }
+  }
+
+  .install-command {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+    border: 1px solid var(--color-line-2);
+    border-radius: 10px;
+    background: var(--color-panel-2);
+  }
+  .install-command code {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.78125rem;
+    color: var(--color-ink);
+    scrollbar-width: none;
+  }
+  .install-copy {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 1.875rem;
+    height: 1.875rem;
+    border-radius: 7px;
+    color: var(--color-ink-3);
+    transition:
+      background-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .install-copy:hover {
+    color: var(--color-ink);
+    background: var(--color-line-2);
+  }
+  .install-copy .check-pop {
+    color: var(--color-ok);
+  }
+  @media (pointer: coarse) {
+    .install-copy {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+  }
+
   /* A modal and a bottom sheet, opened and closed by `<dialog>`.
 
      Both sides of the transition are CSS: `@starting-style` gives the browser
@@ -421,6 +603,22 @@
     }
     .dialog-sheet[open] {
       transform: translateY(100%);
+    }
+  }
+  /* A modal from sm up and a sheet below it, with the sheet's slide. */
+  @media (width < 40rem) {
+    .dialog-modal.dialog-adaptive {
+      opacity: 1;
+      transform: translateY(100%);
+    }
+    .dialog-modal.dialog-adaptive[open] {
+      transform: none;
+    }
+    @starting-style {
+      .dialog-modal.dialog-adaptive[open] {
+        opacity: 1;
+        transform: translateY(100%);
+      }
     }
   }
   .dialog-modal::backdrop,

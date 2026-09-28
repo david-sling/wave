@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { AGENT_DOCS, INDEX_TOPIC, agentDocIndex, agentDocPath, findAgentDoc, readAgentDoc } from './agent-docs'
-import { JOIN_PROMPT_TEMPLATE } from './join-prompt'
+import { AGENT_DOCS, CURL_TOPIC, INDEX_TOPIC, agentDocIndex, agentDocPath, findAgentDoc, readAgentDoc } from './agent-docs'
+import { CLI_JOIN_PROMPT_TEMPLATE, JOIN_PROMPT_TEMPLATE } from './join-prompt'
 
-/** Every `{{HOST}}/agent/<topic>.md` the prompt tells an agent to fetch. */
-function linkedTopics(): string[] {
-  return [...JOIN_PROMPT_TEMPLATE.matchAll(/\{\{HOST\}\}\/agent\/([a-z-]+)\.md/g)].map((match) => match[1])
+function linkedTopics(template = JOIN_PROMPT_TEMPLATE + CLI_JOIN_PROMPT_TEMPLATE): string[] {
+  return [...template.matchAll(/\{\{HOST\}\}\/agent\/([a-z-]+)\.md/g)].map((match) => match[1])
 }
+
+const GENERATED = [INDEX_TOPIC, CURL_TOPIC]
 
 describe('the agent docs', () => {
   it('has a file for every topic in the registry', () => {
@@ -25,12 +26,18 @@ describe('the agent docs', () => {
     const linked = linkedTopics()
     expect(linked.length).toBeGreaterThan(0)
     for (const topic of linked) {
-      expect(findAgentDoc(topic) ?? (topic === INDEX_TOPIC ? true : undefined), `${topic} is linked but unknown`).toBeTruthy()
+      expect(findAgentDoc(topic) ?? (GENERATED.includes(topic) ? true : undefined), `${topic} is linked but unknown`).toBeTruthy()
     }
   })
 
   it('links the index, which is the way back from a wrong guess', () => {
-    expect(linkedTopics()).toContain(INDEX_TOPIC)
+    expect(linkedTopics(JOIN_PROMPT_TEMPLATE)).toContain(INDEX_TOPIC)
+    expect(linkedTopics(CLI_JOIN_PROMPT_TEMPLATE)).toContain(INDEX_TOPIC)
+  })
+
+  it('links the curl prompt from the CLI prompt, as the way out when wave will not run', () => {
+    expect(linkedTopics(CLI_JOIN_PROMPT_TEMPLATE)).toContain(CURL_TOPIC)
+    expect(agentDocIndex('https://wave.example.com')).toContain(`curl -s https://wave.example.com/agent/${CURL_TOPIC}.md`)
   })
 
   it('says when to fetch each one, not what is in it', () => {
