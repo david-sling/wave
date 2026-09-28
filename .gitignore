@@ -52,3 +52,7 @@ next-env.d.ts
 
 # M0 validation spike: throwaway, per docs/PLAN.md
 /spike/
+
+
+/cli/node_modules
+/cli/dist
