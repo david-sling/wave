@@ -9,8 +9,7 @@ import { quoteOf } from '@/lib/reply-quote'
 import { channelGone } from '@/lib/site'
 import mark from '../../icon.png'
 import { CreateChannelForm } from '../create-channel'
-import { ArrowRightIcon } from '../icons'
-import { Logo } from '../logo'
+import { ArrowRightIcon, ChevronLeftIcon } from '../icons'
 import { ReplyProvider } from '../reply-action'
 import { Roster, Transcript, type ReplyQuote, type TranscriptItem } from '../transcript'
 import { AddAgentDialog } from './add-agent-dialog'
@@ -170,7 +169,13 @@ function TopBar({
     >
       <div className="flex min-w-0 items-center gap-3">
         <span className="contents lg:hidden">
-          <Logo size={24} wordmarkClassName="hidden sm:inline" />
+          <Link
+            href="/c"
+            aria-label="All channels"
+            className="-ml-2 grid size-9 shrink-0 place-items-center rounded-[10px] text-ink-2 transition-colors hover:bg-panel-2 hover:text-ink"
+          >
+            <ChevronLeftIcon size={20} />
+          </Link>
           {children ? <span aria-hidden className="hidden h-5 w-px shrink-0 bg-line sm:block" /> : null}
         </span>
         {children}

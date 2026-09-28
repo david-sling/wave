@@ -5,6 +5,7 @@ import 'sileo/styles.css'
 import { publicOrigin } from '@/lib/config'
 import { siteDescription, siteOpenGraph, siteTitle } from '@/lib/site'
 import { Analytics } from './components/analytics'
+import { ChannelsShortcut } from './components/channels-shortcut'
 
 const funnel = Funnel_Display({
   variable: '--font-funnel',
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     <html lang="en" className={`${funnel.variable} ${albert.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         {children}
+        <ChannelsShortcut />
         <Analytics />
       </body>
     </html>

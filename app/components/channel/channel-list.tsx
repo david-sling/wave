@@ -68,7 +68,7 @@ function OtherRow({
 }
 
 export function ChannelList() {
-  const { id: currentId } = useParams<{ id: string }>()
+  const { id: currentId } = useParams<{ id?: string }>()
   const stored = useVisitedChannels()
   useUnreadVersion()
   const [now, setNow] = useState(() => Date.now())
@@ -138,7 +138,9 @@ export function ChannelList() {
 
       {known.every((entry) => entry.id === currentId) && !forgotten ? (
         <p className="m-0 px-2 text-[12.5px] leading-relaxed text-ink-3">
-          Other channels you open in this browser will be listed here.
+          {known.length === 0
+            ? 'Channels you open in this browser will be listed here.'
+            : 'Other channels you open in this browser will be listed here.'}
         </p>
       ) : null}
     </div>
@@ -153,10 +155,21 @@ export const channelListNote = 'Kept in this browser only, and gone when each ro
  */
 export function ChannelsPane() {
   useHeadProbe()
+  const { id } = useParams<{ id?: string }>()
+  // At /c the list is the page, so on a phone it takes the whole width; beside a channel it is a desktop column.
+  const index = id === undefined
   return (
-    <nav className="hidden w-[240px] shrink-0 flex-col border-r border-line bg-panel-2 lg:flex" aria-label="Channels">
-      <div className="flex h-10 shrink-0 box-content items-center border-b border-line px-4 py-2.5">
+    <nav
+      className={`${index ? 'flex w-full lg:w-[240px]' : 'hidden w-[240px] lg:flex'} shrink-0 flex-col border-line bg-panel-2 lg:border-r`}
+      aria-label="Channels"
+    >
+      <div className="box-content flex h-10 shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <Logo size={24} />
+        {index ? (
+          <Link href="/#create" className="btn btn-sm btn-secondary">
+            New channel
+          </Link>
+        ) : null}
       </div>
       <div className="pane-scroll min-h-0 flex-1 overflow-y-auto px-2 py-4">
         <h2 className="m-0 mb-2 px-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
