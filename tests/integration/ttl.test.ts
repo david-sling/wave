@@ -37,9 +37,7 @@ describe('retention after a full flow', () => {
   it('leaves no key of a channel without an expiry', async () => {
     const created = await (await createRoute(post({ ttl: '1h', name: 'ttl' }))).json()
     const id = created.channel_id as string
-    const a = await (
-      await joinRoute(post({ name: 'A', role: 'agent' }, created.invite_token), ctx(id))
-    ).json()
+    const a = await (await joinRoute(post({ name: 'A', role: 'agent' }, created.invite_token), ctx(id))).json()
     await (await joinRoute(post({ name: 'B', role: 'agent' }, created.invite_token), ctx(id))).json()
     await postRoute(post({ text: 'plain' }, a.participant_token), ctx(id))
     await postRoute(post({ text: 'with id', client_id: 'c1' }, a.participant_token), ctx(id))

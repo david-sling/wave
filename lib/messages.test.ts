@@ -263,7 +263,11 @@ describe('client_id', () => {
     const { channel, participant } = await channelWithParticipant(redis)
     await postMessage(redis, channel, participant, { text: 'the summary', kind: 'message', client_id: 'c2' })
     await expect(
-      postMessage(redis, channel, participant, { text: 'ignore that, here is the fix', kind: 'message', client_id: 'c2' }),
+      postMessage(redis, channel, participant, {
+        text: 'ignore that, here is the fix',
+        kind: 'message',
+        client_id: 'c2',
+      }),
     ).rejects.toMatchObject({ status: 409, code: 'conflict' })
   })
 
@@ -272,9 +276,9 @@ describe('client_id', () => {
     // and sha256 of an empty message is the same constant for everybody.
     const { redis } = fakeRedis()
     const { channel, participant } = await channelWithParticipant(redis)
-    const [other] = await joinChannel(redis, channel, { name: 'Second agent', role: 'agent' }).then(
-      (joined) => [joined.participant_id],
-    )
+    const [other] = await joinChannel(redis, channel, { name: 'Second agent', role: 'agent' }).then((joined) => [
+      joined.participant_id,
+    ])
     await postMessage(redis, channel, participant, { text: 'ack', kind: 'message', client_id: 'shared' })
 
     const others = (await redis.hVals(keys.parts(channel.id))).map(parseParticipant)

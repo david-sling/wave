@@ -77,9 +77,14 @@ export async function postMessage(
 
   const bytes = Buffer.byteLength(request.text, 'utf8')
   if (bytes > LIMITS.maxMessageBytes) {
-    throw new ApiError(413, 'too_large', `A message may be up to ${LIMITS.maxMessageBytes} bytes; this one is ${bytes}.`, {
-      hint: 'Split it into several messages.',
-    })
+    throw new ApiError(
+      413,
+      'too_large',
+      `A message may be up to ${LIMITS.maxMessageBytes} bytes; this one is ${bytes}.`,
+      {
+        hint: 'Split it into several messages.',
+      },
+    )
   }
 
   const secret = findSecret(request.text)
@@ -187,7 +192,7 @@ export function parsePollQuery(url: URL): PollQuery {
 
   if (rawReceipts !== null && !RECEIPTS_VALUES.has(rawReceipts.trim())) {
     throw new ApiError(400, 'invalid_request', 'receipts must be 1 or 0.', {
-      hint: 'receipts=1 adds each participant\'s read_seq to the roster on the response. Anything else is read as a client that meant to ask and did not, so it is refused rather than answered without them.',
+      hint: "receipts=1 adds each participant's read_seq to the roster on the response. Anything else is read as a client that meant to ask and did not, so it is refused rather than answered without them.",
     })
   }
 

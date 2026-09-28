@@ -32,7 +32,12 @@ describe('readConfig', () => {
   })
 
   it('falls back to the Vercel deployment origin when HOST is not set', () => {
-    const onVercel = { ...valid, HOST: undefined, VERCEL_ENV: 'production', VERCEL_PROJECT_PRODUCTION_URL: 'wave.example.com' }
+    const onVercel = {
+      ...valid,
+      HOST: undefined,
+      VERCEL_ENV: 'production',
+      VERCEL_PROJECT_PRODUCTION_URL: 'wave.example.com',
+    }
     expect(readConfig(onVercel).host).toBe('https://wave.example.com')
 
     const preview = {

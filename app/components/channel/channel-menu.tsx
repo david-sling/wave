@@ -1,9 +1,9 @@
-"use client";
+'use client'
 
-import { useEffect, useRef } from "react";
-import { sileo } from "sileo";
-import { CloseIcon, MoreIcon, PlusIcon, ShareIcon } from "../icons";
-import { copyText } from "./copy-text";
+import { useEffect, useRef } from 'react'
+import { sileo } from 'sileo'
+import { CloseIcon, MoreIcon, PlusIcon, ShareIcon } from '../icons'
+import { copyText } from './copy-text'
 
 /**
  * Everything that is not the conversation, on a small screen.
@@ -18,7 +18,7 @@ import { copyText } from "./copy-text";
 
 /** One shape for every control in the bar, so the three read as a set. */
 const barButton =
-  "grid size-9 shrink-0 place-items-center rounded-[10px] text-ink-2 transition-colors hover:bg-panel-2 hover:text-ink lg:hidden";
+  'grid size-9 shrink-0 place-items-center rounded-[10px] text-ink-2 transition-colors hover:bg-panel-2 hover:text-ink lg:hidden'
 
 /** The opener. Lives in the top bar, where a phone expects its menu. */
 export function ChannelMenuButton({ onOpen }: { onOpen: () => void }) {
@@ -26,7 +26,7 @@ export function ChannelMenuButton({ onOpen }: { onOpen: () => void }) {
     <button type="button" onClick={onOpen} aria-label="Channel menu" aria-haspopup="dialog" className={barButton}>
       <MoreIcon size={18} />
     </button>
-  );
+  )
 }
 
 export function ChannelAddButton({ onOpen }: { onOpen: () => void }) {
@@ -34,7 +34,7 @@ export function ChannelAddButton({ onOpen }: { onOpen: () => void }) {
     <button type="button" onClick={onOpen} aria-label="Add an agent" aria-haspopup="dialog" className={barButton}>
       <PlusIcon size={18} />
     </button>
-  );
+  )
 }
 
 /**
@@ -52,21 +52,21 @@ export function ChannelShareButton({ url, channelName }: { url: string; channelN
       onClick={async () => {
         if (navigator.share) {
           try {
-            await navigator.share({ title: channelName || "Wave channel", url });
-            return;
+            await navigator.share({ title: channelName || 'Wave channel', url })
+            return
           } catch (error) {
             // Dismissing the sheet is a decision, not a failure to route around.
-            if (error instanceof DOMException && error.name === "AbortError") return;
+            if (error instanceof DOMException && error.name === 'AbortError') return
           }
         }
 
-        if (await copyText(url)) sileo.success({ title: "Channel link copied", duration: 3_000 });
-        else sileo.warning({ title: "The link could not be copied", duration: 5_000 });
+        if (await copyText(url)) sileo.success({ title: 'Channel link copied', duration: 3_000 })
+        else sileo.warning({ title: 'The link could not be copied', duration: 5_000 })
       }}
     >
       <ShareIcon size={18} />
     </button>
-  );
+  )
 }
 
 export function ChannelMenu({
@@ -75,27 +75,27 @@ export function ChannelMenu({
   meta,
   children,
 }: {
-  open: boolean;
-  onClose: () => void;
+  open: boolean
+  onClose: () => void
   /** What the bar says about the channel on a screen with room for it. */
-  meta?: React.ReactNode;
-  children: React.ReactNode;
+  meta?: React.ReactNode
+  children: React.ReactNode
 }) {
-  const sheet = useRef<HTMLDialogElement>(null);
+  const sheet = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
-    const element = sheet.current;
-    if (!element) return;
-    if (open && !element.open) element.showModal();
-    if (!open && element.open) element.close();
-  }, [open]);
+    const element = sheet.current
+    if (!element) return
+    if (open && !element.open) element.showModal()
+    if (!open && element.open) element.close()
+  }, [open])
 
   return (
     <dialog
       ref={sheet}
       onClose={onClose}
       onClick={(event) => {
-        if (event.target === sheet.current) onClose();
+        if (event.target === sheet.current) onClose()
       }}
       aria-label="Channel"
       className="dialog-sheet m-0 mt-auto w-full max-w-none rounded-t-[20px] border border-line bg-panel p-0 text-ink lg:hidden"
@@ -116,5 +116,5 @@ export function ChannelMenu({
       </div>
       <div className="pane-scroll max-h-[70dvh] overflow-y-auto">{children}</div>
     </dialog>
-  );
+  )
 }

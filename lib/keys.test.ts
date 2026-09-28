@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { channelKeyPattern, channelKeys, keys } from './keys'
 
-
 describe('key layout', () => {
   it('matches ARCHITECTURE section 4', () => {
     expect(keys.channel('abc')).toBe('wave:ch:abc')
@@ -23,14 +22,18 @@ describe('key layout', () => {
   it('lists every channel key the close path has to delete', () => {
     const listed = channelKeys('abc')
     const fromLayout = [keys.channel, keys.seq, keys.items, keys.bytes, keys.parts, keys.names, keys.emitted].map(
-      (build) =>
-        build('abc'),
+      (build) => build('abc'),
     )
     expect(new Set(listed)).toEqual(new Set(fromLayout))
   })
 
   it('namespaces every key so another app can share the same Redis', () => {
-    const everyKey = [...channelKeys('abc'), keys.idem('abc', 'p_1', 'r'), keys.rateLimit('create', 'h'), keys.activeChannels()]
+    const everyKey = [
+      ...channelKeys('abc'),
+      keys.idem('abc', 'p_1', 'r'),
+      keys.rateLimit('create', 'h'),
+      keys.activeChannels(),
+    ]
     expect(everyKey.every((key) => key.startsWith('wave:'))).toBe(true)
   })
 

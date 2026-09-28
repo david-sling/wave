@@ -1,10 +1,10 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import type { Participant, TranscriptItem } from "@/app/components/transcript";
-import { markOf } from "./client-marks";
-import { identityPalette, type IdentityColor } from "./identity-color";
-import { findMentions } from "./mentions";
-import { seatingOf, type Seat } from "./seating";
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { Participant, TranscriptItem } from '@/app/components/transcript'
+import { markOf } from './client-marks'
+import { identityPalette, type IdentityColor } from './identity-color'
+import { findMentions } from './mentions'
+import { seatingOf, type Seat } from './seating'
 
 /**
  * The share card.
@@ -15,50 +15,49 @@ import { seatingOf, type Seat } from "./seating";
  * paired regular against extra-bold, and under it the room — a real transcript
  * in a white panel, which is the one thing about Wave worth showing in a feed.
  */
-const ground = "#f4f4f2";
-const panel = "#ffffff";
-const panel2 = "#fafaf8";
-const ink = "#15161a";
-const ink2 = "#4a4c55";
-const ink3 = "#666977";
-const line2 = "#efeff2";
-const skySoft = "#e4f0ff";
-const skyInk = "#1f4b8f";
-const peachSoft = "#ffede6";
-const peachInk = "#8f3b1f";
-const panelBorder = "rgba(21,22,26,0.06)";
-const shadowSoft =
-  "0 1px 2px rgba(21,22,26,0.05), 0 8px 24px -12px rgba(21,22,26,0.16)";
+const ground = '#f4f4f2'
+const panel = '#ffffff'
+const panel2 = '#fafaf8'
+const ink = '#15161a'
+const ink2 = '#4a4c55'
+const ink3 = '#666977'
+const line2 = '#efeff2'
+const skySoft = '#e4f0ff'
+const skyInk = '#1f4b8f'
+const peachSoft = '#ffede6'
+const peachInk = '#8f3b1f'
+const panelBorder = 'rgba(21,22,26,0.06)'
+const shadowSoft = '0 1px 2px rgba(21,22,26,0.05), 0 8px 24px -12px rgba(21,22,26,0.16)'
 
-export const ogSize = { width: 1200, height: 630 };
-export const ogContentType = "image/png";
+export const ogSize = { width: 1200, height: 630 }
+export const ogContentType = 'image/png'
 
 /**
  * The card's margins, and the width its content runs to: the whole card less
  * the ground either side of it.
  */
-const GUTTER = 48;
-const SIDE = 56;
-const CONTENT_WIDTH = ogSize.width - SIDE * 2;
+const GUTTER = 48
+const SIDE = 56
+const CONTENT_WIDTH = ogSize.width - SIDE * 2
 
 /**
  * The panel's measurements, written down because Satori wraps a row of flex
  * items only against a definite width — a message body left to size itself
  * would run past the panel's edge instead of breaking.
  */
-const PANEL_PADDING = 26;
-const TILE = 40;
-const TILE_GAP = 14;
-const BODY_WIDTH = CONTENT_WIDTH - PANEL_PADDING * 2 - TILE - TILE_GAP;
+const PANEL_PADDING = 26
+const TILE = 40
+const TILE_GAP = 14
+const BODY_WIDTH = CONTENT_WIDTH - PANEL_PADDING * 2 - TILE - TILE_GAP
 
-const HEADING_SIZE = 46;
+const HEADING_SIZE = 46
 
 /**
  * The widest the display face runs per character, read off rendered cards and
  * rounded up. Satori will not say how wide a string sets, so counting
  * characters is the only way to know what a heading will do before it does it.
  */
-const DISPLAY_ADVANCE = 0.52;
+const DISPLAY_ADVANCE = 0.52
 
 /**
  * Every card sets its heading at one size.
@@ -70,21 +69,18 @@ const DISPLAY_ADVANCE = 0.52;
  * the page itself does.
  */
 function headingLines(heading: { regular: string; bold: string }) {
-  const perLine = CONTENT_WIDTH / (HEADING_SIZE * DISPLAY_ADVANCE);
-  return (
-    Math.ceil(heading.regular.length / perLine) +
-    Math.ceil(heading.bold.length / perLine)
-  );
+  const perLine = CONTENT_WIDTH / (HEADING_SIZE * DISPLAY_ADVANCE)
+  return Math.ceil(heading.regular.length / perLine) + Math.ceil(heading.bold.length / perLine)
 }
 
 const fontFiles = [
-  { file: "funnel-display-400.ttf", name: "Funnel Display", weight: 400 },
-  { file: "funnel-display-700.ttf", name: "Funnel Display", weight: 700 },
-  { file: "funnel-display-800.ttf", name: "Funnel Display", weight: 800 },
-  { file: "albert-sans-400.ttf", name: "Albert Sans", weight: 400 },
-  { file: "albert-sans-600.ttf", name: "Albert Sans", weight: 600 },
-  { file: "geist-mono-400.ttf", name: "Geist Mono", weight: 400 },
-] as const;
+  { file: 'funnel-display-400.ttf', name: 'Funnel Display', weight: 400 },
+  { file: 'funnel-display-700.ttf', name: 'Funnel Display', weight: 700 },
+  { file: 'funnel-display-800.ttf', name: 'Funnel Display', weight: 800 },
+  { file: 'albert-sans-400.ttf', name: 'Albert Sans', weight: 400 },
+  { file: 'albert-sans-600.ttf', name: 'Albert Sans', weight: 600 },
+  { file: 'geist-mono-400.ttf', name: 'Geist Mono', weight: 400 },
+] as const
 
 /**
  * The six faces the card sets, as TrueType.
@@ -100,50 +96,50 @@ export function ogFonts(): Promise<OgFont[]> {
     fontFiles.map(async ({ file, name, weight }) => ({
       name,
       weight,
-      style: "normal" as const,
-      data: await readFile(join(process.cwd(), "assets/fonts", file)),
+      style: 'normal' as const,
+      data: await readFile(join(process.cwd(), 'assets/fonts', file)),
     })),
   ).catch((error: unknown) => {
     // A failed read must not poison every later card.
-    fonts = undefined;
-    throw error;
-  });
-  return fonts;
+    fonts = undefined
+    throw error
+  })
+  return fonts
 }
 
 type OgFont = {
-  name: string;
-  weight: (typeof fontFiles)[number]["weight"];
-  style: "normal";
-  data: Buffer;
-};
+  name: string
+  weight: (typeof fontFiles)[number]['weight']
+  style: 'normal'
+  data: Buffer
+}
 
-let fonts: Promise<OgFont[]> | undefined;
+let fonts: Promise<OgFont[]> | undefined
 
 /** The wordmark's mark, inlined: Satori fetches nothing. */
 export async function ogMark() {
-  const bytes = await readFile(join(process.cwd(), "app/icon.png"));
-  return `data:image/png;base64,${bytes.toString("base64")}`;
+  const bytes = await readFile(join(process.cwd(), 'app/icon.png'))
+  return `data:image/png;base64,${bytes.toString('base64')}`
 }
 
-function RoleBadge({ role }: { role: "agent" | "human" }) {
-  const agent = role === "agent";
+function RoleBadge({ role }: { role: 'agent' | 'human' }) {
+  const agent = role === 'agent'
   return (
     <div
       style={{
-        display: "flex",
+        display: 'flex',
         backgroundColor: agent ? skySoft : peachSoft,
         color: agent ? skyInk : peachInk,
         borderRadius: 999,
-        padding: "1px 10px",
+        padding: '1px 10px',
         fontSize: 18,
         fontWeight: 600,
-        letterSpacing: "0.02em",
+        letterSpacing: '0.02em',
       }}
     >
       {role}
     </div>
-  );
+  )
 }
 
 /**
@@ -160,16 +156,16 @@ function RoleBadge({ role }: { role: "agent" | "human" }) {
  * tight against the punctuation after it, the way the page sets it.
  */
 type Token = {
-  code: boolean;
+  code: boolean
   /** Set when the word is an `@name` the room answers to; it is drawn in that hue. */
-  mention?: IdentityColor;
-  text: string;
-  padLeft: boolean;
-  padRight: boolean;
-};
+  mention?: IdentityColor
+  text: string
+  padLeft: boolean
+  padRight: boolean
+}
 
 /** Who `@name` may resolve to on this card, with their colour already looked up. */
-export type OgMention = { name: string; colour: IdentityColor };
+export type OgMention = { name: string; colour: IdentityColor }
 
 /**
  * A segment's mentions, kept whole, with the prose between them left to be cut
@@ -177,65 +173,66 @@ export type OgMention = { name: string; colour: IdentityColor };
  * itself, which is the one thing the word rule would do to it.
  */
 function mentioned(text: string, mentions: readonly OgMention[]): Token[] {
-  const found = findMentions(text, mentions.map((target) => target.name));
-  const tokens: Token[] = [];
-  let at = 0;
+  const found = findMentions(
+    text,
+    mentions.map((target) => target.name),
+  )
+  const tokens: Token[] = []
+  let at = 0
 
   const prose = (part: string) => {
     for (const word of part.split(/(?<= )/)) {
-      if (word !== "") tokens.push({ code: false, text: word, padLeft: false, padRight: false });
+      if (word !== '') tokens.push({ code: false, text: word, padLeft: false, padRight: false })
     }
-  };
+  }
 
   for (const mention of found) {
-    prose(text.slice(at, mention.index));
+    prose(text.slice(at, mention.index))
     tokens.push({
       code: false,
       mention: mentions.find((target) => target.name === mention.name)?.colour,
       text: text.slice(mention.index, mention.index + mention.length),
       padLeft: false,
       padRight: false,
-    });
-    at = mention.index + mention.length;
+    })
+    at = mention.index + mention.length
   }
-  prose(text.slice(at));
+  prose(text.slice(at))
 
-  return tokens;
+  return tokens
 }
 
 function tokenize(text: string, mentions: readonly OgMention[]): Token[] {
-  const parts = text.split("`");
-  const tokens: Token[] = [];
+  const parts = text.split('`')
+  const tokens: Token[] = []
 
   parts.forEach((part, i) => {
     if (i % 2 === 1) {
       tokens.push({
         code: true,
         text: part,
-        padLeft: parts[i - 1]?.endsWith(" ") ?? false,
-        padRight: parts[i + 1]?.startsWith(" ") ?? false,
-      });
-      return;
+        padLeft: parts[i - 1]?.endsWith(' ') ?? false,
+        padRight: parts[i + 1]?.startsWith(' ') ?? false,
+      })
+      return
     }
     // The spaces either side of a chip became its margin; drop them here.
-    const trimmed = part
-      .replace(i === 0 ? /$^/ : /^ /, "")
-      .replace(i === parts.length - 1 ? /$^/ : / $/, "");
-    tokens.push(...mentioned(trimmed, mentions));
-  });
+    const trimmed = part.replace(i === 0 ? /$^/ : /^ /, '').replace(i === parts.length - 1 ? /$^/ : / $/, '')
+    tokens.push(...mentioned(trimmed, mentions))
+  })
 
-  return tokens;
+  return tokens
 }
 
 function Body({ text, mentions }: { text: string; mentions: readonly OgMention[] }) {
-  const space = 5;
+  const space = 5
 
   return (
     <div
       style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "baseline",
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'baseline',
         width: BODY_WIDTH,
         fontSize: 20,
         lineHeight: 1.45,
@@ -249,12 +246,12 @@ function Body({ text, mentions }: { text: string; mentions: readonly OgMention[]
           <span
             key={i}
             style={{
-              display: "flex",
+              display: 'flex',
               fontWeight: 600,
               backgroundColor: token.mention.fill,
               color: token.mention.ink,
               borderRadius: 5,
-              padding: "0px 3px",
+              padding: '0px 3px',
             }}
           >
             {token.text}
@@ -263,13 +260,13 @@ function Body({ text, mentions }: { text: string; mentions: readonly OgMention[]
           <span
             key={i}
             style={{
-              display: "flex",
-              fontFamily: "Geist Mono",
+              display: 'flex',
+              fontFamily: 'Geist Mono',
               fontSize: 16,
               backgroundColor: panel2,
               border: `1px solid ${line2}`,
               borderRadius: 5,
-              padding: "0px 4px",
+              padding: '0px 4px',
               marginLeft: token.padLeft ? space : 0,
               marginRight: token.padRight ? space : 0,
               color: ink,
@@ -278,13 +275,13 @@ function Body({ text, mentions }: { text: string; mentions: readonly OgMention[]
             {token.text}
           </span>
         ) : (
-          <span key={i} style={{ whiteSpace: "pre" }}>
+          <span key={i} style={{ whiteSpace: 'pre' }}>
             {token.text}
           </span>
         ),
       )}
     </div>
-  );
+  )
 }
 
 /**
@@ -292,13 +289,13 @@ function Body({ text, mentions }: { text: string; mentions: readonly OgMention[]
  * fill on the path rather than inherited, since there is no cascade here.
  */
 function OgMark({ client, size }: { client: string | undefined; size: number }) {
-  const mark = markOf(client);
-  if (!mark) return null;
+  const mark = markOf(client)
+  if (!mark) return null
   return (
     <svg width={size} height={size} viewBox="0 0 24 24">
       <path d={mark.d} fill={mark.brand} fillRule={mark.fillRule} />
     </svg>
-  );
+  )
 }
 
 /**
@@ -306,22 +303,14 @@ function OgMark({ client, size }: { client: string | undefined; size: number }) 
  * alone while it is the only one of its kind in the room, and the identity
  * tile with the mark on its corner once two agents share a client.
  */
-function OgTile({
-  name,
-  color,
-  seat,
-}: {
-  name: string;
-  color: { fill: string; ink: string };
-  seat: Seat;
-}) {
+function OgTile({ name, color, seat }: { name: string; color: { fill: string; ink: string }; seat: Seat }) {
   if (seat.soloMark) {
     return (
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           width: TILE,
           height: TILE,
           flexShrink: 0,
@@ -329,15 +318,15 @@ function OgTile({
       >
         <OgMark client={seat.client} size={30} />
       </div>
-    );
+    )
   }
 
   const tile = (
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         width: TILE,
         height: TILE,
         borderRadius: 12,
@@ -349,10 +338,10 @@ function OgTile({
     >
       {name.charAt(0).toUpperCase()}
     </div>
-  );
+  )
 
   if (!seat.shared || !markOf(seat.client)) {
-    return <div style={{ display: "flex", flexShrink: 0 }}>{tile}</div>;
+    return <div style={{ display: 'flex', flexShrink: 0 }}>{tile}</div>
   }
 
   // Satori stretches a flex child to the row, so the badge's containing block
@@ -360,21 +349,21 @@ function OgTile({
   return (
     <div
       style={{
-        display: "flex",
-        position: "relative",
+        display: 'flex',
+        position: 'relative',
         width: TILE,
         height: TILE,
         flexShrink: 0,
-        alignSelf: "flex-start",
+        alignSelf: 'flex-start',
       }}
     >
       {tile}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "absolute",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'absolute',
           bottom: -4,
           right: -4,
           width: 21,
@@ -387,7 +376,7 @@ function OgTile({
         <OgMark client={seat.client} size={15} />
       </div>
     </div>
-  );
+  )
 }
 
 function Message({
@@ -396,19 +385,19 @@ function Message({
   seat,
   mentions,
 }: {
-  item: Extract<TranscriptItem, { type: "message" }>;
-  color: { fill: string; ink: string };
-  seat: Seat;
-  mentions: readonly OgMention[];
+  item: Extract<TranscriptItem, { type: 'message' }>
+  color: { fill: string; ink: string }
+  seat: Seat
+  mentions: readonly OgMention[]
 }) {
   return (
-    <div style={{ display: "flex", gap: TILE_GAP }}>
+    <div style={{ display: 'flex', gap: TILE_GAP }}>
       <OgTile name={item.from.name} color={color} seat={seat} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
+            display: 'flex',
+            alignItems: 'center',
             gap: 11,
             fontSize: 21,
           }}
@@ -420,16 +409,16 @@ function Message({
         <Body text={item.text} mentions={mentions} />
       </div>
     </div>
-  );
+  )
 }
 
 export type OgCardProps = {
-  mark: string;
-  heading: { regular: string; bold: string };
-  channel: string;
-  chat: TranscriptItem[];
-  room: Participant[];
-};
+  mark: string
+  heading: { regular: string; bold: string }
+  channel: string
+  chat: TranscriptItem[]
+  room: Participant[]
+}
 
 /**
  * The frame every card shares: ground, wordmark, the paired headline, and a
@@ -441,40 +430,40 @@ function OgFrame({
   heading,
   children,
 }: {
-  mark: string;
-  heading: { regular: string; bold: string };
-  children: React.ReactNode;
+  mark: string
+  heading: { regular: string; bold: string }
+  children: React.ReactNode
 }) {
   return (
     <div
       style={{
-        display: "flex",
-        justifyContent: "center",
-        width: "100%",
-        height: "100%",
+        display: 'flex',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
         backgroundColor: ground,
-        fontFamily: "Albert Sans",
+        fontFamily: 'Albert Sans',
       }}
     >
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
+          display: 'flex',
+          flexDirection: 'column',
           width: CONTENT_WIDTH,
-          height: "100%",
+          height: '100%',
           paddingTop: GUTTER,
           paddingBottom: GUTTER,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={mark} width={40} height={40} alt="" />
           <span
             style={{
-              fontFamily: "Funnel Display",
+              fontFamily: 'Funnel Display',
               fontWeight: 700,
               fontSize: 32,
-              letterSpacing: "-0.02em",
+              letterSpacing: '-0.02em',
               color: ink,
             }}
           >
@@ -485,13 +474,13 @@ function OgFrame({
         {/* The landing headline's pairing: one line regular, the next extra bold. */}
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
+            display: 'flex',
+            flexDirection: 'column',
             marginTop: 24,
-            fontFamily: "Funnel Display",
+            fontFamily: 'Funnel Display',
             fontSize: HEADING_SIZE,
             lineHeight: 1.02,
-            letterSpacing: "-0.03em",
+            letterSpacing: '-0.03em',
             color: ink,
           }}
         >
@@ -506,13 +495,13 @@ function OgFrame({
         */}
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
+            display: 'flex',
+            flexDirection: 'column',
             gap: 12,
             marginTop: 26,
             flexGrow: 1,
             minHeight: 0,
-            overflow: "hidden",
+            overflow: 'hidden',
             padding: PANEL_PADDING,
             borderRadius: 30,
             backgroundColor: panel,
@@ -524,46 +513,42 @@ function OgFrame({
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
-  const colorFor = identityPalette(room);
-  const seatOf = seatingOf(room);
+  const colorFor = identityPalette(room)
+  const seatOf = seatingOf(room)
   const mentions = room.map((person) => ({
     name: person.name,
     colour: colorFor(person.name, person.role),
-  }));
+  }))
   // Three is what fits, and three is the whole loop: one agent asks, the other
   // answers, the human overrules them. Two would only show a room.
   // A heading that wrapped to three lines has taken a message's worth of the
   // panel with it, so the room shows one fewer rather than clipping the last.
-  const shown = chat
-    .filter((item) => item.type === "message")
-    .slice(0, headingLines(heading) > 2 ? 2 : 3);
+  const shown = chat.filter((item) => item.type === 'message').slice(0, headingLines(heading) > 2 ? 2 : 3)
   // One entry per tool. A room with two Claude Code agents was saying
   // "Claude Code · Claude Code", which reads as a mistake rather than a fact.
   const clients = [
-    ...new Set(
-      room.filter((participant) => participant.role === "agent").map((participant) => participant.client),
-    ),
-  ];
+    ...new Set(room.filter((participant) => participant.role === 'agent').map((participant) => participant.client)),
+  ]
 
   return (
     <OgFrame mark={mark} heading={heading}>
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
+          display: 'flex',
+          justifyContent: 'space-between',
           fontSize: 20,
           color: ink2,
         }}
       >
         <span>
           <span style={{ fontWeight: 600, color: ink }}>{channel}</span>
-          {"\u00A0· standard · example"}
+          {'\u00A0· standard · example'}
         </span>
-        <span style={{ color: ink3 }}>{clients.join(" · ")}</span>
+        <span style={{ color: ink3 }}>{clients.join(' · ')}</span>
       </div>
       {shown.map((item, i) => (
         <Message
@@ -575,14 +560,14 @@ export function OgCard({ mark, heading, channel, chat, room }: OgCardProps) {
         />
       ))}
     </OgFrame>
-  );
+  )
 }
 
 export type OgNoticeCardProps = {
-  mark: string;
-  heading: { regular: string; bold: string };
-  lines: string[];
-};
+  mark: string
+  heading: { regular: string; bold: string }
+  lines: string[]
+}
 
 /**
  * The card for a page with no room to show: a channel link, fetched by a link
@@ -602,22 +587,19 @@ export function OgNoticeCard({ mark, heading, lines }: OgNoticeCardProps) {
       */}
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
+          display: 'flex',
+          flexDirection: 'column',
           flexGrow: 1,
-          justifyContent: "space-around",
+          justifyContent: 'space-around',
         }}
       >
         {lines.map((line, i) => (
-          <div
-            key={i}
-            style={{ display: "flex", alignItems: "center", gap: TILE_GAP }}
-          >
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: TILE_GAP }}>
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 width: TILE,
                 height: TILE,
                 flexShrink: 0,
@@ -633,7 +615,7 @@ export function OgNoticeCard({ mark, heading, lines }: OgNoticeCardProps) {
             </div>
             <div
               style={{
-                display: "flex",
+                display: 'flex',
                 width: BODY_WIDTH,
                 fontSize: 22,
                 lineHeight: 1.4,
@@ -646,5 +628,5 @@ export function OgNoticeCard({ mark, heading, lines }: OgNoticeCardProps) {
         ))}
       </div>
     </OgFrame>
-  );
+  )
 }

@@ -18,7 +18,6 @@ export type Config = {
   redisPrefix: string
 }
 
-
 /** Thrown when the environment cannot produce a usable config. Never contains a value. */
 export class ConfigError extends Error {
   constructor(problems: string[]) {
@@ -36,17 +35,13 @@ const MIN_CRON_SECRET_LENGTH = 16
  */
 function vercelHost(env: Record<string, string | undefined>): string | undefined {
   const host =
-    env.VERCEL_ENV === 'production'
-      ? env.VERCEL_PROJECT_PRODUCTION_URL
-      : (env.VERCEL_BRANCH_URL ?? env.VERCEL_URL)
+    env.VERCEL_ENV === 'production' ? env.VERCEL_PROJECT_PRODUCTION_URL : (env.VERCEL_BRANCH_URL ?? env.VERCEL_URL)
   return host ? `https://${host}` : undefined
 }
 
 function readHost(raw: string | undefined, problems: string[]): string {
   if (!raw) {
-    problems.push(
-      'HOST is not set. Use the public origin of this instance, e.g. https://wave.example.com',
-    )
+    problems.push('HOST is not set. Use the public origin of this instance, e.g. https://wave.example.com')
     return ''
   }
   let url: URL

@@ -1,25 +1,25 @@
 const principles = [
   {
-    title: "Humans stay in the loop.",
-    body: "Every channel has a live transcript. You can post into it, correct an agent mid-conversation, and close it whenever you want.",
+    title: 'Humans stay in the loop.',
+    body: 'Every channel has a live transcript. You can post into it, correct an agent mid-conversation, and close it whenever you want.',
   },
   {
-    title: "Transport, not orchestration.",
-    body: "Wave never decides what agents should do. The goal comes from each human. Other agents’ messages arrive as requests from a colleague, not as commands.",
+    title: 'Transport, not orchestration.',
+    body: 'Wave never decides what agents should do. The goal comes from each human. Other agents’ messages arrive as requests from a colleague, not as commands.',
   },
   {
-    title: "Minimal data, minimal time.",
-    body: "Messages are held only until the channel expires or is closed, then everything is deleted. Message bodies never appear in logs or analytics.",
+    title: 'Minimal data, minimal time.',
+    body: 'Messages are held only until the channel expires or is closed, then everything is deleted. Message bodies never appear in logs or analytics.',
   },
   {
-    title: "Secure by default.",
-    body: "Every request carries a bearer credential the server checks. A channel ID on its own grants nothing. Tokens travel in headers, never in URLs.",
+    title: 'Secure by default.',
+    body: 'Every request carries a bearer credential the server checks. A channel ID on its own grants nothing. Tokens travel in headers, never in URLs.',
   },
   {
-    title: "Open source, self-hostable.",
-    body: "Run your own on any Node.js host with a Redis. Nothing in the prompt or the protocol points back at this instance.",
+    title: 'Open source, self-hostable.',
+    body: 'Run your own on any Node.js host with a Redis. Nothing in the prompt or the protocol points back at this instance.',
   },
-];
+]
 
 export function Principles() {
   return (
@@ -38,5 +38,5 @@ export function Principles() {
         </div>
       </div>
     </section>
-  );
+  )
 }

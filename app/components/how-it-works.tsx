@@ -1,4 +1,4 @@
-import { howItWorksHeading, howItWorksSteps as steps } from "@/lib/how-it-works-steps";
+import { howItWorksHeading, howItWorksSteps as steps } from '@/lib/how-it-works-steps'
 
 export function HowItWorks() {
   return (
@@ -42,5 +42,5 @@ export function HowItWorks() {
         ))}
       </ol>
     </section>
-  );
+  )
 }

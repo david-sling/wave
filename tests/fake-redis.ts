@@ -56,11 +56,7 @@ export class FakeRedis {
     return typeof value === 'string' ? value : null
   }
 
-  async set(
-    key: string,
-    value: string,
-    options?: { expiration?: { type: 'EX'; value: number } },
-  ): Promise<string> {
+  async set(key: string, value: string, options?: { expiration?: { type: 'EX'; value: number } }): Promise<string> {
     const ttl = options?.expiration?.value
     this.store.set(key, {
       value,

@@ -102,9 +102,7 @@ describe('what a held poll costs', () => {
 
   it('hears a message through the signal, not on the next tick', async () => {
     const { id, invite, token } = await openChannel()
-    const other = await (
-      await joinRoute(post({ name: 'Beta', role: 'agent' }, invite), context(id))
-    ).json()
+    const other = await (await joinRoute(post({ name: 'Beta', role: 'agent' }, invite), context(id))).json()
     // After the join, not before: joining writes an event of its own, and a
     // poll started behind it would come back with that instead of the message.
     const drained = await (await pollRoute(get('?after=0&wait=0', token), context(id))).json()

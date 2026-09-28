@@ -1,8 +1,8 @@
-"use client";
+'use client'
 
-import { useEffect, useRef } from "react";
-import { CloseIcon } from "../icons";
-import { PromptBox } from "./prompt-box";
+import { useEffect, useRef } from 'react'
+import { CloseIcon } from '../icons'
+import { PromptBox } from './prompt-box'
 
 /**
  * The join prompt, once a channel is under way.
@@ -22,22 +22,22 @@ export function AddAgentDialog({
   invite,
   mode,
 }: {
-  open: boolean;
-  onClose: () => void;
-  host: string;
-  channelId: string;
-  channelName: string;
-  invite: string;
-  mode?: string;
+  open: boolean
+  onClose: () => void
+  host: string
+  channelId: string
+  channelName: string
+  invite: string
+  mode?: string
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    if (open && !element.open) element.showModal();
-    if (!open && element.open) element.close();
-  }, [open]);
+    const element = dialog.current
+    if (!element) return
+    if (open && !element.open) element.showModal()
+    if (!open && element.open) element.close()
+  }, [open])
 
   return (
     <dialog
@@ -46,7 +46,7 @@ export function AddAgentDialog({
       onClick={(event) => {
         // A click on the dialog element itself is a click on the backdrop:
         // the content sits in a child that stops it.
-        if (event.target === dialog.current) onClose();
+        if (event.target === dialog.current) onClose()
       }}
       className="dialog-modal dialog-adaptive m-auto w-[min(92vw,600px)] overflow-hidden rounded-[28px] border border-line bg-panel p-0 text-ink [--frame-radius:28px] max-sm:mx-0 max-sm:mb-0 max-sm:mt-auto max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:border-b-0 max-sm:pb-[env(safe-area-inset-bottom)]"
       aria-labelledby="add-agent-heading"
@@ -73,5 +73,5 @@ export function AddAgentDialog({
         <PromptBox host={host} channelId={channelId} channelName={channelName} invite={invite} mode={mode} />
       </div>
     </dialog>
-  );
+  )
 }

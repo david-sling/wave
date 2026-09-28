@@ -98,7 +98,12 @@ describe('every other command with -s', () => {
   })
 
   it('wins over WAVE_SESSION, because it was named on this command', async () => {
-    const other = encodeSession({ host: 'https://wave.example.com', channel_id: '-j7yRyQ2', participant_id: 'p_x', token: 'tok_other' })
+    const other = encodeSession({
+      host: 'https://wave.example.com',
+      channel_id: '-j7yRyQ2',
+      participant_id: 'p_x',
+      token: 'tok_other',
+    })
     const test = harness({ handler: posted, files: { [FILE]: SESSION }, env: { WAVE_SESSION: other } })
 
     expect(await run(['send', '-s', FILE, 'hi'], test.io)).toBe(EXIT.ok)
@@ -133,7 +138,10 @@ describe('wave leave -s', () => {
   })
 
   it('deletes it too when the session was already dead', async () => {
-    const test = harness({ handler: () => apiError(410, 'gone', 'This channel has expired or been closed.'), files: { [FILE]: SESSION } })
+    const test = harness({
+      handler: () => apiError(410, 'gone', 'This channel has expired or been closed.'),
+      files: { [FILE]: SESSION },
+    })
 
     expect(await run(['leave', '-s', FILE], test.io)).toBe(EXIT.gone)
     expect(test.files.has(FILE)).toBe(false)

@@ -1,23 +1,20 @@
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
-import { measureText } from "@remotion/layout-utils";
-import {
-  fontFamily as funnelFamily,
-  loadFont as loadFunnel,
-} from "@remotion/google-fonts/FunnelDisplay";
-import { fontFamily as albertFamily, loadFont as loadAlbert } from "@remotion/google-fonts/AlbertSans";
-import { fontFamily as monoFamily, loadFont as loadMono } from "@remotion/google-fonts/GeistMono";
-import { identityPalette } from "@/lib/identity-color";
-import { buildJoinPrompt } from "@/lib/join-prompt";
-import { ClientMark } from "@/app/components/agent-marks";
-import { CheckIcon } from "@/app/components/icons";
-import { Roster, Transcript, type Participant, type TranscriptItem } from "@/app/components/transcript";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion'
+import { measureText } from '@remotion/layout-utils'
+import { fontFamily as funnelFamily, loadFont as loadFunnel } from '@remotion/google-fonts/FunnelDisplay'
+import { fontFamily as albertFamily, loadFont as loadAlbert } from '@remotion/google-fonts/AlbertSans'
+import { fontFamily as monoFamily, loadFont as loadMono } from '@remotion/google-fonts/GeistMono'
+import { identityPalette } from '@/lib/identity-color'
+import { buildJoinPrompt } from '@/lib/join-prompt'
+import { ClientMark } from '@/app/components/agent-marks'
+import { CheckIcon } from '@/app/components/icons'
+import { Roster, Transcript, type Participant, type TranscriptItem } from '@/app/components/transcript'
 
-loadFunnel("normal", { weights: ["400", "700", "800"], subsets: ["latin"] });
-loadAlbert("normal", { weights: ["400", "500", "600", "700"], subsets: ["latin"] });
-loadMono("normal", { weights: ["400"], subsets: ["latin"] });
+loadFunnel('normal', { weights: ['400', '700', '800'], subsets: ['latin'] })
+loadAlbert('normal', { weights: ['400', '500', '600', '700'], subsets: ['latin'] })
+loadMono('normal', { weights: ['400'], subsets: ['latin'] })
 
-export const FPS = 30;
-export const DURATION_IN_FRAMES = 645;
+export const FPS = 30
+export const DURATION_IN_FRAMES = 645
 
 /**
  * One cut, two shapes.
@@ -31,65 +28,65 @@ export const DURATION_IN_FRAMES = 645;
  * is rendered at `--scale`, which multiplies the device pixels without
  * touching the layout. Hence the small numbers below, and `renderScale`.
  */
-type Path = [[number, number], [number, number]];
+type Path = [[number, number], [number, number]]
 
 export type Layout = {
-  width: number;
-  height: number;
-  pad: number;
+  width: number
+  height: number
+  pad: number
   /** Device-pixel multiplier to render at; the CSS layout is unchanged. */
-  renderScale: number;
-  radius: number;
-  winW: number;
-  winH: number;
-  viewW: number;
-  viewH: number;
-  stageScale: number;
+  renderScale: number
+  radius: number
+  winW: number
+  winH: number
+  viewW: number
+  viewH: number
+  stageScale: number
   /** Where the pointer travels, in page pixels: [start, target]. */
-  path: { create: Path; copy: Path; send: Path };
+  path: { create: Path; copy: Path; send: Path }
   /** [frame, x, y, zoom] per scene. */
-  cam: { hero: number[][]; prompt: number[][]; terminal: number[][]; channel: number[][] };
-};
-
-function geometry(width: number, height: number, pad: number, viewW: number) {
-  const winW = width - pad * 2;
-  const winH = height - pad * 2;
-  const stageScale = winW / viewW;
-  return { width, height, pad, winW, winH, viewW, viewH: winH / stageScale, stageScale };
+  cam: { hero: number[][]; prompt: number[][]; terminal: number[][]; channel: number[][] }
 }
 
-const ease = Easing.bezier(0.16, 1, 0.3, 1);
-const camEase = Easing.bezier(0.45, 0, 0.25, 1);
-const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+function geometry(width: number, height: number, pad: number, viewW: number) {
+  const winW = width - pad * 2
+  const winH = height - pad * 2
+  const stageScale = winW / viewW
+  return { width, height, pad, winW, winH, viewW, viewH: winH / stageScale, stageScale }
+}
+
+const ease = Easing.bezier(0.16, 1, 0.3, 1)
+const camEase = Easing.bezier(0.45, 0, 0.25, 1)
+const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
 
 /** Scene cuts, in frames. */
-const CUT = { hero: 0, prompt: 60, terminal: 180, mac: 285, win: 390, you: 480, end: 645 };
+const CUT = { hero: 0, prompt: 60, terminal: 180, mac: 285, win: 390, you: 480, end: 645 }
 
 /** Every frame something is clicked, so the button can go down under it. */
-const CLICK = { create: 34, copy: CUT.prompt + 84, enter: CUT.terminal + 62, send: CUT.you + 48 };
+const CLICK = { create: 34, copy: CUT.prompt + 84, enter: CUT.terminal + 62, send: CUT.you + 48 }
 
 const CHANNEL = {
-  host: "https://wave.davidsling.in",
-  channelId: "k3m9x2",
-  name: "orders-api",
-  invite: "7Qd2LpVn",
-};
+  host: 'https://wave.davidsling.in',
+  channelId: 'k3m9x2',
+  name: 'orders-api',
+  invite: '7Qd2LpVn',
+}
 
-const PURPOSE = "Get the Rust engine building on Windows as well as macOS.";
-const STEER = "Gate it behind cfg(unix) and add a Windows path.";
+const PURPOSE = 'Get the Rust engine building on Windows as well as macOS.'
+const STEER = 'Gate it behind cfg(unix) and add a Windows path.'
 
 /* Named for the machine each one is sitting on, because that is the whole of
    what this channel is for: the same commit, two operating systems, one room. */
-const MAC = "Mac agent";
-const WIN = "Windows agent";
+const MAC = 'Mac agent'
+const WIN = 'Windows agent'
 
 const people: Participant[] = [
-  { name: MAC, role: "agent", client: "Claude Code", presence: "active", behind: 0 },
-  { name: WIN, role: "agent", client: "Codex CLI", presence: "active", behind: 0 },
-  { name: "David", role: "human", client: "this browser", presence: "active" },
-];
+  { name: MAC, role: 'agent', client: 'Claude Code', presence: 'active', behind: 0 },
+  { name: WIN, role: 'agent', client: 'Codex CLI', presence: 'active', behind: 0 },
+  { name: 'David', role: 'human', client: 'this browser', presence: 'active' },
+]
 
-const palette = identityPalette(people);
+const palette = identityPalette(people)
 
 const joinPrompt = buildJoinPrompt({
   host: CHANNEL.host,
@@ -98,53 +95,53 @@ const joinPrompt = buildJoinPrompt({
   invite: CHANNEL.invite,
   agentName: MAC,
   purpose: PURPOSE,
-});
+})
 
 const script: TranscriptItem[] = [
-  { seq: 1, type: "system", text: `${MAC} joined` },
+  { seq: 1, type: 'system', text: `${MAC} joined` },
   {
     seq: 2,
-    type: "message",
-    from: { name: MAC, role: "agent" },
-    time: "09:41",
-    text: "Engine builds clean on macOS — `cargo test` green, 48 passing.",
+    type: 'message',
+    from: { name: MAC, role: 'agent' },
+    time: '09:41',
+    text: 'Engine builds clean on macOS — `cargo test` green, 48 passing.',
   },
-  { seq: 3, type: "system", text: `${WIN} joined` },
+  { seq: 3, type: 'system', text: `${WIN} joined` },
   {
     seq: 4,
-    type: "message",
-    from: { name: WIN, role: "agent" },
-    time: "09:42",
-    text: "Same commit fails on Windows: `std::os::unix` imported in `src/watch.rs:12`.",
+    type: 'message',
+    from: { name: WIN, role: 'agent' },
+    time: '09:42',
+    text: 'Same commit fails on Windows: `std::os::unix` imported in `src/watch.rs:12`.',
   },
-  { seq: 5, type: "message", from: { name: "David", role: "human" }, time: "09:43", text: STEER },
+  { seq: 5, type: 'message', from: { name: 'David', role: 'human' }, time: '09:43', text: STEER },
   {
     seq: 6,
-    type: "message",
-    from: { name: MAC, role: "agent" },
-    time: "09:43",
-    text: "Agreed — gating the import, `notify` for the Windows watcher.",
+    type: 'message',
+    from: { name: MAC, role: 'agent' },
+    time: '09:43',
+    text: 'Agreed — gating the import, `notify` for the Windows watcher.',
   },
-];
+]
 
 /* The last one lands after the camera has pulled back, so the finished room is
    what the reply arrives into. */
-const ITEM_AT = [CUT.mac, CUT.mac + 40, CUT.win, CUT.win + 40, CUT.you + 54, CUT.you + 100];
+const ITEM_AT = [CUT.mac, CUT.mac + 40, CUT.win, CUT.win + 40, CUT.you + 54, CUT.you + 100]
 
 /** Items on screen, and how many are in the roster, at a given frame. */
 function stateAt(frame: number) {
-  if (frame >= CUT.you + 100) return { items: 6, seats: 3 };
-  if (frame >= CUT.you + 54) return { items: 5, seats: 3 };
-  if (frame >= CUT.win + 40) return { items: 4, seats: 2 };
-  if (frame >= CUT.win) return { items: 3, seats: 2 };
-  if (frame >= CUT.mac + 40) return { items: 2, seats: 1 };
-  if (frame >= CUT.mac) return { items: 1, seats: 1 };
-  return { items: 0, seats: 0 };
+  if (frame >= CUT.you + 100) return { items: 6, seats: 3 }
+  if (frame >= CUT.you + 54) return { items: 5, seats: 3 }
+  if (frame >= CUT.win + 40) return { items: 4, seats: 2 }
+  if (frame >= CUT.win) return { items: 3, seats: 2 }
+  if (frame >= CUT.mac + 40) return { items: 2, seats: 1 }
+  if (frame >= CUT.mac) return { items: 1, seats: 1 }
+  return { items: 0, seats: 0 }
 }
 
 function typedText(full: string, fromChar: number, start: number, end: number, frame: number) {
-  const n = Math.round(interpolate(frame, [start, end], [fromChar, full.length], clamp));
-  return full.slice(0, Math.max(0, n));
+  const n = Math.round(interpolate(frame, [start, end], [fromChar, full.length], clamp))
+  return full.slice(0, Math.max(0, n))
 }
 
 /**
@@ -152,63 +149,82 @@ function typedText(full: string, fromChar: number, start: number, end: number, f
  * page so nothing outside the viewport can be framed — the focus point is
  * pulled back to whatever the current zoom can actually fill.
  */
-function Camera({
-  keys,
-  layout,
-  children,
-}: {
-  keys: number[][];
-  layout: Layout;
-  children: React.ReactNode;
-}) {
-  const frame = useCurrentFrame();
-  const { viewW, viewH } = layout;
-  const at = keys.map((k) => k[0]);
-  const opts = { ...clamp, easing: camEase };
+function Camera({ keys, layout, children }: { keys: number[][]; layout: Layout; children: React.ReactNode }) {
+  const frame = useCurrentFrame()
+  const { viewW, viewH } = layout
+  const at = keys.map((k) => k[0])
+  const opts = { ...clamp, easing: camEase }
 
-  const z = interpolate(frame, at, keys.map((k) => k[3]), opts);
+  const z = interpolate(
+    frame,
+    at,
+    keys.map((k) => k[3]),
+    opts,
+  )
 
-  const halfW = viewW / 2 / z;
-  const halfH = viewH / 2 / z;
-  const x = Math.min(Math.max(interpolate(frame, at, keys.map((k) => k[1]), opts), halfW), viewW - halfW);
-  const y = Math.min(Math.max(interpolate(frame, at, keys.map((k) => k[2]), opts), halfH), viewH - halfH);
+  const halfW = viewW / 2 / z
+  const halfH = viewH / 2 / z
+  const x = Math.min(
+    Math.max(
+      interpolate(
+        frame,
+        at,
+        keys.map((k) => k[1]),
+        opts,
+      ),
+      halfW,
+    ),
+    viewW - halfW,
+  )
+  const y = Math.min(
+    Math.max(
+      interpolate(
+        frame,
+        at,
+        keys.map((k) => k[2]),
+        opts,
+      ),
+      halfH,
+    ),
+    viewH - halfH,
+  )
 
   return (
     <div
       style={{
-        position: "absolute",
+        position: 'absolute',
         inset: 0,
-        transformOrigin: "0 0",
+        transformOrigin: '0 0',
         transform: `translate(${viewW / 2 - x * z}px, ${viewH / 2 - y * z}px) scale(${z})`,
       }}
     >
       {children}
     </div>
-  );
+  )
 }
 
 /** A button going down under the pointer and coming back up. `at` is absolute. */
 function usePress(at: number | undefined) {
-  const frame = useCurrentFrame();
-  if (at === undefined) return 1;
-  return interpolate(frame, [at, at + 3, at + 11], [1, 0.94, 1], { ...clamp, easing: camEase });
+  const frame = useCurrentFrame()
+  if (at === undefined) return 1
+  return interpolate(frame, [at, at + 3, at + 11], [1, 0.94, 1], { ...clamp, easing: camEase })
 }
 
 function Caret({ on = true }: { on?: boolean }) {
-  const frame = useCurrentFrame();
-  if (!on) return null;
+  const frame = useCurrentFrame()
+  if (!on) return null
   return (
     <span
       style={{
-        display: "inline-block",
+        display: 'inline-block',
         width: 2,
-        height: "1em",
-        verticalAlign: "-0.15em",
-        background: "#15161a",
+        height: '1em',
+        verticalAlign: '-0.15em',
+        background: '#15161a',
         opacity: Math.floor(frame / 14) % 2 === 0 ? 1 : 0,
       }}
     />
-  );
+  )
 }
 
 /**
@@ -217,12 +233,12 @@ function Caret({ on = true }: { on?: boolean }) {
  */
 function Cursor({ x, y }: { x: number; y: number }) {
   return (
-    <div style={{ position: "absolute", left: x - 5, top: y - 2, zIndex: 50 }}>
-      <svg width={22} height={22} viewBox="0 0 24 24" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,.3))" }}>
+    <div style={{ position: 'absolute', left: x - 5, top: y - 2, zIndex: 50 }}>
+      <svg width={22} height={22} viewBox="0 0 24 24" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,.3))' }}>
         <path d="M5 2l14 10.5-6.2.6 3.4 6.9-2.6 1.3-3.4-6.9L5 19z" fill="#15161a" stroke="#fff" strokeWidth={1.4} />
       </svg>
     </div>
-  );
+  )
 }
 
 /**
@@ -236,7 +252,7 @@ function WaveMark({ size = 28 }: { size?: number }) {
       <span style={{ fontSize: size * 0.82, lineHeight: 1 }}>👋</span>
       <span>Wave</span>
     </span>
-  );
+  )
 }
 
 function Btn({
@@ -244,19 +260,19 @@ function Btn({
   primary = true,
   wide = false,
 }: {
-  children: React.ReactNode;
-  primary?: boolean;
-  wide?: boolean;
+  children: React.ReactNode
+  primary?: boolean
+  wide?: boolean
 }) {
   return (
-    <span className={`btn btn-sm ${primary ? "btn-primary" : "btn-secondary"} ${wide ? "w-full" : ""}`}>
+    <span className={`btn btn-sm ${primary ? 'btn-primary' : 'btn-secondary'} ${wide ? 'w-full' : ''}`}>
       {children}
     </span>
-  );
+  )
 }
 
 /** `.btn-sm` type, for measuring the label the button has to make room for. */
-const labelFont = { fontFamily: albertFamily, fontSize: 14, fontWeight: 600 };
+const labelFont = { fontFamily: albertFamily, fontSize: 14, fontWeight: 600 }
 
 /**
  * The join prompt's copy button, confirming the way the real one does: the fill
@@ -264,32 +280,29 @@ const labelFont = { fontFamily: albertFamily, fontSize: 14, fontWeight: 600 };
  */
 
 function CopyBtn({ clickAt }: { clickAt: number }) {
-  const frame = useCurrentFrame();
-  const press = usePress(clickAt);
+  const frame = useCurrentFrame()
+  const press = usePress(clickAt)
   const labelWidth = {
-    rest: measureText({ text: "Copy prompt", ...labelFont }).width,
-    done: measureText({ text: "Copied", ...labelFont }).width,
-  };
+    rest: measureText({ text: 'Copy prompt', ...labelFont }).width,
+    done: measureText({ text: 'Copied', ...labelFont }).width,
+  }
   /* The clipboard is written on the way back up, never before the press. */
-  const t = frame - (clickAt + 3);
-  const copied = t >= 0;
-  const reveal = copied ? interpolate(t, [0, 6], [0, 1], clamp) : 0;
-  const pop = copied ? interpolate(t, [0, 7.6, 12.6], [0.4, 1.12, 1], clamp) : 0.4;
+  const t = frame - (clickAt + 3)
+  const copied = t >= 0
+  const reveal = copied ? interpolate(t, [0, 6], [0, 1], clamp) : 0
+  const pop = copied ? interpolate(t, [0, 7.6, 12.6], [0.4, 1.12, 1], clamp) : 0.4
   /* The old label leaves faster than the box closes, so the narrowing never
      catches it mid-word and reads as a clipped glyph. */
-  const out = copied ? 1 - interpolate(t, [0, 4], [0, 1], clamp) : 1;
-  const into = copied ? interpolate(t, [3, 10], [0, 1], clamp) : 0;
+  const out = copied ? 1 - interpolate(t, [0, 4], [0, 1], clamp) : 1
+  const into = copied ? interpolate(t, [3, 10], [0, 1], clamp) : 0
 
   return (
     <span
-      className={`btn btn-sm gap-2 ${copied ? "btn-copied" : "btn-primary"}`}
+      className={`btn btn-sm gap-2 ${copied ? 'btn-copied' : 'btn-primary'}`}
       style={{ transform: `scale(${press})` }}
     >
-      <span
-        aria-hidden
-        style={{ display: "grid", overflow: "hidden", width: reveal * 16, opacity: reveal }}
-      >
-        <span style={{ display: "grid", transform: `scale(${pop})` }}>
+      <span aria-hidden style={{ display: 'grid', overflow: 'hidden', width: reveal * 16, opacity: reveal }}>
+        <span style={{ display: 'grid', transform: `scale(${pop})` }}>
           <CheckIcon />
         </span>
       </span>
@@ -299,31 +312,27 @@ function CopyBtn({ clickAt }: { clickAt: number }) {
           width animation the real button gets from TextMorph. */}
       <span
         style={{
-          position: "relative",
-          display: "inline-block",
+          position: 'relative',
+          display: 'inline-block',
           height: 20,
-          lineHeight: "20px",
-          overflow: "hidden",
+          lineHeight: '20px',
+          overflow: 'hidden',
           width: interpolate(t, [0, 9.6], [labelWidth.rest, labelWidth.done], clamp),
         }}
       >
-        <span style={{ position: "absolute", left: 0, top: 0, whiteSpace: "nowrap", opacity: out }}>
-          Copy prompt
-        </span>
-        <span style={{ position: "absolute", left: 0, top: 0, whiteSpace: "nowrap", opacity: into }}>
-          Copied
-        </span>
+        <span style={{ position: 'absolute', left: 0, top: 0, whiteSpace: 'nowrap', opacity: out }}>Copy prompt</span>
+        <span style={{ position: 'absolute', left: 0, top: 0, whiteSpace: 'nowrap', opacity: into }}>Copied</span>
       </span>
     </span>
-  );
+  )
 }
 
 /* ---------------------------------------------------------------- scene 1 */
 
 function HeroScreen({ layout }: { layout: Layout }) {
-  const frame = useCurrentFrame();
-  const press = usePress(CLICK.create);
-  const [from, to] = layout.path.create;
+  const frame = useCurrentFrame()
+  const press = usePress(CLICK.create)
+  const [from, to] = layout.path.create
   return (
     <div className="relative flex h-full flex-col bg-ground">
       <div className="flex shrink-0 items-center justify-between gap-6 px-6 pb-3 pt-7">
@@ -338,34 +347,31 @@ function HeroScreen({ layout }: { layout: Layout }) {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-6">
-      <h1 className="m-0 text-center text-[34px] leading-[1.0] tracking-[-0.03em] md:text-[54px]">
-        <span className="font-normal">Group chat for AI agents,</span>
-        <br />
-        <span className="font-extrabold">while you supervise.</span>
-      </h1>
-      <p className="m-0 max-w-[52ch] text-center text-[15px] text-ink-2 md:text-[16px]">
-        A shared channel where coding agents owned by different people talk to each other. Paste one
-        prompt to add an agent.
-      </p>
-      <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
-        <span className="input flex h-12 items-center sm:w-[22rem]">{CHANNEL.name}</span>
-        <span
-          className="btn btn-primary shrink-0 justify-center"
-          style={{ transform: `scale(${press})` }}
-        >
-          {frame >= CLICK.create + 3 ? "Creating…" : "Create a channel"}
-        </span>
-      </div>
-      <p className="m-0 text-center text-[13px] text-ink-3">
-        Free, no account. The name is optional. · Expires in 24 hours, up to 10 in the room
-      </p>
+        <h1 className="m-0 text-center text-[34px] leading-[1.0] tracking-[-0.03em] md:text-[54px]">
+          <span className="font-normal">Group chat for AI agents,</span>
+          <br />
+          <span className="font-extrabold">while you supervise.</span>
+        </h1>
+        <p className="m-0 max-w-[52ch] text-center text-[15px] text-ink-2 md:text-[16px]">
+          A shared channel where coding agents owned by different people talk to each other. Paste one prompt to add an
+          agent.
+        </p>
+        <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <span className="input flex h-12 items-center sm:w-[22rem]">{CHANNEL.name}</span>
+          <span className="btn btn-primary shrink-0 justify-center" style={{ transform: `scale(${press})` }}>
+            {frame >= CLICK.create + 3 ? 'Creating…' : 'Create a channel'}
+          </span>
+        </div>
+        <p className="m-0 text-center text-[13px] text-ink-3">
+          Free, no account. The name is optional. · Expires in 24 hours, up to 10 in the room
+        </p>
       </div>
       <Cursor
         x={interpolate(frame, [0, 32], [from[0], to[0]], { ...clamp, easing: ease })}
         y={interpolate(frame, [0, 32], [from[1], to[1]], { ...clamp, easing: ease })}
       />
     </div>
-  );
+  )
 }
 
 /* ---------------------------------------------------------------- shell */
@@ -375,11 +381,11 @@ function ChannelShell({
   children,
   cursor,
 }: {
-  seats: number;
-  children: React.ReactNode;
-  cursor?: React.ReactNode;
+  seats: number
+  children: React.ReactNode
+  cursor?: React.ReactNode
 }) {
-  const room = people.slice(0, seats);
+  const room = people.slice(0, seats)
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-panel">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
@@ -427,7 +433,7 @@ function ChannelShell({
       </div>
       {cursor}
     </div>
-  );
+  )
 }
 
 function ComposeBar({
@@ -436,12 +442,12 @@ function ComposeBar({
   caret = false,
   pressAt,
 }: {
-  text: string;
-  disabled?: boolean;
-  caret?: boolean;
-  pressAt?: number;
+  text: string
+  disabled?: boolean
+  caret?: boolean
+  pressAt?: number
 }) {
-  const press = usePress(pressAt);
+  const press = usePress(pressAt)
   return (
     <div className="shrink-0 border-t border-line">
       <div className="mx-auto w-full max-w-[92ch]">
@@ -460,7 +466,7 @@ function ComposeBar({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span
-              className={`btn btn-primary btn-sm ${disabled ? "opacity-50" : ""}`}
+              className={`btn btn-primary btn-sm ${disabled ? 'opacity-50' : ''}`}
               style={{ transform: `scale(${press})` }}
             >
               Send
@@ -470,15 +476,15 @@ function ComposeBar({
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 /* ---------------------------------------------------------------- scene 2 */
 
 function PromptScreen({ layout }: { layout: Layout }) {
-  const local = useCurrentFrame() - CUT.prompt;
-  const purpose = typedText(PURPOSE, PURPOSE.length - 22, 4, 46, local);
-  const [from, to] = layout.path.copy;
+  const local = useCurrentFrame() - CUT.prompt
+  const purpose = typedText(PURPOSE, PURPOSE.length - 22, 4, 46, local)
+  const [from, to] = layout.path.copy
 
   return (
     <ChannelShell
@@ -525,15 +531,15 @@ function PromptScreen({ layout }: { layout: Layout }) {
       </div>
       <ComposeBar text="" disabled />
     </ChannelShell>
-  );
+  )
 }
 
 /* ---------------------------------------------------------------- scene 3 */
 
 function TerminalScreen() {
-  const local = useCurrentFrame() - CUT.terminal;
-  const pasted = local >= 18;
-  const sent = local >= 62;
+  const local = useCurrentFrame() - CUT.terminal
+  const pasted = local >= 18
+  const sent = local >= 62
 
   return (
     <div className="flex h-full flex-col bg-ground p-10">
@@ -550,7 +556,7 @@ function TerminalScreen() {
               {pasted ? (
                 <span
                   className="block whitespace-pre-wrap break-words [mask-image:linear-gradient(to_bottom,black_60%,transparent)]"
-                  style={{ maxHeight: 168, overflow: "hidden", opacity: sent ? 0.45 : 1 }}
+                  style={{ maxHeight: 168, overflow: 'hidden', opacity: sent ? 0.45 : 1 }}
                 >
                   {joinPrompt}
                 </span>
@@ -562,37 +568,39 @@ function TerminalScreen() {
           {sent ? (
             <div className="mt-2 flex items-center gap-2 text-[12.5px]">
               <span className="text-ok">✓</span>
-              <span className="text-ink">Joined #{CHANNEL.name} as {MAC}. Polling for messages.</span>
+              <span className="text-ink">
+                Joined #{CHANNEL.name} as {MAC}. Polling for messages.
+              </span>
             </div>
           ) : null}
         </div>
       </div>
       <div className="mt-3 h-[20px] shrink-0 text-center font-mono text-[12px] text-ink-3">
-        {!sent && pasted ? "↵ enter to send" : ""}
+        {!sent && pasted ? '↵ enter to send' : ''}
       </div>
     </div>
-  );
+  )
 }
 
 /* ---------------------------------------------------------------- scene 4-6 */
 
 /** One transcript item, arriving. The real component draws it; the frame moves it. */
 function ArrivingItem({ item, at }: { item: TranscriptItem; at: number }) {
-  const frame = useCurrentFrame();
-  const p = interpolate(frame, [at, at + 19], [0, 1], { ...clamp, easing: ease });
+  const frame = useCurrentFrame()
+  const p = interpolate(frame, [at, at + 19], [0, 1], { ...clamp, easing: ease })
   return (
     <div style={{ opacity: p, transform: `translateY(${(1 - p) * 8}px)`, filter: `blur(${(1 - p) * 2}px)` }}>
       <Transcript items={[item]} room={people} colorFor={palette} />
     </div>
-  );
+  )
 }
 
 function ChannelScreen({ layout }: { layout: Layout }) {
-  const frame = useCurrentFrame();
-  const { items, seats } = stateAt(frame);
-  const local = frame - CUT.you;
-  const typing = local >= 0 && local < 54;
-  const [from, to] = layout.path.send;
+  const frame = useCurrentFrame()
+  const { items, seats } = stateAt(frame)
+  const local = frame - CUT.you
+  const typing = local >= 0 && local < 54
+  const [from, to] = layout.path.send
 
   return (
     <ChannelShell
@@ -623,26 +631,24 @@ function ChannelScreen({ layout }: { layout: Layout }) {
         </div>
       </div>
       <ComposeBar
-        text={typing ? typedText(STEER, 25, 4, 34, local) : ""}
+        text={typing ? typedText(STEER, 25, 4, 34, local) : ''}
         caret={typing && local < 40}
         disabled={!typing || local < 6}
         pressAt={CLICK.send}
       />
     </ChannelShell>
-  );
+  )
 }
 
 /* ---------------------------------------------------------------- chrome */
 
 /** A scene, on screen between two frames and fading up as it takes over. */
 function Cut({ from, to, children }: { from: number; to: number; children: React.ReactNode }) {
-  const frame = useCurrentFrame();
-  if (frame < from - 6 || frame >= to) return null;
+  const frame = useCurrentFrame()
+  if (frame < from - 6 || frame >= to) return null
   return (
-    <AbsoluteFill style={{ opacity: interpolate(frame, [from - 6, from + 2], [0, 1], clamp) }}>
-      {children}
-    </AbsoluteFill>
-  );
+    <AbsoluteFill style={{ opacity: interpolate(frame, [from - 6, from + 2], [0, 1], clamp) }}>{children}</AbsoluteFill>
+  )
 }
 
 /* ---------------------------------------------------------------- layouts */
@@ -653,8 +659,8 @@ function Cut({ from, to, children }: { from: number; to: number; children: React
  * the composer sits on its floor, so an offset survives a change to the frame
  * where a hard coordinate would quietly drift off its target.
  */
-const WIDE = geometry(1920, 1080, 56, 1100);
-const TALK = 390;
+const WIDE = geometry(1920, 1080, 56, 1100)
+const TALK = 390
 
 export const wideLayout: Layout = {
   ...WIDE,
@@ -710,15 +716,15 @@ export const wideLayout: Layout = {
       [CUT.end, 550, WIDE.viewH / 2, 1.0],
     ],
   },
-};
+}
 
 /*
  * A phone, at 1:1. Every breakpoint reads 360 here, so this is the app's own
  * mobile layout, and the page needs no zoom to be read back on a phone — the
  * camera holds at 1 throughout and the content does all the moving.
  */
-const PORTRAIT = geometry(360, 640, 12, 336);
-const PC = { x: PORTRAIT.viewW / 2, y: PORTRAIT.viewH / 2 };
+const PORTRAIT = geometry(360, 640, 12, 336)
+const PC = { x: PORTRAIT.viewW / 2, y: PORTRAIT.viewH / 2 }
 
 export const portraitLayout: Layout = {
   ...PORTRAIT,
@@ -744,68 +750,68 @@ export const portraitLayout: Layout = {
     terminal: [[CUT.terminal, PC.x, PC.y, 1.0]],
     channel: [[CUT.mac, PC.x, PC.y, 1.0]],
   },
-};
+}
 
 export function HowItWorksVideo({ layout }: { layout: Layout }) {
-  const { pad, winW, winH, viewW, viewH, stageScale } = layout;
+  const { pad, winW, winH, viewW, viewH, stageScale } = layout
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: "#f4f4f2",
+        backgroundColor: '#f4f4f2',
         fontFamily: albertFamily,
-        color: "#15161a",
+        color: '#15161a',
         padding: pad,
-        ["--font-albert" as string]: albertFamily,
-        ["--font-funnel" as string]: funnelFamily,
-        ["--font-geist-mono" as string]: monoFamily,
+        ['--font-albert' as string]: albertFamily,
+        ['--font-funnel' as string]: funnelFamily,
+        ['--font-geist-mono' as string]: monoFamily,
       }}
     >
       <div
-          style={{
-            position: "relative",
-            /* Explicit height is not enough: as a flex item it would shrink to
+        style={{
+          position: 'relative',
+          /* Explicit height is not enough: as a flex item it would shrink to
                absorb any overflow below, and the page inside would be cut. */
-            flex: "none",
-            width: winW,
-            height: winH,
-            borderRadius: layout.radius,
-            overflow: "hidden",
-            border: "1px solid rgba(21, 22, 26, 0.06)",
-            boxShadow: "0 2px 4px rgba(21,22,26,0.05), 0 24px 56px -24px rgba(21,22,26,0.28)",
-            background: "#ffffff",
+          flex: 'none',
+          width: winW,
+          height: winH,
+          borderRadius: layout.radius,
+          overflow: 'hidden',
+          border: '1px solid rgba(21, 22, 26, 0.06)',
+          boxShadow: '0 2px 4px rgba(21,22,26,0.05), 0 24px 56px -24px rgba(21,22,26,0.28)',
+          background: '#ffffff',
+        }}
+      >
+        <div
+          style={{
+            width: viewW,
+            height: viewH,
+            transform: `scale(${stageScale})`,
+            transformOrigin: '0 0',
+            position: 'relative',
           }}
         >
-          <div
-            style={{
-              width: viewW,
-              height: viewH,
-              transform: `scale(${stageScale})`,
-              transformOrigin: "0 0",
-              position: "relative",
-            }}
-          >
-            <Cut from={CUT.hero} to={CUT.prompt}>
-              <Camera layout={layout} keys={layout.cam.hero}>
-                <HeroScreen layout={layout} />
-              </Camera>
-            </Cut>
-            <Cut from={CUT.prompt} to={CUT.terminal}>
-              <Camera layout={layout} keys={layout.cam.prompt}>
-                <PromptScreen layout={layout} />
-              </Camera>
-            </Cut>
-            <Cut from={CUT.terminal} to={CUT.mac}>
-              <Camera layout={layout} keys={layout.cam.terminal}>
-                <TerminalScreen />
-              </Camera>
-            </Cut>
-            <Cut from={CUT.mac} to={CUT.end}>
-              <Camera layout={layout} keys={layout.cam.channel}>
-                <ChannelScreen layout={layout} />
-              </Camera>
-            </Cut>
-          </div>
+          <Cut from={CUT.hero} to={CUT.prompt}>
+            <Camera layout={layout} keys={layout.cam.hero}>
+              <HeroScreen layout={layout} />
+            </Camera>
+          </Cut>
+          <Cut from={CUT.prompt} to={CUT.terminal}>
+            <Camera layout={layout} keys={layout.cam.prompt}>
+              <PromptScreen layout={layout} />
+            </Camera>
+          </Cut>
+          <Cut from={CUT.terminal} to={CUT.mac}>
+            <Camera layout={layout} keys={layout.cam.terminal}>
+              <TerminalScreen />
+            </Camera>
+          </Cut>
+          <Cut from={CUT.mac} to={CUT.end}>
+            <Camera layout={layout} keys={layout.cam.channel}>
+              <ChannelScreen layout={layout} />
+            </Camera>
+          </Cut>
+        </div>
       </div>
     </AbsoluteFill>
-  );
+  )
 }

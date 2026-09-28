@@ -1,8 +1,8 @@
-import Image from "next/image";
-import Link from "next/link";
-import mark from "../icon.png";
+import Image from 'next/image'
+import Link from 'next/link'
+import mark from '../icon.png'
 
-export function Logo({ size = 28, wordmarkClassName = "" }: { size?: number; wordmarkClassName?: string }) {
+export function Logo({ size = 28, wordmarkClassName = '' }: { size?: number; wordmarkClassName?: string }) {
   return (
     <Link
       href="/"
@@ -11,5 +11,5 @@ export function Logo({ size = 28, wordmarkClassName = "" }: { size?: number; wor
       <Image className="logo-mark" src={mark} alt="" width={size} height={size} priority />
       <span className={wordmarkClassName}>Wave</span>
     </Link>
-  );
+  )
 }

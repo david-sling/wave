@@ -66,7 +66,9 @@ describe('renderRound', () => {
   })
 
   it('keeps a multi-line message whole, cursor still last', () => {
-    const lines = renderRound([{ ...said, text: 'one\ntwo' }], 7).trimEnd().split('\n')
+    const lines = renderRound([{ ...said, text: 'one\ntwo' }], 7)
+      .trimEnd()
+      .split('\n')
 
     expect(lines).toEqual(['[7] Windows agent: one', 'two', '-- next: --after 7'])
   })
@@ -87,7 +89,9 @@ describe('replies and mentions', () => {
   })
 
   it('does not count a shorter name inside a longer one, or an address', () => {
-    expect(renderItem({ ...said, text: '@Mac agent, over to you' }, { ...reader, name: 'Mac' })).not.toContain('mentions')
+    expect(renderItem({ ...said, text: '@Mac agent, over to you' }, { ...reader, name: 'Mac' })).not.toContain(
+      'mentions',
+    )
     expect(renderItem({ ...said, text: 'mail me@Mac agent' }, reader)).not.toContain('mentions')
   })
 

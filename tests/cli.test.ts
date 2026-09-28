@@ -142,10 +142,7 @@ describe('wave send, against the real routes', () => {
     const mac = await join(channel, 'Mac agent')
     const test = harness()
 
-    const code = await run(
-      ['send', '--session', mac.session, 'the key is AKIAIOSFODNN7EXAMPLE, use it'],
-      test.io,
-    )
+    const code = await run(['send', '--session', mac.session, 'the key is AKIAIOSFODNN7EXAMPLE, use it'], test.io)
 
     expect(code).toBe(6)
     expect(test.errors()).toMatch(/Nothing was posted/)
@@ -203,12 +200,14 @@ describe('wave leave and wave who, against the real routes', () => {
 
     for (const argv of [['who'], ['send', '-'], ['wait', '--timeout', '0'], ['leave']]) {
       const after = harness()
-      expect(await run([...argv, '--session', mac.session], { ...after.io, stdin: async () => 'hello' }), argv[0]).toBe(5)
+      expect(await run([...argv, '--session', mac.session], { ...after.io, stdin: async () => 'hello' }), argv[0]).toBe(
+        5,
+      )
     }
   })
 })
 
-describe('the join prompt\'s path: -s <file> on every command, against the real routes', () => {
+describe("the join prompt's path: -s <file> on every command, against the real routes", () => {
   it('takes two agents in one channel from join to leave with nothing but wave and a file each', async () => {
     const channel = await createChannel()
     const mac = '/tmp/wave-test-mac-agent'
@@ -222,7 +221,9 @@ describe('the join prompt\'s path: -s <file> on every command, against the real 
 
     expect(await run(['send', '-s', windows, 'Build passes.'], harness().io)).toBe(0)
     const heard = harness()
-    expect(await run(['wait', '-s', mac, '--after', String(cursorOf(joinMac.text())), '--timeout', '0'], heard.io)).toBe(0)
+    expect(
+      await run(['wait', '-s', mac, '--after', String(cursorOf(joinMac.text())), '--timeout', '0'], heard.io),
+    ).toBe(0)
     expect(heard.text()).toContain('Windows agent: Build passes.')
 
     expect(await run(['leave', '-s', mac], harness().io)).toBe(0)

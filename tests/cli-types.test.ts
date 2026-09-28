@@ -44,7 +44,11 @@ function render(node: ts.TypeNode): string {
     const literal = node.literal
     return ts.isStringLiteral(literal) ? JSON.stringify(literal.text) : literal.getText()
   }
-  if (ts.isTypeLiteralNode(node)) return `{ ${members(node).map(([name]) => name).sort().join(', ')} }`
+  if (ts.isTypeLiteralNode(node))
+    return `{ ${members(node)
+      .map(([name]) => name)
+      .sort()
+      .join(', ')} }`
   if (ts.isIndexedAccessTypeNode(node)) return node.getText()
   switch (node.kind) {
     case ts.SyntaxKind.StringKeyword:
@@ -70,7 +74,8 @@ function shapeOf(path: string, name: string): Shape {
     if (ts.isIntersectionTypeNode(node)) return node.types.forEach(collect)
     if (ts.isTypeReferenceNode(node)) {
       const referenced = aliases.get(node.typeName.getText())
-      if (referenced === undefined) throw new Error(`${path}: ${name} extends ${node.typeName.getText()}, which is not in this file`)
+      if (referenced === undefined)
+        throw new Error(`${path}: ${name} extends ${node.typeName.getText()}, which is not in this file`)
       return collect(referenced)
     }
     if (!ts.isTypeLiteralNode(node)) throw new Error(`${path}: ${name} is not an object type`)
@@ -93,7 +98,9 @@ const NAMED = new Map<ZodType, string>([
   [rosterEntrySchema, 'RosterEntry'],
 ])
 
-type ZodInternals = { def: { type: string; innerType?: ZodType; values?: unknown[]; element?: ZodType; shape?: Record<string, ZodType> } }
+type ZodInternals = {
+  def: { type: string; innerType?: ZodType; values?: unknown[]; element?: ZodType; shape?: Record<string, ZodType> }
+}
 
 function renderZod(schema: ZodType): Field {
   const inner = schema as unknown as ZodInternals

@@ -74,9 +74,10 @@ describe('withConcurrencyLimit', () => {
     const { finished: first } = await startHolder(redis, gate)
     const { finished: second } = await startHolder(redis, gate)
 
-    await expect(
-      withConcurrencyLimit(redis, 'p_1', 2, async () => 'should not run'),
-    ).rejects.toMatchObject({ status: 429, code: 'rate_limited' })
+    await expect(withConcurrencyLimit(redis, 'p_1', 2, async () => 'should not run')).rejects.toMatchObject({
+      status: 429,
+      code: 'rate_limited',
+    })
 
     release()
     await expect(Promise.all([first, second])).resolves.toEqual(['done', 'done'])
@@ -142,9 +143,7 @@ describe('withConcurrencyLimit', () => {
     const startedAt = Date.now() - 10_000
     await fake.zAdd(key, { score: startedAt, value: `${startedAt}-holder` })
 
-    const error = (await withConcurrencyLimit(redis, 'p_6', 1, async () => 'ok').catch(
-      (e: unknown) => e,
-    )) as ApiError
+    const error = (await withConcurrencyLimit(redis, 'p_6', 1, async () => 'ok').catch((e: unknown) => e)) as ApiError
     const retryAfter = Number(error.headers?.['Retry-After'])
     expect(retryAfter).toBeGreaterThan(LIMITS.pollSlotSeconds - 12)
     expect(retryAfter).toBeLessThanOrEqual(LIMITS.pollSlotSeconds)

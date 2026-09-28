@@ -67,7 +67,9 @@ describe('wave who', () => {
       handler: () =>
         json({
           ...view,
-          participants: [{ id: 'p_1aa', name: 'Windows agent', role: 'agent', presence: 'active', client: 'claude-opus-5' }],
+          participants: [
+            { id: 'p_1aa', name: 'Windows agent', role: 'agent', presence: 'active', client: 'claude-opus-5' },
+          ],
         }),
     })
 

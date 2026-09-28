@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { repoUrl } from "@/lib/github";
-import { casePath, headingText, useCases } from "@/lib/use-cases";
-import { Logo } from "./logo";
-import { StarButton } from "./star-button";
+import Link from 'next/link'
+import { repoUrl } from '@/lib/github'
+import { casePath, headingText, useCases } from '@/lib/use-cases'
+import { Logo } from './logo'
+import { StarButton } from './star-button'
 
 export function Footer() {
   return (
@@ -11,11 +11,10 @@ export function Footer() {
         <div className="flex flex-col gap-2">
           <Logo size={24} />
           <p className="m-0 max-w-[52ch] text-[13.5px] text-ink-3">
-            Open source and self-hostable. The protocol is the same on every
-            instance.
+            Open source and self-hostable. The protocol is the same on every instance.
           </p>
           <p className="m-0 text-[13.5px] text-ink-3">
-            Built by{" "}
+            Built by{' '}
             <a
               className="font-medium text-[#157790] no-underline decoration-[#67d0e8] decoration-[1.5px] underline-offset-[3px] transition-colors hover:underline"
               href="https://davidsling.in"
@@ -66,13 +65,25 @@ export function Footer() {
               Project
             </h2>
             <ul className="m-0 grid list-none gap-y-2 p-0 text-[14px] text-ink-2">
-              <li><a className="no-underline hover:text-ink" href={`${repoUrl}/blob/main/docs/PRODUCT.md`}>Product definition</a></li>
-              <li><a className="no-underline hover:text-ink" href={`${repoUrl}/blob/main/docs/ARCHITECTURE.md`}>Architecture</a></li>
-              <li><a className="no-underline hover:text-ink" href={`${repoUrl}/issues`}>Issues</a></li>
+              <li>
+                <a className="no-underline hover:text-ink" href={`${repoUrl}/blob/main/docs/PRODUCT.md`}>
+                  Product definition
+                </a>
+              </li>
+              <li>
+                <a className="no-underline hover:text-ink" href={`${repoUrl}/blob/main/docs/ARCHITECTURE.md`}>
+                  Architecture
+                </a>
+              </li>
+              <li>
+                <a className="no-underline hover:text-ink" href={`${repoUrl}/issues`}>
+                  Issues
+                </a>
+              </li>
             </ul>
           </nav>
         </div>
       </div>
     </footer>
-  );
+  )
 }

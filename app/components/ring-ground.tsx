@@ -1,5 +1,5 @@
-import { ClientMark } from "./agent-marks";
-import { PersonIcon } from "./icons";
+import { ClientMark } from './agent-marks'
+import { PersonIcon } from './icons'
 
 /**
  * The incumbent ring scaled past the content and used as ground.
@@ -15,7 +15,7 @@ import { PersonIcon } from "./icons";
  * stand on it. The strands keep their animation in both, because a ring with
  * nothing moving on it is a border.
  */
-const BIG = { cx: 500, cy: 500, r: 430 } as const;
+const BIG = { cx: 500, cy: 500, r: 430 } as const
 
 /**
  * Angles are chosen to keep every chip out of the centre column, where the
@@ -24,47 +24,47 @@ const BIG = { cx: 500, cy: 500, r: 430 } as const;
  * crown of the arc clear for the type to pass under.
  */
 const ringSeats = [
-  { name: "Maya’s agent", under: "Claude Code", role: "agent" as const, full: 205, dome: 203 },
-  { name: "Ravi’s agent", under: "Codex CLI", role: "agent" as const, full: 335, dome: 337 },
-  { name: "Lena’s agent", under: "Cursor", role: "agent" as const, full: 155, dome: 186 },
-  { name: "You", under: "this browser", role: "human" as const, full: 25, dome: 354 },
-];
+  { name: 'Maya’s agent', under: 'Claude Code', role: 'agent' as const, full: 205, dome: 203 },
+  { name: 'Ravi’s agent', under: 'Codex CLI', role: 'agent' as const, full: 335, dome: 337 },
+  { name: 'Lena’s agent', under: 'Cursor', role: 'agent' as const, full: 155, dome: 186 },
+  { name: 'You', under: 'this browser', role: 'human' as const, full: 25, dome: 354 },
+]
 
 function pointOn(angle: number) {
-  const radians = (angle * Math.PI) / 180;
-  return { x: BIG.cx + BIG.r * Math.cos(radians), y: BIG.cy + BIG.r * Math.sin(radians) };
+  const radians = (angle * Math.PI) / 180
+  return { x: BIG.cx + BIG.r * Math.cos(radians), y: BIG.cy + BIG.r * Math.sin(radians) }
 }
 
 function arc(from: number, to: number) {
-  const a = pointOn(from);
-  const b = pointOn(to);
-  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} A ${BIG.r} ${BIG.r} 0 0 1 ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+  const a = pointOn(from)
+  const b = pointOn(to)
+  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} A ${BIG.r} ${BIG.r} 0 0 1 ${b.x.toFixed(1)} ${b.y.toFixed(1)}`
 }
 
 export function RingGround({ half = false }: { half?: boolean }) {
-  const seats = ringSeats.map((seat) => ({ ...seat, angle: half ? seat.dome : seat.full }));
+  const seats = ringSeats.map((seat) => ({ ...seat, angle: half ? seat.dome : seat.full }))
   // Arcs are drawn between neighbours going round, so the seats are ordered by
   // angle first. On a dome the ends do not meet, so the last pair is dropped
   // rather than sweeping a strand back across the open side.
-  const inOrder = [...seats].sort((a, b) => a.angle - b.angle);
+  const inOrder = [...seats].sort((a, b) => a.angle - b.angle)
   const strands = inOrder
     .map((seat, i) => {
-      const next = inOrder[(i + 1) % inOrder.length];
-      if (half && i === inOrder.length - 1) return null;
+      const next = inOrder[(i + 1) % inOrder.length]
+      if (half && i === inOrder.length - 1) return null
       return {
         d: arc(seat.angle, next.angle),
-        warm: seat.role === "human" || next.role === "human",
+        warm: seat.role === 'human' || next.role === 'human',
         back: i % 2 === 1,
         delay: [0, 1.4, 2.6, 3.4][i],
-      };
+      }
     })
-    .filter((strand) => strand !== null);
+    .filter((strand) => strand !== null)
 
   return (
     <div
       aria-hidden
       className={`pointer-events-none absolute left-1/2 -z-10 hidden aspect-square w-[112%] max-w-[64rem] -translate-x-1/2 lg:block ${
-        half ? "top-[2%]" : "top-1/2 -translate-y-1/2"
+        half ? 'top-[2%]' : 'top-1/2 -translate-y-1/2'
       }`}
     >
       <svg viewBox="0 0 1000 1000" className="absolute inset-0 size-full" fill="none">
@@ -81,10 +81,10 @@ export function RingGround({ half = false }: { half?: boolean }) {
         {strands.map((strand) => (
           <path
             key={strand.d}
-            className={`strand-pulse${strand.back ? " strand-pulse-back" : ""}`}
+            className={`strand-pulse${strand.back ? ' strand-pulse-back' : ''}`}
             d={strand.d}
             pathLength={100}
-            stroke={strand.warm ? "var(--color-peach)" : "var(--color-sky)"}
+            stroke={strand.warm ? 'var(--color-peach)' : 'var(--color-sky)'}
             strokeWidth="5"
             strokeLinecap="round"
             style={{ animationDelay: `${strand.delay}s` }}
@@ -93,8 +93,8 @@ export function RingGround({ half = false }: { half?: boolean }) {
       </svg>
 
       {seats.map((seat) => {
-        const point = pointOn(seat.angle);
-        const isHuman = seat.role === "human";
+        const point = pointOn(seat.angle)
+        const isHuman = seat.role === 'human'
         return (
           <div
             key={seat.name}
@@ -118,16 +118,14 @@ export function RingGround({ half = false }: { half?: boolean }) {
             <span className="block">
               <span className="block whitespace-nowrap text-[13.5px] font-medium">{seat.name}</span>
               <span
-                className={`block whitespace-nowrap text-[11px] leading-[1.3] text-ink-3 ${
-                  isHuman ? "" : "font-mono"
-                }`}
+                className={`block whitespace-nowrap text-[11px] leading-[1.3] text-ink-3 ${isHuman ? '' : 'font-mono'}`}
               >
                 {seat.under}
               </span>
             </span>
           </div>
-        );
+        )
       })}
     </div>
-  );
+  )
 }

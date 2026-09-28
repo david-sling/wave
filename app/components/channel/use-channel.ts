@@ -1,6 +1,6 @@
-"use client";
+'use client'
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
  * The channel page's connection to its channel (ARCHITECTURE section 6).
@@ -10,55 +10,55 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * admin token is read from this browser's storage and sent only on close.
  */
 
-export type Role = "agent" | "human";
-export type Presence = "active" | "idle" | "gone";
+export type Role = 'agent' | 'human'
+export type Presence = 'active' | 'idle' | 'gone'
 
 export type Item =
   | {
-      seq: number;
-      ts: string;
-      type: "message";
-      from: { id: string; name: string; role: Role };
-      text: string;
-      kind: "message" | "done";
-      reply_to?: number;
+      seq: number
+      ts: string
+      type: 'message'
+      from: { id: string; name: string; role: Role }
+      text: string
+      kind: 'message' | 'done'
+      reply_to?: number
     }
   | {
-      seq: number;
-      ts: string;
-      type: "system";
-      event: string;
+      seq: number
+      ts: string
+      type: 'system'
+      event: string
       /** The event as a sentence, written by the server (lib/events.ts). */
-      text?: string;
-      subject?: { id: string; name: string; role: Role };
-    };
+      text?: string
+      subject?: { id: string; name: string; role: Role }
+    }
 
 export type RosterEntry = {
-  id: string;
-  name: string;
-  role: Role;
-  presence: Presence;
-  client?: string;
+  id: string
+  name: string
+  role: Role
+  presence: Presence
+  client?: string
   /**
    * How far down the channel this participant's client has taken delivery.
    * Present only because this page asks for receipts; absent for anyone who
    * has not polled yet.
    */
-  read_seq?: number;
-};
+  read_seq?: number
+}
 
 export type ChannelMeta = {
-  id: string;
-  name: string;
-  mode: string;
-  created_at: string;
-  expires_at: string;
-  max_participants: number;
-};
+  id: string
+  name: string
+  mode: string
+  created_at: string
+  expires_at: string
+  max_participants: number
+}
 
-export type ChannelStatus = "loading" | "ready" | "gone" | "no-invite" | "error";
+export type ChannelStatus = 'loading' | 'ready' | 'gone' | 'no-invite' | 'error'
 
-export type Me = { id: string; token: string; name: string };
+export type Me = { id: string; token: string; name: string }
 
 /**
  * Something you have said that the channel has not handed back yet.
@@ -71,15 +71,15 @@ export type Me = { id: string; token: string; name: string };
  */
 export type PendingMessage = {
   /** Local id, and the `client_id` the server dedupes retries on. */
-  id: string;
-  text: string;
-  name: string;
-  ts: string;
+  id: string
+  text: string
+  name: string
+  ts: string
   /** The seq this answers, so a draft carries its quote rather than growing one on arrival. */
-  replyTo?: number;
+  replyTo?: number
   /** Set once the post is accepted. It is still pending until the poll delivers it. */
-  seq?: number;
-};
+  seq?: number
+}
 
 /**
  * Long-poll seconds, the server's cap and the same hold the agents use. The
@@ -87,23 +87,23 @@ export type PendingMessage = {
  * one request costs almost nothing; starting a new one pays for the
  * authentication, the presence write and the roster read again.
  */
-const POLL_WAIT = 50;
+const POLL_WAIT = 50
 
 /**
  * How often a hidden tab checks in. A participant silent for ten minutes is
  * announced as timed out, and someone whose tab is in the background has not
  * left, so this stays well inside that.
  */
-const HIDDEN_HEARTBEAT_MS = 4 * 60_000;
+const HIDDEN_HEARTBEAT_MS = 4 * 60_000
 
 /** How a poll ended. Only a page that actually read the channel counts as having loaded it. */
-type PollResult = "ok" | "retry" | "gone";
+type PollResult = 'ok' | 'retry' | 'gone'
 
 function newId(): string {
   try {
-    return crypto.randomUUID();
+    return crypto.randomUUID()
   } catch {
-    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
   }
 }
 
@@ -121,33 +121,33 @@ export function reconcile(
   lastSeq: number,
   mine: string | undefined,
 ): PendingMessage[] {
-  const arrived = new Map<string, number>();
+  const arrived = new Map<string, number>()
   for (const item of items) {
-    if (item.type === "message" && item.from.id === mine) arrived.set(item.text, (arrived.get(item.text) ?? 0) + 1);
+    if (item.type === 'message' && item.from.id === mine) arrived.set(item.text, (arrived.get(item.text) ?? 0) + 1)
   }
 
   return queue.filter((entry) => {
-    const waiting = arrived.get(entry.text) ?? 0;
-    const delivered = (entry.seq !== undefined && entry.seq <= lastSeq) || waiting > 0;
-    if (waiting > 0) arrived.set(entry.text, waiting - 1);
-    return !delivered;
-  });
+    const waiting = arrived.get(entry.text) ?? 0
+    const delivered = (entry.seq !== undefined && entry.seq <= lastSeq) || waiting > 0
+    if (waiting > 0) arrived.set(entry.text, waiting - 1)
+    return !delivered
+  })
 }
 
-const participantKey = (channelId: string) => `wave.participant.${channelId}`;
-export const adminKey = (channelId: string) => `wave.admin.${channelId}`;
+const participantKey = (channelId: string) => `wave.participant.${channelId}`
+export const adminKey = (channelId: string) => `wave.admin.${channelId}`
 
 function readStorage(key: string): string | null {
   try {
-    return window.localStorage.getItem(key);
+    return window.localStorage.getItem(key)
   } catch {
-    return null;
+    return null
   }
 }
 
 function writeStorage(key: string, value: string): void {
   try {
-    window.localStorage.setItem(key, value);
+    window.localStorage.setItem(key, value)
   } catch {
     // Private browsing. The channel still works for this tab.
   }
@@ -155,66 +155,66 @@ function writeStorage(key: string, value: string): void {
 
 async function readError(response: Response): Promise<string> {
   try {
-    const body = await response.json();
-    return body?.error?.message ?? "Something went wrong.";
+    const body = await response.json()
+    return body?.error?.message ?? 'Something went wrong.'
   } catch {
-    return "Something went wrong.";
+    return 'Something went wrong.'
   }
 }
 
 export function useChannel(channelId: string) {
-  const [status, setStatus] = useState<ChannelStatus>("loading");
-  const [channel, setChannel] = useState<ChannelMeta | null>(null);
-  const [items, setItems] = useState<Item[]>([]);
-  const [pending, setPending] = useState<PendingMessage[]>([]);
-  const [participants, setParticipants] = useState<RosterEntry[]>([]);
-  const [me, setMe] = useState<Me | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [status, setStatus] = useState<ChannelStatus>('loading')
+  const [channel, setChannel] = useState<ChannelMeta | null>(null)
+  const [items, setItems] = useState<Item[]>([])
+  const [pending, setPending] = useState<PendingMessage[]>([])
+  const [participants, setParticipants] = useState<RosterEntry[]>([])
+  const [me, setMe] = useState<Me | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [inviteToken, setInviteToken] = useState<string | null>(null)
   /** Where the channel already was when this page opened: everything up to here is history. */
-  const [historyUpTo, setHistoryUpTo] = useState<number | null>(null);
+  const [historyUpTo, setHistoryUpTo] = useState<number | null>(null)
   /** The head of the channel, which is what a read receipt is measured against. */
-  const [lastSeq, setLastSeq] = useState(0);
+  const [lastSeq, setLastSeq] = useState(0)
 
-  const invite = useRef<string | null>(null);
-  const cursor = useRef(0);
-  const meRef = useRef<Me | null>(null);
+  const invite = useRef<string | null>(null)
+  const cursor = useRef(0)
+  const meRef = useRef<Me | null>(null)
   /** The join in flight, so two quick messages do not join this browser twice. */
-  const joining = useRef<Promise<Me> | null>(null);
+  const joining = useRef<Promise<Me> | null>(null)
   /** The post in flight, so two quick messages keep the order they were typed in. */
-  const posting = useRef<Promise<unknown>>(Promise.resolve());
+  const posting = useRef<Promise<unknown>>(Promise.resolve())
 
-  const token = useCallback(() => meRef.current?.token ?? invite.current ?? "", []);
+  const token = useCallback(() => meRef.current?.token ?? invite.current ?? '', [])
 
   /** Joins as a human on first post, under the name they chose (PRODUCT 6.2). */
   const join = useCallback(
     async (name: string): Promise<Me> => {
       joining.current ??= (async () => {
         const response = await fetch(`/api/v1/channels/${channelId}/join`, {
-          method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${invite.current}` },
-          body: JSON.stringify({ name, role: "human", client: "wave-web" }),
-        });
-        if (!response.ok) throw new Error(await readError(response));
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${invite.current}` },
+          body: JSON.stringify({ name, role: 'human', client: 'wave-web' }),
+        })
+        if (!response.ok) throw new Error(await readError(response))
 
-        const joined = await response.json();
-        const identity: Me = { id: joined.participant_id, token: joined.participant_token, name: joined.name };
-        meRef.current = identity;
-        setMe(identity);
-        writeStorage(participantKey(channelId), JSON.stringify(identity));
-        return identity;
-      })();
+        const joined = await response.json()
+        const identity: Me = { id: joined.participant_id, token: joined.participant_token, name: joined.name }
+        meRef.current = identity
+        setMe(identity)
+        writeStorage(participantKey(channelId), JSON.stringify(identity))
+        return identity
+      })()
 
       try {
-        return await joining.current;
+        return await joining.current
       } catch (failure) {
         // A failed join must not poison the next attempt.
-        joining.current = null;
-        throw failure;
+        joining.current = null
+        throw failure
       }
     },
     [channelId],
-  );
+  )
 
   /**
    * Says something, and shows it immediately.
@@ -232,7 +232,7 @@ export function useChannel(channelId: string) {
    */
   const post = useCallback(
     async (text: string, name: string, replyTo?: number): Promise<void> => {
-      const id = newId();
+      const id = newId()
       setPending((queue) => [
         ...queue,
         {
@@ -242,94 +242,94 @@ export function useChannel(channelId: string) {
           ts: new Date().toISOString(),
           ...(replyTo === undefined ? {} : { replyTo }),
         },
-      ]);
+      ])
 
-      const ahead = posting.current;
+      const ahead = posting.current
       const attempt = (async () => {
-        await ahead.catch(() => {});
-        const identity = meRef.current ?? (await join(name));
+        await ahead.catch(() => {})
+        const identity = meRef.current ?? (await join(name))
         const response = await fetch(`/api/v1/channels/${channelId}/messages`, {
-          method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${identity.token}` },
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${identity.token}` },
           body: JSON.stringify({ text, client_id: id, ...(replyTo === undefined ? {} : { reply_to: replyTo }) }),
-        });
-        if (!response.ok) throw new Error(await readError(response));
+        })
+        if (!response.ok) throw new Error(await readError(response))
 
-        const accepted = await response.json();
+        const accepted = await response.json()
         setPending((queue) =>
           queue.map((entry) => (entry.id === id ? { ...entry, seq: accepted.seq, name: identity.name } : entry)),
-        );
-      })();
-      posting.current = attempt;
+        )
+      })()
+      posting.current = attempt
 
       try {
-        await attempt;
+        await attempt
       } catch (failure) {
-        setPending((queue) => queue.filter((entry) => entry.id !== id));
-        throw failure;
+        setPending((queue) => queue.filter((entry) => entry.id !== id))
+        throw failure
       }
     },
     [channelId, join],
-  );
+  )
 
   const closeChannel = useCallback(async (): Promise<void> => {
-    const admin = readStorage(adminKey(channelId));
-    if (!admin) throw new Error("The admin token for this channel is not in this browser.");
+    const admin = readStorage(adminKey(channelId))
+    if (!admin) throw new Error('The admin token for this channel is not in this browser.')
 
     const response = await fetch(`/api/v1/channels/${channelId}/close`, {
-      method: "POST",
+      method: 'POST',
       headers: { authorization: `Bearer ${admin}` },
-    });
-    if (!response.ok) throw new Error(await readError(response));
-    setStatus("gone");
-  }, [channelId]);
+    })
+    if (!response.ok) throw new Error(await readError(response))
+    setStatus('gone')
+  }, [channelId])
 
   useEffect(() => {
-    const controller = new AbortController();
-    let stopped = false;
+    const controller = new AbortController()
+    let stopped = false
 
     /** Reads what this browser knows: the invite from the fragment, the identity from storage. */
     function recall(): boolean {
-      invite.current = window.location.hash.replace(/^#/, "") || null;
+      invite.current = window.location.hash.replace(/^#/, '') || null
       if (!invite.current) {
-        setStatus("no-invite");
-        return false;
+        setStatus('no-invite')
+        return false
       }
-      setInviteToken(invite.current);
+      setInviteToken(invite.current)
 
-      const stored = readStorage(participantKey(channelId));
+      const stored = readStorage(participantKey(channelId))
       if (stored) {
         try {
-          const identity = JSON.parse(stored) as Me;
-          meRef.current = identity;
-          setMe(identity);
+          const identity = JSON.parse(stored) as Me
+          meRef.current = identity
+          setMe(identity)
         } catch {
           // Unreadable. They will be asked for a name again on their first post.
         }
       }
-      return true;
+      return true
     }
 
     async function bootstrap(): Promise<boolean> {
       const response = await fetch(`/api/v1/channels/${channelId}`, {
         headers: { authorization: `Bearer ${invite.current}` },
         signal: controller.signal,
-      });
+      })
       if (response.status === 410) {
-        setStatus("gone");
-        return false;
+        setStatus('gone')
+        return false
       }
       if (!response.ok) {
-        setError(await readError(response));
-        setStatus("error");
-        return false;
+        setError(await readError(response))
+        setStatus('error')
+        return false
       }
-      const view = await response.json();
-      setChannel(view.channel);
-      setParticipants(view.participants);
-      setHistoryUpTo(view.last_seq);
-      setLastSeq(view.last_seq);
-      return true;
+      const view = await response.json()
+      setChannel(view.channel)
+      setParticipants(view.participants)
+      setHistoryUpTo(view.last_seq)
+      setLastSeq(view.last_seq)
+      return true
     }
 
     /** One poll. `wait` of zero reads what is there and returns without holding. */
@@ -341,99 +341,99 @@ export function useChannel(channelId: string) {
       const response = await fetch(
         `/api/v1/channels/${channelId}/messages?after=${cursor.current}&wait=${wait}&receipts=1`,
         { headers: { authorization: `Bearer ${token()}` }, signal: controller.signal },
-      );
+      )
       if (response.status === 410) {
-        setStatus("gone");
-        return "gone";
+        setStatus('gone')
+        return 'gone'
       }
       if (response.status === 429) {
         // Two polls already open, probably another tab. Back off and try again.
-        await new Promise((resolve) => setTimeout(resolve, 3_000));
-        return "retry";
+        await new Promise((resolve) => setTimeout(resolve, 3_000))
+        return 'retry'
       }
-      if (!response.ok) throw new Error(await readError(response));
+      if (!response.ok) throw new Error(await readError(response))
 
-      const page = await response.json();
+      const page = await response.json()
       if (page.items.length > 0) {
-        setItems((existing) => [...existing, ...page.items]);
-        cursor.current = page.last_seq;
+        setItems((existing) => [...existing, ...page.items])
+        cursor.current = page.last_seq
       }
       // In the same pass as the items above, so a message hands over to its own
       // draft within one render rather than flickering between the two.
-      setPending((queue) => reconcile(queue, page.items, page.last_seq, meRef.current?.id));
-      setParticipants(page.participants);
-      setLastSeq(page.last_seq);
-      setError(null);
-      return "ok";
+      setPending((queue) => reconcile(queue, page.items, page.last_seq, meRef.current?.id))
+      setParticipants(page.participants)
+      setLastSeq(page.last_seq)
+      setError(null)
+      return 'ok'
     }
 
     /** Waits until the tab is shown again, or `ms` passes, or the page goes away. */
     function whileHidden(ms: number): Promise<void> {
       return new Promise((resolve) => {
         const finish = () => {
-          clearTimeout(timer);
-          document.removeEventListener("visibilitychange", onShown);
-          controller.signal.removeEventListener("abort", finish);
-          resolve();
-        };
+          clearTimeout(timer)
+          document.removeEventListener('visibilitychange', onShown)
+          controller.signal.removeEventListener('abort', finish)
+          resolve()
+        }
         const onShown = () => {
-          if (document.visibilityState === "visible") finish();
-        };
-        const timer = setTimeout(finish, ms);
-        document.addEventListener("visibilitychange", onShown);
-        controller.signal.addEventListener("abort", finish, { once: true });
-      });
+          if (document.visibilityState === 'visible') finish()
+        }
+        const timer = setTimeout(finish, ms)
+        document.addEventListener('visibilitychange', onShown)
+        controller.signal.addEventListener('abort', finish, { once: true })
+      })
     }
 
     void (async () => {
-      if (!recall()) return;
-      if (!(await bootstrap().catch(() => false))) return;
+      if (!recall()) return
+      if (!(await bootstrap().catch(() => false))) return
 
       // The channel is not ready when its metadata lands, it is ready when its
       // transcript does. Opening on an empty room that fills in a moment later
       // reads as a channel that lost its history, so the first read is an
       // immediate one and the page waits for it.
-      let loaded = false;
+      let loaded = false
       const loadedNow = () => {
-        loaded = true;
+        loaded = true
         // Never over the top of an ending: a closed channel stays closed.
-        setStatus((current) => (current === "loading" ? "ready" : current));
-      };
+        setStatus((current) => (current === 'loading' ? 'ready' : current))
+      }
 
       while (!stopped) {
         try {
           // Between polls, never mid-poll: a tab hidden while one is in flight
           // lets it finish. The poll it starts on return is the catch-up read.
-          if (loaded && document.visibilityState === "hidden") {
+          if (loaded && document.visibilityState === 'hidden') {
             // Presence only, and only for someone who has spoken: a reader who
             // never posted is not in the roster and has nothing to keep alive.
             if (meRef.current) {
-              const beat = await pollOnce(0).catch((): PollResult => "retry");
-              if (beat === "gone") return;
+              const beat = await pollOnce(0).catch((): PollResult => 'retry')
+              if (beat === 'gone') return
             }
-            await whileHidden(HIDDEN_HEARTBEAT_MS);
-            continue;
+            await whileHidden(HIDDEN_HEARTBEAT_MS)
+            continue
           }
 
-          const result = await pollOnce(loaded ? POLL_WAIT : 0);
-          if (result === "gone") return;
-          if (result === "ok") loadedNow();
+          const result = await pollOnce(loaded ? POLL_WAIT : 0)
+          if (result === 'gone') return
+          if (result === 'ok') loadedNow()
         } catch (failure) {
-          if (controller.signal.aborted) return;
-          setError(failure instanceof Error ? failure.message : "Lost the connection.");
+          if (controller.signal.aborted) return
+          setError(failure instanceof Error ? failure.message : 'Lost the connection.')
           // Show the channel with its error rather than leaving it opening forever.
-          loadedNow();
+          loadedNow()
           // Wait before trying again, so a broken channel is not hammered.
-          await new Promise((resolve) => setTimeout(resolve, 3_000));
+          await new Promise((resolve) => setTimeout(resolve, 3_000))
         }
       }
-    })();
+    })()
 
     return () => {
-      stopped = true;
-      controller.abort();
-    };
-  }, [channelId, token]);
+      stopped = true
+      controller.abort()
+    }
+  }, [channelId, token])
 
   return {
     status,
@@ -448,5 +448,5 @@ export function useChannel(channelId: string) {
     lastSeq,
     post,
     closeChannel,
-  };
+  }
 }

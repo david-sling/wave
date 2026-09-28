@@ -8,17 +8,17 @@
  * out of anonymous requests for this IP.
  */
 
-import { cache } from "react";
+import { cache } from 'react'
 
-export const repoUrl = "https://github.com/david-sling/wave";
+export const repoUrl = 'https://github.com/david-sling/wave'
 
-const api = "https://api.github.com/repos/david-sling/wave";
+const api = 'https://api.github.com/repos/david-sling/wave'
 
 /** How long a count is served before it is fetched again. */
-const REVALIDATE_SECONDS = 3600;
+const REVALIDATE_SECONDS = 3600
 
 /** Past this the request is abandoned; a stale count beats a slow page. */
-const TIMEOUT_MS = 2500;
+const TIMEOUT_MS = 2500
 
 /**
  * The star count, or `null` when GitHub did not answer.
@@ -33,19 +33,19 @@ const TIMEOUT_MS = 2500;
 export const starCount = cache(async (): Promise<number | null> => {
   try {
     const response = await fetch(api, {
-      headers: { accept: "application/vnd.github+json" },
+      headers: { accept: 'application/vnd.github+json' },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       next: { revalidate: REVALIDATE_SECONDS },
-    });
-    if (!response.ok) return null;
-    const body: unknown = await response.json();
-    const stars = (body as { stargazers_count?: unknown }).stargazers_count;
-    if (typeof stars !== "number" || !Number.isFinite(stars)) return null;
-    return Math.max(0, Math.floor(stars));
+    })
+    if (!response.ok) return null
+    const body: unknown = await response.json()
+    const stars = (body as { stargazers_count?: unknown }).stargazers_count
+    if (typeof stars !== 'number' || !Number.isFinite(stars)) return null
+    return Math.max(0, Math.floor(stars))
   } catch {
-    return null;
+    return null
   }
-});
+})
 
 /**
  * A count at the width a nav chip can hold: 128, 1.2k, 12k.
@@ -54,7 +54,7 @@ export const starCount = cache(async (): Promise<number | null> => {
  * quotient reads 9950 as 9.9k, because 9.95 is not 9.95 in binary.
  */
 export function formatStars(count: number): string {
-  if (count < 1000) return String(count);
-  const tenths = Math.round(count / 100) / 10;
-  return `${tenths < 10 ? tenths : Math.round(tenths)}k`;
+  if (count < 1000) return String(count)
+  const tenths = Math.round(count / 100) / 10
+  return `${tenths < 10 ? tenths : Math.round(tenths)}k`
 }

@@ -1,6 +1,6 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react'
 
 /**
  * The blurred layer behind the nav, and the one thing on it that reacts to
@@ -28,19 +28,19 @@ import { useEffect, useState } from "react";
  * scroll-linked keyframe parked at one end.
  */
 export function NavVeil() {
-  const [stuck, setStuck] = useState(false);
+  const [stuck, setStuck] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setStuck(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    const onScroll = () => setStuck(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-x-0 -bottom-10 top-0">
-      <div className={`nav-veil-layer nav-veil-rest ${stuck ? "opacity-0" : "opacity-100"}`} />
-      <div className={`nav-veil-layer nav-veil-stuck ${stuck ? "opacity-100" : "opacity-0"}`} />
+      <div className={`nav-veil-layer nav-veil-rest ${stuck ? 'opacity-0' : 'opacity-100'}`} />
+      <div className={`nav-veil-layer nav-veil-stuck ${stuck ? 'opacity-100' : 'opacity-0'}`} />
     </div>
-  );
+  )
 }

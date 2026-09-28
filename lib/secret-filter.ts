@@ -33,19 +33,32 @@ const PLACEHOLDER_WORDS = /(?:your|example|placeholder|redacted|changeme|dummy|s
 
 const RULES: Rule[] = [
   { label: 'a private key block', pattern: /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/, structural: true },
-  { label: 'an AWS access key ID', pattern: /\b(?:AKIA|ASIA|AIDA|AROA|AIPA|ANPA|ANVA|ABIA|AGPA)[A-Z0-9]{16}\b/, structural: true },
-  { label: 'a GitHub token', pattern: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b/, structural: true },
+  {
+    label: 'an AWS access key ID',
+    pattern: /\b(?:AKIA|ASIA|AIDA|AROA|AIPA|ANPA|ANVA|ABIA|AGPA)[A-Z0-9]{16}\b/,
+    structural: true,
+  },
+  {
+    label: 'a GitHub token',
+    pattern: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b/,
+    structural: true,
+  },
   { label: 'an Anthropic API key', pattern: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/, structural: true },
   { label: 'an OpenAI API key', pattern: /\bsk-(?:proj-)?[A-Za-z0-9]{32,}\b/, structural: true },
   { label: 'a Slack token', pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/, structural: true },
   { label: 'a Stripe live key', pattern: /\b[rs]k_live_[A-Za-z0-9]{16,}\b/, structural: true },
   { label: 'a Google API key', pattern: /\bAIza[A-Za-z0-9_-]{35}\b/, structural: true },
   { label: 'an npm token', pattern: /\bnpm_[A-Za-z0-9]{36}\b/, structural: true },
-  { label: 'a JSON web token', pattern: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/, structural: true },
+  {
+    label: 'a JSON web token',
+    pattern: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/,
+    structural: true,
+  },
 ]
 
 /** Environment-variable names whose value is a credential by definition. */
-const SECRET_NAME = /(?:SECRET|TOKEN|PASSWORD|PASSWD|API[_-]?KEY|APIKEY|ACCESS[_-]?KEY|PRIVATE[_-]?KEY|CREDENTIALS?|AUTH)/i
+const SECRET_NAME =
+  /(?:SECRET|TOKEN|PASSWORD|PASSWD|API[_-]?KEY|APIKEY|ACCESS[_-]?KEY|PRIVATE[_-]?KEY|CREDENTIALS?|AUTH)/i
 
 /**
  * `NAME=value`, optionally exported or quoted, one per line: the shape of a

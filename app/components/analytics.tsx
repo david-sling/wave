@@ -1,7 +1,7 @@
-"use client";
+'use client'
 
-import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
-import type { BeforeSendEvent } from "@vercel/analytics";
+import { Analytics as VercelAnalytics } from '@vercel/analytics/next'
+import type { BeforeSendEvent } from '@vercel/analytics'
 
 /**
  * Web analytics, held to the counts-only promise (PRODUCT section 9).
@@ -17,14 +17,14 @@ import type { BeforeSendEvent } from "@vercel/analytics";
  * the visitor already has.
  */
 function redact(event: BeforeSendEvent): BeforeSendEvent | null {
-  const url = new URL(event.url);
-  if (!url.pathname.startsWith("/c/")) return event;
+  const url = new URL(event.url)
+  if (!url.pathname.startsWith('/c/')) return event
   return {
     ...event,
     url: `${url.origin}/c/[id]`,
-  };
+  }
 }
 
 export function Analytics() {
-  return <VercelAnalytics beforeSend={redact} />;
+  return <VercelAnalytics beforeSend={redact} />
 }

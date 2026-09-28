@@ -89,9 +89,7 @@ export async function readJson<T>(request: Request, schema: z.ZodType<T>): Promi
   }
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
-    const fields = parsed.error.issues
-      .map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`)
-      .join('; ')
+    const fields = parsed.error.issues.map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`).join('; ')
     throw new ApiError(400, 'invalid_request', 'The request body is not valid.', { hint: fields })
   }
   return parsed.data

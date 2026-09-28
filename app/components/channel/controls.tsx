@@ -1,35 +1,35 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { CopyButton } from "./copy-button";
-import { ExportTranscript } from "./export-transcript";
-import type { ChannelMeta, Item, RosterEntry } from "./use-channel";
+import { useEffect, useState } from 'react'
+import { CopyButton } from './copy-button'
+import { ExportTranscript } from './export-transcript'
+import type { ChannelMeta, Item, RosterEntry } from './use-channel'
 
 /** Counts down to expiry, in the coarsest unit that is still honest. */
 function remaining(expiresAt: string, now: number): string {
-  const seconds = Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000));
-  if (seconds === 0) return "expired";
-  if (seconds < 60) return `${seconds}s left`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m left`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h ${minutes % 60}m left`;
-  return `${Math.floor(hours / 24)}d left`;
+  const seconds = Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000))
+  if (seconds === 0) return 'expired'
+  if (seconds < 60) return `${seconds}s left`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m left`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 48) return `${hours}h ${minutes % 60}m left`
+  return `${Math.floor(hours / 24)}d left`
 }
 
 export function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1_000);
-    return () => clearInterval(timer);
-  }, []);
+    const timer = setInterval(() => setNow(Date.now()), 1_000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <span className="whitespace-nowrap text-[13px] text-ink-3" title={new Date(expiresAt).toLocaleString()}>
       {remaining(expiresAt, now)}
     </span>
-  );
+  )
 }
 
 /**
@@ -42,14 +42,14 @@ export function Controls({
   onClose,
   transcript,
 }: {
-  shareUrl: string;
-  canClose: boolean;
-  onClose: () => Promise<void>;
+  shareUrl: string
+  canClose: boolean
+  onClose: () => Promise<void>
   /** Everything the export needs. Passed down rather than re-read: the page already has it. */
-  transcript: { channel: ChannelMeta; items: Item[]; participants: RosterEntry[] };
+  transcript: { channel: ChannelMeta; items: Item[]; participants: RosterEntry[] }
 }) {
-  const [confirming, setConfirming] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
 
   return (
     <div className="grid gap-3">
@@ -77,9 +77,9 @@ export function Controls({
                   className="btn btn-sm btn-danger-filled"
                   onClick={async () => {
                     try {
-                      await onClose();
+                      await onClose()
                     } catch (error) {
-                      setFailure(error instanceof Error ? error.message : "The channel did not close.");
+                      setFailure(error instanceof Error ? error.message : 'The channel did not close.')
                     }
                   }}
                 >
@@ -106,5 +106,5 @@ export function Controls({
         </div>
       ) : null}
     </div>
-  );
+  )
 }

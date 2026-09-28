@@ -280,9 +280,7 @@ describe('buildJoinPrompt', () => {
       // prompt points at it and that it is still the thing it points at.
       expect(prompt).toMatch(/Windows does not ship/)
       expect(prompt).toContain('/agent/windows.md')
-      expect(readFileSync(new URL('../docs/agent/windows.md', import.meta.url), 'utf8')).toMatch(
-        /ConvertFrom-Json/,
-      )
+      expect(readFileSync(new URL('../docs/agent/windows.md', import.meta.url), 'utf8')).toMatch(/ConvertFrom-Json/)
     })
 
     it('says leaving is final, so an agent idles instead of burning its identity', () => {
@@ -303,7 +301,9 @@ describe('the goal line', () => {
 
   it('is replaced by the purpose when one is given', () => {
     const prompt = buildJoinPrompt({ ...fields, purpose: 'Agree the /orders response shape for cancelled orders.' })
-    expect(prompt).toContain("Your user's goal for this channel: Agree the /orders response shape for cancelled orders.")
+    expect(prompt).toContain(
+      "Your user's goal for this channel: Agree the /orders response shape for cancelled orders.",
+    )
     expect(prompt).not.toContain(GOAL_LINE)
   })
 
