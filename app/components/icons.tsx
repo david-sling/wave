@@ -7,9 +7,9 @@
  * standing in for a drawn mark.
  */
 
-type IconProps = { size?: number; className?: string }
+type IconProps = { size?: number; className?: string; strokeWidth?: number }
 
-function Icon({ size = 16, className, children }: IconProps & { children: React.ReactNode }) {
+function Icon({ size = 16, className, strokeWidth = 1.75, children }: IconProps & { children: React.ReactNode }) {
   return (
     <svg
       width={size}
@@ -17,7 +17,7 @@ function Icon({ size = 16, className, children }: IconProps & { children: React.
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.75}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -146,6 +146,47 @@ export function TerminalIcon(props: IconProps) {
       <rect x="3" y="4.5" width="18" height="15" rx="2.25" />
       <path d="m8 10 3 2.5-3 2.5" />
       <path d="M13 15.5h3" />
+    </Icon>
+  )
+}
+
+/** An agent: a head with an antenna, the counterpart of `PersonIcon`. */
+export function AgentIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="4.5" y="8" width="15" height="11" rx="3" />
+      <path d="M12 8V4.5" />
+      <path d="M9.5 12.75v1.5" />
+      <path d="M14.5 12.75v1.5" />
+    </Icon>
+  )
+}
+
+export function LinkIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" />
+      <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+    </Icon>
+  )
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 4v11" />
+      <path d="m7.5 10.5 4.5 4.5 4.5-4.5" />
+      <path d="M5 19.5h14" />
+    </Icon>
+  )
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4.5 7h15" />
+      <path d="M9.5 7V4.75h5V7" />
+      <path d="M6.5 7l.9 11.2a1.5 1.5 0 0 0 1.5 1.3h6.2a1.5 1.5 0 0 0 1.5-1.3L17.5 7" />
     </Icon>
   )
 }

@@ -4,6 +4,7 @@ import { relativeTime } from '@/lib/relative-time'
 import { markOf } from '@/lib/client-marks'
 import { seatingOf, type Seat } from '@/lib/seating'
 import { ClientMark } from './agent-marks'
+import { AgentIcon, PersonIcon } from './icons'
 import { MessageBody } from './message-body'
 import { JumpToSeq, ReplyAction } from './reply-action'
 
@@ -35,6 +36,8 @@ export type TranscriptItem =
       type: 'message'
       from: { name: string; role: Role }
       time: string
+      /** ISO time the message was said. Without it a message never folds into the one before. */
+      ts?: string
       text: string
       /** What this answers, when the sender set `reply_to`. */
       replyTo?: ReplyQuote
@@ -64,11 +67,19 @@ export function PresenceDot({ presence }: { presence: Presence }) {
   return <span aria-hidden className={`inline-block size-2 shrink-0 rounded-full ${color}`} />
 }
 
+/**
+ * Agent or human, as a mark rather than a word: it sits beside every name, and
+ * a word there competed with the name it qualifies. The word is still the
+ * accessible name, and a hover spells it out.
+ */
 export function RoleBadge({ role }: { role: Role }) {
-  const tone = role === 'agent' ? 'bg-sky-soft text-sky-ink' : 'bg-peach-soft text-peach-ink'
+  const agent = role === 'agent'
   return (
-    <span className={`rounded-full px-[7px] py-px text-[12px] font-semibold leading-[1.4] tracking-[0.02em] ${tone}`}>
-      {role}
+    <span role="img" aria-label={role} className="has-tip relative grid size-4 shrink-0 place-items-center text-ink-3">
+      {agent ? <AgentIcon size={15} strokeWidth={2.25} /> : <PersonIcon size={15} strokeWidth={2.25} />}
+      <span className="choice-tip" aria-hidden>
+        {agent ? 'Agent' : 'Human'}
+      </span>
     </span>
   )
 }
@@ -162,6 +173,27 @@ function ReplyQuoteLine({ quote }: { quote: ReplyQuote }) {
   )
 }
 
+/** Within this long of the sender's previous message, a message drops its header and reads as the same turn. */
+const RUN_MS = 5 * 60_000
+
+/**
+ * Whether a message continues the one above it. A reply keeps its header,
+ * since the quote line hangs off it, and so does anything the unread line
+ * falls in front of.
+ */
+function continues(
+  previous: TranscriptItem | undefined,
+  item: TranscriptItem,
+  firstUnread: number | undefined,
+): boolean {
+  if (previous?.type !== 'message' || item.type !== 'message') return false
+  if (item.replyTo || !previous.ts || !item.ts) return false
+  if (firstUnread !== undefined && item.seq === firstUnread) return false
+  if (previous.from.name !== item.from.name || previous.from.role !== item.from.role) return false
+  const gap = new Date(item.ts).getTime() - new Date(previous.ts).getTime()
+  return gap >= 0 && gap < RUN_MS
+}
+
 /** The line you had read up to. Drawn above the first item past `unreadAfter`. */
 function UnreadLine() {
   return (
@@ -218,6 +250,32 @@ export function Transcript({
                 {item.text}
               </li>
             </Fragment>
+          )
+        }
+        if (continues(items[i - 1], item, firstUnread)) {
+          return (
+            <li
+              key={i}
+              data-seq={item.seq}
+              aria-busy={item.pending || undefined}
+              className={`group relative -mx-3 -mb-1.5 -mt-3 grid grid-cols-[30px_1fr] gap-3 rounded-[12px] px-3 py-1.5 transition-[background-color,opacity] duration-200 hover:bg-panel-2 ${item.pending ? 'opacity-55' : 'opacity-100'} ${motion}`}
+              style={delay}
+            >
+              <span className="col-start-2 min-w-0 pr-16">
+                <span className="sr-only">{item.from.name}: </span>
+                <MessageBody text={item.text} mentions={mentionable} />
+              </span>
+              <span className="absolute right-3 top-1.5 flex items-center gap-2 text-xs text-ink-3">
+                {item.pending ? (
+                  <span>Sending&hellip;</span>
+                ) : (
+                  <>
+                    <time className="opacity-0 transition-opacity group-hover:opacity-100">{item.time}</time>
+                    <ReplyAction seq={item.seq} author={item.from.name} />
+                  </>
+                )}
+              </span>
+            </li>
           )
         }
         const colour = colorFor(item.from.name, item.from.role)

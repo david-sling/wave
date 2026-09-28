@@ -8,16 +8,31 @@ import { identityPalette } from '@/lib/identity-color'
 import { quoteOf } from '@/lib/reply-quote'
 import { channelGone } from '@/lib/site'
 import mark from '../../icon.png'
-import { CreateChannelButton, CreateChannelForm } from '../create-channel'
-import { ArrowRightIcon, ChevronLeftIcon } from '../icons'
+import { CreateChannelForm } from '../create-channel'
+import { ArrowRightIcon, ChevronLeftIcon, PlusIcon } from '../icons'
 import { ReplyProvider } from '../reply-action'
-import { Roster, Transcript, type ReplyQuote, type TranscriptItem } from '../transcript'
+import { seatingOf } from '@/lib/seating'
+import type { IdentityColor } from '@/lib/identity-color'
+import {
+  IdentityTile,
+  PresenceDot,
+  Roster,
+  Transcript,
+  type Participant,
+  type ReplyQuote,
+  type TranscriptItem,
+} from '../transcript'
 import { AddAgentDialog } from './add-agent-dialog'
-import { announcementFor } from './channel-events'
-import { ChannelList, channelListNote } from './channel-list'
-import { ChannelAddButton, ChannelMenu, ChannelMenuButton, ChannelShareButton } from './channel-menu'
+import { announcementFor, joinedSentence } from './channel-events'
+import {
+  ChannelAddButton,
+  ChannelCopyLinkButton,
+  ChannelMenu,
+  ChannelMenuButton,
+  ChannelShareButton,
+} from './channel-menu'
 import { Compose } from './compose'
-import { Controls, ExpiryCountdown } from './controls'
+import { ChannelActions, ExpiryCountdown } from './controls'
 import { PromptBox } from './prompt-box'
 import { useReadMarker } from './use-read-marker'
 import { adminKey, useChannel, type Item, type PendingMessage, type RosterEntry } from './use-channel'
@@ -77,24 +92,40 @@ function quoteFor(bySeq: Map<number, Item>, seq: number): ReplyQuote | undefined
  */
 function toTranscript(items: Item[], pending: PendingMessage[]): TranscriptItem[] {
   const bySeq = new Map(items.map((item) => [item.seq, item]))
-  const said: TranscriptItem[] = items.map((item) =>
-    item.type === 'system'
-      ? { seq: item.seq, type: 'system', text: describe(item) }
-      : {
-          seq: item.seq,
-          type: 'message',
-          from: { name: item.from.name, role: item.from.role },
-          time: clockTime(item.ts),
-          text: item.text,
-          ...(item.reply_to === undefined ? {} : { replyTo: quoteFor(bySeq, item.reply_to) }),
-        },
-  )
+  const said: TranscriptItem[] = []
+  let joined: string[] = []
+  for (const item of items) {
+    if (item.type === 'system') {
+      // Joins that land back to back are one arrival, and read as one line.
+      const name = item.event === 'participant.joined' ? item.subject?.name : undefined
+      const last = said.at(-1)
+      if (name && joined.length > 0 && last?.type === 'system') {
+        joined.push(name)
+        said[said.length - 1] = { seq: item.seq, type: 'system', text: joinedSentence(joined) }
+        continue
+      }
+      joined = name ? [name] : []
+      said.push({ seq: item.seq, type: 'system', text: describe(item) })
+      continue
+    }
+    joined = []
+    said.push({
+      seq: item.seq,
+      type: 'message',
+      from: { name: item.from.name, role: item.from.role },
+      time: clockTime(item.ts),
+      ts: item.ts,
+      text: item.text,
+      ...(item.reply_to === undefined ? {} : { replyTo: quoteFor(bySeq, item.reply_to) }),
+    })
+  }
 
   for (const draft of pending) {
     said.push({
       type: 'message',
       from: { name: draft.name, role: 'human' },
       time: clockTime(draft.ts),
+      ts: draft.ts,
       text: draft.text,
       ...(draft.replyTo === undefined ? {} : { replyTo: quoteFor(bySeq, draft.replyTo) }),
       pending: true,
@@ -180,14 +211,7 @@ function TopBar({
         </span>
         {children}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {/* On a phone the channel's actions live in the sheet, so the bar keeps
-            one control instead of three competing for the same 375 pixels. */}
-        <CreateChannelButton className="btn btn-sm btn-secondary hidden lg:inline-flex">
-          New channel
-        </CreateChannelButton>
-        {menu}
-      </div>
+      <div className="flex shrink-0 items-center gap-1 lg:gap-2">{menu}</div>
     </header>
   )
 }
@@ -300,6 +324,105 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
   )
 }
 
+/** Who is in the room, as overlapping tiles: the room at a glance where the roster is not on screen. */
+function PresenceStack({
+  room,
+  colorFor,
+  size = 'md',
+}: {
+  room: Participant[]
+  colorFor: (name: string, role: Participant['role']) => IdentityColor
+  size?: 'sm' | 'md'
+}) {
+  const seatOf = seatingOf(room)
+  const shown = room.slice(0, 4)
+  const more = room.length - shown.length
+  return (
+    <span aria-hidden className="flex items-center">
+      {shown.map((person, index) => (
+        <span
+          key={person.name}
+          className={`grid place-items-center rounded-[8px] bg-panel ring-2 ring-panel ${index > 0 ? '-ml-1.5' : ''} ${size === 'sm' ? 'scale-[0.83]' : ''}`}
+        >
+          <IdentityTile name={person.name} colour={colorFor(person.name, person.role)} seat={seatOf(person.name)} />
+        </span>
+      ))}
+      {more > 0 ? <span className="ml-1 text-[12px] font-medium text-ink-3">+{more}</span> : null}
+    </span>
+  )
+}
+
+/**
+ * An empty channel's one piece of business: getting agents in. The steps and
+ * the seats sit beside the prompt on a wide screen and above it on a narrow
+ * one, and the seats fill in as agents arrive, so the page answers "did it
+ * work" without anyone having to look elsewhere.
+ */
+function Setup({
+  room,
+  colorFor,
+  children,
+}: {
+  room: Participant[]
+  colorFor: (name: string, role: Participant['role']) => IdentityColor
+  children: React.ReactNode
+}) {
+  const seatOf = seatingOf(room)
+  const steps = [
+    'Name the agent and pick how it runs.',
+    'Copy the prompt and paste it into the agent. It joins the channel by itself.',
+    'Do it again for each agent, changing the name each time.',
+  ]
+  return (
+    <div className="mx-auto grid w-full max-w-[560px] gap-8 py-6 xl:max-w-none xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] xl:gap-12">
+      <div className="grid content-start gap-6 xl:sticky xl:top-2">
+        <div className="grid gap-2">
+          <h2 className="m-0 text-[clamp(1.5rem,2.2vw,1.75rem)] font-bold leading-[1.1] tracking-[-0.02em]">
+            Nobody has spoken yet
+          </h2>
+          <p className="m-0 max-w-[44ch] text-[15px] leading-relaxed text-ink-2">
+            Agents join with the prompt. Once one of them says something, the conversation takes this space.
+          </p>
+        </div>
+
+        <ol className="m-0 grid list-none gap-3 p-0">
+          {steps.map((step, index) => (
+            <li key={step} className="grid grid-cols-[24px_1fr] items-baseline gap-3 text-[14.5px] leading-snug">
+              <span className="grid size-6 place-items-center rounded-[7px] bg-ground text-[12px] font-semibold text-ink-2">
+                {index + 1}
+              </span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+
+        <ul className="m-0 grid list-none gap-1 border-t border-line-2 p-0 pt-4 text-[13px]" aria-label="Seats">
+          {room.map((person) => (
+            <li key={person.name} className="flex items-center gap-2 py-1">
+              <IdentityTile name={person.name} colour={colorFor(person.name, person.role)} seat={seatOf(person.name)} />
+              <span className="min-w-0 truncate font-medium">{person.name}</span>
+              <span className="text-ink-3">joined</span>
+              <span className="ml-auto">
+                <PresenceDot presence={person.presence} />
+              </span>
+            </li>
+          ))}
+          <li className="flex items-center gap-2 py-1 text-ink-3">
+            <span aria-hidden className="size-[18px] rounded-[6px] border border-dashed border-line-strong" />
+            {room.some((person) => person.role === 'agent')
+              ? 'Waiting for the next agent'
+              : 'Waiting for the first agent'}
+          </li>
+        </ul>
+      </div>
+
+      <div className="h-fit overflow-hidden rounded-[20px] border border-line bg-panel-2 [--frame-radius:20px]">
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export function ChannelView({ channelId, host }: { channelId: string; host: string }) {
   const { status, channel, items, pending, participants, me, error, invite, historyUpTo, lastSeq, post, closeChannel } =
     useChannel(channelId)
@@ -307,7 +430,16 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
   const [menuOpen, setMenuOpen] = useState(false)
   /** The seq the next message answers, set by a row's Reply and cleared once it is sent. */
   const [replyingTo, setReplyingTo] = useState<number | null>(null)
-  const { scroller, tail, markerAt, onScroll } = useReadMarker(channelId, items, status === 'ready', pending.length)
+  // Joins alone do not start a conversation: the prompt stays put while agents
+  // are still arriving, and steps aside once one of them says something.
+  const started = pending.length > 0 || items.some((item) => item.type === 'message')
+  const { scroller, tail, markerAt, onScroll } = useReadMarker(
+    channelId,
+    items,
+    status === 'ready',
+    pending.length,
+    started,
+  )
 
   // The toast store is a module singleton, and Next hands each client boundary
   // its own copy, so the calls have to be made from the module that renders the
@@ -370,9 +502,6 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
 
   // One palette for the whole page, so a name reads the same in the room and the transcript.
   const colorFor = identityPalette(participants)
-  // Joins alone do not start a conversation: the prompt stays put while agents
-  // are still arriving, and steps aside once one of them says something.
-  const started = pending.length > 0 || items.some((item) => item.type === 'message')
   const room = toRoster(participants, items, lastSeq, me?.id)
   const replyQuote = replyingTo === null ? null : (quoteFor(new Map(items.map((i) => [i.seq, i])), replyingTo) ?? null)
   // Cleared on success only: a post that failed hands its text back to the
@@ -390,28 +519,62 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
       <TopBar
         menu={
           <>
+            <span
+              className="hidden items-center gap-2 pr-1 lg:flex"
+              title={`${participants.length} of ${channel.max_participants} in the room`}
+            >
+              <PresenceStack room={room} colorFor={colorFor} />
+              <span className="whitespace-nowrap text-[13px] text-ink-3">
+                {participants.length} of {channel.max_participants}
+              </span>
+            </span>
+            <ChannelCopyLinkButton url={shareUrl} />
+            {started ? (
+              <button
+                type="button"
+                className="btn btn-sm btn-primary hidden gap-1.5 lg:inline-flex"
+                onClick={() => setAdding(true)}
+              >
+                <PlusIcon size={15} />
+                Add an agent
+              </button>
+            ) : null}
             <ChannelShareButton url={shareUrl} channelName={channel.name} />
             <ChannelAddButton onOpen={() => setAdding(true)} />
             <ChannelMenuButton onOpen={() => setMenuOpen(true)} />
           </>
         }
       >
-        <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-2">
-          <b className="truncate font-semibold text-ink">{channel.name || 'Unnamed channel'}</b>
-          <span aria-hidden>·</span>
-          <span className="whitespace-nowrap">{channel.mode}</span>
-          <span aria-hidden className="hidden sm:inline">
-            ·
-          </span>
-          <span className="hidden whitespace-nowrap sm:inline">
-            {participants.length} of {channel.max_participants}
-          </span>
-          <span aria-hidden className="hidden sm:inline">
-            ·
-          </span>
-          <span className="hidden sm:inline">
-            <ExpiryCountdown expiresAt={channel.expires_at} />
-          </span>
+        <div className="grid min-w-0 gap-px lg:flex lg:items-center lg:gap-2">
+          <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-2">
+            <b className="truncate text-[14.5px] font-semibold text-ink lg:text-[13px]">
+              {channel.name || 'Unnamed channel'}
+            </b>
+            <span aria-hidden className="hidden lg:inline">
+              ·
+            </span>
+            <span className="hidden whitespace-nowrap lg:inline">{channel.mode}</span>
+            <span aria-hidden className="hidden lg:inline">
+              ·
+            </span>
+            <span className="hidden lg:inline">
+              <ExpiryCountdown expiresAt={channel.expires_at} />
+            </span>
+          </div>
+          {/* Below the name on a phone, where the roster is behind the menu: who is here, and the way to them. */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-haspopup="dialog"
+            className="-ml-1 flex w-fit min-w-0 items-center gap-1.5 rounded-[8px] px-1 text-[12px] text-ink-3 transition-colors hover:bg-panel-2 hover:text-ink-2 lg:hidden"
+          >
+            {participants.length > 0 ? <PresenceStack room={room} colorFor={colorFor} size="sm" /> : null}
+            <span className="whitespace-nowrap">
+              {participants.length === 0 ? 'Nobody here yet' : `${participants.length} in the room`}
+            </span>
+            <span aria-hidden>·</span>
+            <ExpiryCountdown expiresAt={channel.expires_at} className="text-[12px]" />
+          </button>
         </div>
       </TopBar>
 
@@ -423,8 +586,8 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             className="pane-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 lg:px-6"
           >
             {/* A running conversation sits on the composer; an empty channel
-                centres its one piece of business instead. */}
-            <div className={`mx-auto w-full max-w-[92ch] ${started ? 'mt-auto' : 'my-auto'}`}>
+                reads from the top, as the setup page it is. */}
+            <div className={`mx-auto w-full ${started ? 'mt-auto max-w-[92ch]' : 'max-w-[1040px]'}`}>
               {started ? (
                 <ReplyProvider onReply={setReplyingTo}>
                   <Transcript
@@ -435,24 +598,15 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
                   />
                 </ReplyProvider>
               ) : (
-                <div className="mx-auto grid w-full max-w-[520px] gap-4 py-6">
-                  <div className="grid gap-1.5">
-                    <h2 className="m-0 font-sans text-[17px] font-semibold">Nobody has spoken yet</h2>
-                    <p className="m-0 text-sm leading-relaxed text-ink-2">
-                      Copy this into an agent and it will join the channel. Paste one per agent, changing the name each
-                      time, then watch them here.
-                    </p>
-                  </div>
-                  <div className="overflow-hidden rounded-[16px] border border-line bg-panel-2 [--frame-radius:16px]">
-                    <PromptBox
-                      host={host}
-                      channelId={channelId}
-                      channelName={channel.name}
-                      invite={invite}
-                      mode={channel.mode}
-                    />
-                  </div>
-                </div>
+                <Setup room={room} colorFor={colorFor}>
+                  <PromptBox
+                    host={host}
+                    channelId={channelId}
+                    channelName={channel.name}
+                    invite={invite}
+                    mode={channel.mode}
+                  />
+                </Setup>
               )}
               <div ref={tail} />
             </div>
@@ -473,7 +627,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
         </main>
 
         <aside
-          className="order-1 hidden w-full shrink-0 flex-col border-line bg-panel-2 lg:order-2 lg:flex lg:w-[320px] lg:border-l"
+          className="order-1 hidden w-full shrink-0 flex-col border-line bg-panel-2 lg:order-2 lg:flex lg:w-[300px] lg:border-l"
           aria-label="Room"
         >
           <section className="pane-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4" aria-label="In the room">
@@ -487,14 +641,9 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             )}
           </section>
 
-          <div className="shrink-0 border-t border-line px-4 py-4">
-            {started ? (
-              <button type="button" className="btn btn-sm btn-primary mb-4 w-full" onClick={() => setAdding(true)}>
-                Add an agent
-              </button>
-            ) : null}
-            <Controls
-              shareUrl={shareUrl}
+          <div className="shrink-0 border-t border-line px-4 py-3">
+            <ChannelActions
+              tone="panel-2"
               canClose={canClose}
               onClose={closeChannel}
               transcript={{ channel, items, participants }}
@@ -508,6 +657,8 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
         onClose={() => setMenuOpen(false)}
         meta={
           <span className="flex min-w-0 items-center gap-2 text-[13px] text-ink-3">
+            <span className="whitespace-nowrap">{channel.mode}</span>
+            <span aria-hidden>·</span>
             <span className="whitespace-nowrap">
               {participants.length} of {channel.max_participants}
             </span>
@@ -516,13 +667,6 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
           </span>
         }
       >
-        <nav className="border-b border-line px-2 py-4" aria-label="Channels">
-          <h3 className="m-0 mb-2 px-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
-            Channels
-          </h3>
-          <ChannelList />
-          <p className="m-0 mt-3 px-2 text-[12px] leading-relaxed text-ink-3">{channelListNote}</p>
-        </nav>
         <div className="px-4 py-4">
           <h3 className="m-0 mb-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
             In the room
@@ -533,33 +677,20 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             <Roster participants={room} colorFor={colorFor} />
           )}
         </div>
-        <div className="border-t border-line px-4 py-4">
-          {started ? (
-            <button
-              type="button"
-              className="btn btn-sm btn-primary mb-4 w-full"
-              onClick={() => {
-                setMenuOpen(false)
-                setAdding(true)
-              }}
-            >
-              Add an agent
-            </button>
-          ) : null}
-          <Controls
+        <div className="border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <ChannelActions
             shareUrl={shareUrl}
             canClose={canClose}
             onClose={closeChannel}
             transcript={{ channel, items, participants }}
           />
-          <CreateChannelButton className="btn btn-sm btn-secondary mt-4 w-full">New channel</CreateChannelButton>
         </div>
       </ChannelMenu>
 
       {/* Mounted here rather than in the root layout: the toast store is a module
           singleton, and Next gives each client boundary its own copy of it, so a
           toaster in the layout never sees a call made from this one. */}
-      <Toaster position="top-right" theme="light" />
+      <Toaster position="top-center" theme="light" />
 
       <AddAgentDialog
         open={adding}

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { sileo } from 'sileo'
-import { CloseIcon, MoreIcon, PlusIcon, ShareIcon } from '../icons'
+import { CloseIcon, CopyIcon, MoreIcon, PlusIcon, ShareIcon } from '../icons'
 import { copyText } from './copy-text'
 
 /**
@@ -65,6 +65,31 @@ export function ChannelShareButton({ url, channelName }: { url: string; channelN
       }}
     >
       <ShareIcon size={18} />
+    </button>
+  )
+}
+
+const keyWarning = 'Anyone with it can join and read the channel. It carries the invite, so treat it like a key.'
+
+/**
+ * The desktop's share: a computer has no share sheet worth opening, so the
+ * link goes to the clipboard, and the warning that used to stand in the side
+ * pane arrives with it, at the one moment it applies.
+ */
+export function ChannelCopyLinkButton({ url }: { url: string }) {
+  return (
+    <button
+      type="button"
+      className="btn btn-sm btn-secondary hidden gap-2 lg:inline-flex"
+      title={`Copy the channel link. ${keyWarning}`}
+      onClick={async () => {
+        if (await copyText(url))
+          sileo.success({ title: 'Channel link copied', description: keyWarning, duration: 6_000 })
+        else sileo.warning({ title: 'The link could not be copied', duration: 5_000 })
+      }}
+    >
+      <CopyIcon size={15} />
+      Copy link
     </button>
   )
 }

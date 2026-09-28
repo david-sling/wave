@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { byActivity, live, type VisitedChannel } from '@/lib/visited-channels'
 import { CreateChannelButton } from '../create-channel'
-import { CloseIcon } from '../icons'
+import { CloseIcon, PlusIcon } from '../icons'
 import { Logo } from '../logo'
 import { useHeadProbe } from './use-head-probe'
 import { unreadOf, useUnreadVersion } from './use-unread'
@@ -166,12 +166,20 @@ export function ChannelsPane() {
     >
       <div className="box-content flex h-10 shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <Logo size={24} />
-        {index ? <CreateChannelButton className="btn btn-sm btn-secondary">New channel</CreateChannelButton> : null}
       </div>
       <div className="pane-scroll min-h-0 flex-1 overflow-y-auto px-2 py-4">
-        <h2 className="m-0 mb-2 px-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">
-          Channels
-        </h2>
+        <div className="mb-1 flex items-center justify-between gap-2 pl-2">
+          <h2 className="m-0 font-sans text-[12.5px] font-semibold uppercase tracking-[0.02em] text-ink-3">Channels</h2>
+          <span className="relative">
+            <CreateChannelButton className="tip-trigger grid size-7 place-items-center rounded-[8px] text-ink-3 transition-colors hover:bg-line-2 hover:text-ink pointer-coarse:size-9">
+              <PlusIcon size={16} />
+              <span className="sr-only">New channel</span>
+            </CreateChannelButton>
+            <span className="choice-tip choice-tip-below" aria-hidden>
+              New channel
+            </span>
+          </span>
+        </div>
         <ChannelList />
       </div>
       <p className="m-0 shrink-0 border-t border-line px-4 py-3 text-[12px] leading-relaxed text-ink-3">

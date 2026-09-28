@@ -164,28 +164,8 @@ export function Compose({
   const seatOf = seatingOf(participants)
 
   return (
-    <div className="grid gap-2.5 px-4 py-3 lg:px-6">
-      {joinedAs === null ? (
-        <div className="flex items-center gap-2">
-          <label htmlFor="human-name" className="shrink-0 text-[13px] font-semibold">
-            Your name
-          </label>
-          <input
-            id="human-name"
-            ref={nameField}
-            className="input h-9 max-w-[220px] text-sm"
-            placeholder="David"
-            maxLength={40}
-            autoComplete="name"
-          />
-          <span className="text-xs text-ink-3">shown to the agents</span>
-        </div>
-      ) : null}
-
+    <div className="grid gap-2 px-4 py-3 lg:px-6">
       <div className="relative grid gap-2">
-        <label htmlFor="compose" className="sr-only">
-          Message
-        </label>
         {replyTo ? (
           <div className="flex min-w-0 items-baseline gap-1.5 border-l-2 border-line-2 pl-2 text-[12.5px] text-ink-3">
             <span aria-hidden className="shrink-0">
@@ -243,73 +223,108 @@ export function Compose({
             ))}
           </ul>
         ) : null}
-        <textarea
-          id="compose"
-          ref={box}
-          role="combobox"
-          aria-expanded={open}
-          aria-controls="mention-menu"
-          aria-autocomplete="list"
-          aria-activedescendant={open ? `mention-${Math.min(active, offered.length - 1)}` : undefined}
-          className="input h-auto min-h-[52px] resize-y py-2.5 leading-relaxed"
-          value={text}
-          onChange={(event) => {
-            setText(event.target.value)
-            retrack(event.target.value, event.target.selectionStart)
-          }}
-          onSelect={(event) => retrack(event.currentTarget.value, event.currentTarget.selectionStart)}
-          onBlur={() => setToken(null)}
-          onKeyDown={(event) => {
-            // ⌘↵ sends whatever is open: the menu is an aid to writing the
-            // message, never a thing standing between it and being sent.
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-              void send()
-              return
-            }
-            if (!open) {
-              // The menu has first claim on Escape; with it closed, Escape
-              // drops the reply rather than leaving the only way out a mouse.
-              if (event.key === 'Escape' && replyTo) {
-                event.preventDefault()
-                onCancelReply?.()
+        <div className="compose-box">
+          <label htmlFor="compose" className="sr-only">
+            Message
+          </label>
+          <textarea
+            id="compose"
+            ref={box}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls="mention-menu"
+            aria-autocomplete="list"
+            aria-activedescendant={open ? `mention-${Math.min(active, offered.length - 1)}` : undefined}
+            rows={1}
+            className="block max-h-[40dvh] min-h-[48px] w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-[15px] leading-relaxed text-ink outline-none [field-sizing:content] placeholder:text-ink-3"
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value)
+              retrack(event.target.value, event.target.selectionStart)
+            }}
+            onSelect={(event) => retrack(event.currentTarget.value, event.currentTarget.selectionStart)}
+            onBlur={() => setToken(null)}
+            onKeyDown={(event) => {
+              // ⌘↵ sends whatever is open: the menu is an aid to writing the
+              // message, never a thing standing between it and being sent.
+              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                void send()
+                return
               }
-              return
+              if (!open) {
+                // The menu has first claim on Escape; with it closed, Escape
+                // drops the reply rather than leaving the only way out a mouse.
+                if (event.key === 'Escape' && replyTo) {
+                  event.preventDefault()
+                  onCancelReply?.()
+                }
+                return
+              }
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault()
+                const step = event.key === 'ArrowDown' ? 1 : offered.length - 1
+                setActive((current) => (Math.min(current, offered.length - 1) + step) % offered.length)
+                return
+              }
+              if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault()
+                accept(chosen)
+                return
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                setToken(null)
+              }
+            }}
+            placeholder={
+              replyTo
+                ? `Reply to ${replyTo.from?.name ?? `message ${replyTo.seq}`}…`
+                : joinedAs
+                  ? `Say something as ${joinedAs}…`
+                  : 'Say something to the agents…'
             }
-            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-              event.preventDefault()
-              const step = event.key === 'ArrowDown' ? 1 : offered.length - 1
-              setActive((current) => (Math.min(current, offered.length - 1) + step) % offered.length)
-              return
-            }
-            if (event.key === 'Enter' || event.key === 'Tab') {
-              event.preventDefault()
-              accept(chosen)
-              return
-            }
-            if (event.key === 'Escape') {
-              event.preventDefault()
-              setToken(null)
-            }
-          }}
-          placeholder={
-            replyTo
-              ? `Reply to ${replyTo.from?.name ?? `message ${replyTo.seq}`}…`
-              : joinedAs
-                ? `Say something as ${joinedAs}…`
-                : 'Say something to the agents…'
-          }
-          maxLength={4_000}
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => void send()} disabled={!ready}>
-          Send
-        </button>
-        <span className="text-xs text-ink-3">
-          &#8984;&#8629; to send. Agents see it in their next poll.
-          {participants.length > 0 ? ' Type @ to name someone.' : ''}
-        </span>
+            maxLength={4_000}
+          />
+          <div className="flex items-center gap-2 px-2 pb-2">
+            {joinedAs === null ? (
+              // The name is asked once, here, where it starts to matter. It sits
+              // in the human's own colour because it is what the agents will see.
+              <label className="flex h-8 min-w-0 items-center gap-1 rounded-full bg-peach-soft pl-3 pr-1 text-[13px] text-peach-ink">
+                <span aria-hidden className="font-medium">
+                  as
+                </span>
+                <span className="sr-only">Your name, shown to the agents</span>
+                <input
+                  id="human-name"
+                  ref={nameField}
+                  className="h-6 min-w-[10ch] max-w-[20ch] rounded-full bg-panel/70 px-2 text-[13px] font-medium text-ink outline-none [field-sizing:content] placeholder:font-normal placeholder:text-peach-ink focus-visible:bg-panel"
+                  placeholder="your name"
+                  maxLength={40}
+                  autoComplete="name"
+                />
+              </label>
+            ) : (
+              <span
+                className="min-w-0 truncate rounded-full bg-peach-soft px-3 py-1 text-[13px] font-medium text-peach-ink"
+                title="The name the agents see"
+              >
+                as {joinedAs}
+              </span>
+            )}
+            <span className="ml-auto hidden whitespace-nowrap text-xs text-ink-3 sm:inline">
+              &#8984;&#8629; to send{participants.length > 0 ? ' · @ to mention' : ''}
+            </span>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm ml-auto h-8 px-4 sm:ml-0"
+              onClick={() => void send()}
+              disabled={!ready}
+              title="Agents see it on their next poll"
+            >
+              Send
+            </button>
+          </div>
+        </div>
       </div>
 
       {failure ? (
