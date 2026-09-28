@@ -215,21 +215,25 @@ export function PromptBox({
         </div>
       </div>
 
-      {/* The prompt, shown as what it is: the thing being handed to the agent.
-          Legible where it starts, fading into the ground where Copy prompt sits,
-          so the box reads as "text to take" rather than a document to work
-          through, and the name is marked where the prompt carries it. */}
-      <div className="relative mt-5 shrink-0 border-t border-line bg-ground">
+      {/* The prompt, shown as what it is: the thing being handed to the agent,
+          legible where it starts and fading into the ground, with the name
+          marked where the prompt carries it. Under it, Copy prompt spans the
+          box and says what it takes, so the action and its object are one
+          thing. */}
+      <div className="mt-5 shrink-0 border-t border-line bg-ground">
         <pre
           aria-hidden
-          className="m-0 max-h-[152px] overflow-hidden whitespace-pre-wrap break-words px-5 pb-16 pt-4 font-mono text-[11px] leading-[1.6] text-ink-2 [mask-image:linear-gradient(to_bottom,black_40%,transparent_92%)]"
+          className="m-0 max-h-[120px] overflow-hidden whitespace-pre-wrap break-words px-5 pb-2 pt-4 font-mono text-[11px] leading-[1.6] text-ink-2 [mask-image:linear-gradient(to_bottom,black_30%,transparent)]"
         >
           {marked}
         </pre>
-        <div className="pointer-events-none absolute inset-x-0 bottom-5 grid place-items-center">
-          <span className="pointer-events-auto">
-            <CopyButton value={prompt} label="Copy prompt" size="md" />
-          </span>
+        <div className="px-5 pb-5 pt-1">
+          <CopyButton
+            value={prompt}
+            label="Copy prompt"
+            size="md"
+            detail={`${prompt.split("\n").length} lines · for ${shownName}`}
+          />
         </div>
         <span className="sr-only">{prompt}</span>
       </div>

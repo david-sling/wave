@@ -146,6 +146,16 @@
   }
 
   /* Copied: the presence green, used here as confirmation rather than status. */
+  /* A button that spans its container stays where it is on hover: a bar that
+     lifts reads as the whole footer moving. It answers with its fill instead,
+     a step lighter than ink. */
+  .btn-bar:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+  .btn-bar.btn-primary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-ink) 88%, var(--color-panel));
+  }
   .btn-copied {
     background: var(--color-ok);
     color: var(--color-panel);
