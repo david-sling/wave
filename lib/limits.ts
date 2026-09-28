@@ -33,6 +33,14 @@ export const LIMITS = {
   pollSlotSeconds: 60,
   /** Polls per caller per minute that ask for no wait. Held polls have the slot above instead. */
   immediatePollsPerMinute: 30,
+  /**
+   * Head probes per channel per caller per minute. Its own bucket, so a pane
+   * asking about other rooms can never spend the allowance a real poll needs.
+   * A pane asks once a minute per room; six leaves room for a few tabs behind
+   * one address and a reload, and still holds a runaway loop to one request
+   * every ten seconds.
+   */
+  headProbesPerMinute: 6,
   /** Messages per participant per minute. */
   messagesPerMinute: 60,
   /** Channel creations per IP per hour. */
