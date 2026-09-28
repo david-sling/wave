@@ -11,9 +11,9 @@ const initialState: CreateChannelState = {}
 export const adminTokenKey = (channelId: string) => `wave.admin.${channelId}`
 
 const ttlOptions = [
-  { value: '1h', label: '1 hour', summary: '1 hour' },
-  { value: '24h', label: '24 hours', summary: '24 hours' },
-  { value: '7d', label: '7 days', summary: '7 days' },
+  { value: '1h', label: '1h', summary: '1 hour' },
+  { value: '24h', label: '24h', summary: '24 hours' },
+  { value: '7d', label: '7d', summary: '7 days' },
 ]
 
 type Draft = { name: string; ttl: string; maxParticipants: string }
@@ -103,11 +103,11 @@ export function CreateChannelDialog({
       onClick={(event) => {
         if (event.target === dialog.current) onClose()
       }}
-      className="dialog-modal dialog-adaptive m-auto w-[min(92vw,480px)] overflow-hidden rounded-[20px] border border-line bg-panel p-0 text-left text-ink max-sm:mx-0 max-sm:mb-0 max-sm:mt-auto max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:border-b-0 max-sm:pb-[env(safe-area-inset-bottom)]"
+      className="dialog-modal dialog-adaptive m-auto w-[min(92vw,420px)] overflow-hidden rounded-[20px] border border-line bg-panel p-0 text-left text-ink max-sm:mx-0 max-sm:mb-0 max-sm:mt-auto max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:border-b-0 max-sm:pb-[env(safe-area-inset-bottom)]"
       aria-labelledby={`${id}-heading`}
     >
       <form onSubmit={onSubmit}>
-        <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-3.5">
+        <div className="flex items-center justify-between gap-4 border-b border-line py-2.5 pl-4 pr-2.5">
           <h2 id={`${id}-heading`} className="m-0 font-sans text-[15px] font-semibold">
             Create a channel
           </h2>
@@ -121,9 +121,9 @@ export function CreateChannelDialog({
           </button>
         </div>
 
-        <div className="grid gap-6 px-5 py-5">
-          <div className="grid gap-2">
-            <label htmlFor={`${id}-name`} className="text-sm font-semibold">
+        <div className="grid gap-4 p-4">
+          <div className="grid gap-1.5">
+            <label htmlFor={`${id}-name`} className="text-[13px] font-semibold">
               Name <span className="font-normal text-ink-3">optional</span>
             </label>
             <input
@@ -140,44 +140,49 @@ export function CreateChannelDialog({
             />
           </div>
 
-          <fieldset className="m-0 grid gap-2 border-0 p-0">
-            <legend className="mb-2 text-sm font-semibold">Expires after</legend>
-            <div className="segmented grid-cols-3">
-              {ttlOptions.map((option) => (
-                <label key={option.value}>
-                  <input
-                    type="radio"
-                    name="ttl"
-                    value={option.value}
-                    checked={draft.ttl === option.value}
-                    onChange={() => onDraft({ ...draft, ttl: option.value })}
-                  />
-                  <span>{option.label}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
+            <fieldset className="m-0 grid min-w-0 gap-1.5 border-0 p-0">
+              <legend className="mb-1.5 text-[13px] font-semibold">Expires after</legend>
+              <div className="segmented grid-cols-3">
+                {ttlOptions.map((option) => (
+                  <label key={option.value}>
+                    <input
+                      type="radio"
+                      name="ttl"
+                      value={option.value}
+                      checked={draft.ttl === option.value}
+                      onChange={() => onDraft({ ...draft, ttl: option.value })}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
 
-          <div className="grid gap-2">
-            <label htmlFor={`${id}-max`} className="text-sm font-semibold">
-              Participants
-            </label>
-            <input
-              id={`${id}-max`}
-              name="max_participants"
-              type="number"
-              min={2}
-              max={50}
-              value={draft.maxParticipants}
-              onChange={(event) => onDraft({ ...draft, maxParticipants: event.target.value })}
-              inputMode="numeric"
-              className="input"
-            />
-            <span className="text-[13px] text-ink-3">Agents and humans together, up to 50.</span>
+            <div className="grid content-start gap-1.5">
+              <label htmlFor={`${id}-max`} className="text-[13px] font-semibold">
+                People <span className="font-normal text-ink-3">≤ 50</span>
+              </label>
+              <input
+                id={`${id}-max`}
+                name="max_participants"
+                type="number"
+                min={2}
+                max={50}
+                value={draft.maxParticipants}
+                onChange={(event) => onDraft({ ...draft, maxParticipants: event.target.value })}
+                inputMode="numeric"
+                aria-describedby={`${id}-max-hint`}
+                className="input"
+              />
+              <span id={`${id}-max-hint`} className="sr-only">
+                Agents and humans together, from 2 to 50.
+              </span>
+            </div>
           </div>
 
-          <fieldset className="m-0 grid gap-2 border-0 p-0">
-            <legend className="mb-2 text-sm font-semibold">Mode</legend>
+          <fieldset className="m-0 grid gap-1.5 border-0 p-0">
+            <legend className="mb-1.5 text-[13px] font-semibold">Mode</legend>
             <div className="segmented grid-cols-2">
               <label>
                 <input type="radio" name="mode" value="standard" defaultChecked />
@@ -188,15 +193,15 @@ export function CreateChannelDialog({
                 <span>Encrypted</span>
               </label>
             </div>
-            <span className="text-[13px] text-ink-3">
-              Standard: TLS in transit, deleted when the channel expires or is closed. End-to-end encryption is planned.
+            <span className="text-[12.5px] text-ink-3">
+              Deleted when it expires or is closed. Encryption is coming.
             </span>
           </fieldset>
 
           <ErrorNote error={state.error} />
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-line px-5 py-4 max-sm:justify-end">
+        <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3 max-sm:justify-end">
           <span className="text-[13px] text-ink-3 max-sm:hidden">Free, no account.</span>
           <div className="flex gap-2">
             <button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>
