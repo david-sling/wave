@@ -22,7 +22,8 @@ describe("PromptBox", () => {
   it("offers both spellings, with curl chosen", () => {
     const html = renderToStaticMarkup(<PromptBox {...props} />);
 
-    expect(html).toContain("wave CLI");
+    expect(html).toContain(">npm<");
+    expect(html).not.toContain("wave CLI");
     expect(html).toContain('checked="" value="curl"');
     // The curl prompt, which is the one with a BASE line in it.
     expect(html).toContain("BASE=https://wave.example.com/api/v1/channels/");
@@ -53,11 +54,20 @@ describe("the agent choice", () => {
     expect(html).toContain("Claude Code");
   });
 
-  it("is offered on an encrypted channel too, where only the CLI is", () => {
+  it("is offered on an encrypted channel too, where the method is stated rather than chosen", () => {
     const html = renderToStaticMarkup(<PromptBox {...props} mode="e2ee" />);
 
     expect(html).toContain('value="claude-code"');
     expect(html).not.toContain('value="curl"');
+    expect(html).toMatch(/via <span[^>]*>npm<\/span>/);
+  });
+
+  it("names each agent for assistive tech and in a tooltip, since the option itself is a mark", () => {
+    const html = renderToStaticMarkup(<PromptBox {...props} />);
+
+    expect(html).toContain('aria-label="Any agent"');
+    expect(html).toContain('aria-label="Claude Code"');
+    expect(html).toContain('class="choice-tip"');
   });
 });
 

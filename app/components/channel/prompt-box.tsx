@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import {
   AGENT_PROVIDERS,
   buildJoinPrompt,
@@ -8,7 +8,29 @@ import {
   type AgentProvider,
   type PromptVariant,
 } from "@/lib/join-prompt";
+import { ClientMark } from "../agent-marks";
+import { TerminalIcon } from "../icons";
 import { CopyButton } from "./copy-button";
+import { useRemembered } from "./remembered";
+
+const PROVIDERS = Object.keys(AGENT_PROVIDERS) as AgentProvider[];
+const VARIANTS: readonly PromptVariant[] = ["curl", "cli"];
+
+/** What each method is called on the page. `cli` is installed from npm, so that is its name here. */
+const VARIANT_LABEL: Record<PromptVariant, string> = { curl: "curl", cli: "npm" };
+
+/** What each method costs, said under the choice. */
+const NOTE: Record<PromptVariant | "encrypted", string> = {
+  curl: "Nothing to install. Your agent asks permission for each kind of call it makes.",
+  cli: "One install on the agent’s machine (Node 20 or later). Fewer permission prompts, and a wait is one tool call rather than one per poll.",
+  encrypted:
+    "This channel is encrypted, so the prompt uses the wave command: the key stays in the agent’s own process and never reaches a shell.",
+};
+
+const PROVIDER_MARK: Record<AgentProvider, ReactNode> = {
+  any: <TerminalIcon size={17} />,
+  "claude-code": <ClientMark client="claude" size={17} />,
+};
 
 /**
  * The join prompt, ready to paste (PRODUCT 6.2).
@@ -25,6 +47,9 @@ import { CopyButton } from "./copy-button";
  *
  * The agent choice fills in the client name for a known product, and defaults
  * to a blank the agent fills in itself.
+ *
+ * Both choices are remembered on this device: someone who runs Claude Code
+ * over npm picks that once, not once per channel.
  */
 export function PromptBox({
   host,
@@ -43,8 +68,8 @@ export function PromptBox({
   const encrypted = mode !== "standard";
   const [agentName, setAgentName] = useState(defaultAgentName(""));
   const [purpose, setPurpose] = useState("");
-  const [chosen, setChosen] = useState<PromptVariant>("curl");
-  const [provider, setProvider] = useState<AgentProvider>("any");
+  const [chosen, setChosen] = useRemembered("wave:prompt-method", VARIANTS, "curl");
+  const [provider, setProvider] = useRemembered("wave:prompt-agent", PROVIDERS, "any");
   // Two of these are mounted at once — the empty channel's and the dialog's —
   // and radio inputs outside a form share one group per name, so a fixed name
   // would make choosing in one box unchoose in the other.
@@ -99,61 +124,70 @@ export function PromptBox({
         />
       </div>
 
-      <div className="grid gap-2 px-4 pt-4">
-        <fieldset className="m-0 grid gap-2 border-0 p-0">
-          <legend className="mb-2 text-sm font-semibold">Agent</legend>
-          <div className="segmented grid-cols-2">
-            {(Object.keys(AGENT_PROVIDERS) as AgentProvider[]).map((value) => (
-              <label key={value}>
+      <div className="grid gap-2.5 px-4 pt-5">
+        <div className="choices">
+          <fieldset className="choice-group">
+            <legend className="sr-only">Agent</legend>
+            <span className="choice-caption" aria-hidden>
+              For
+            </span>
+            {PROVIDERS.map((value) => (
+              <label key={value} className="choice choice-mark">
                 <input
                   type="radio"
                   name={`prompt-provider-${group}`}
                   value={value}
                   checked={provider === value}
                   onChange={() => setProvider(value)}
+                  aria-label={AGENT_PROVIDERS[value]}
                 />
-                <span>{AGENT_PROVIDERS[value]}</span>
+                {PROVIDER_MARK[value]}
+                <span className="choice-tip" aria-hidden>
+                  {AGENT_PROVIDERS[value]}
+                </span>
               </label>
             ))}
-          </div>
-        </fieldset>
-      </div>
-
-      <div className="grid gap-2 px-4 pt-4">
-        {encrypted ? null : (
-          <fieldset className="m-0 grid gap-2 border-0 p-0">
-            <legend className="mb-2 text-sm font-semibold">How it talks to the channel</legend>
-            <div className="segmented grid-cols-2">
-              <label>
-                <input
-                  type="radio"
-                  name={`prompt-variant-${group}`}
-                  value="curl"
-                  checked={variant === "curl"}
-                  onChange={() => setChosen("curl")}
-                />
-                <span>curl</span>
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name={`prompt-variant-${group}`}
-                  value="cli"
-                  checked={variant === "cli"}
-                  onChange={() => setChosen("cli")}
-                />
-                <span>wave CLI</span>
-              </label>
-            </div>
           </fieldset>
-        )}
-        <p className="m-0 text-[13px] leading-relaxed text-ink-3">
-          {encrypted
-            ? "This channel is encrypted, so the prompt uses the wave command: the key stays in the agent’s own process and never reaches a shell."
-            : variant === "curl"
-              ? "Nothing to install. Your agent asks permission for each kind of call it makes."
-              : "One install on the agent’s machine (Node 20 or later). Fewer permission prompts, and a wait is one tool call rather than one per poll."}
-        </p>
+
+          {encrypted ? (
+            <span className="choice-caption">
+              via <span className="font-medium text-ink">npm</span>
+            </span>
+          ) : (
+            <fieldset className="choice-group">
+              <legend className="sr-only">How it talks to the channel</legend>
+              <span className="choice-caption" aria-hidden>
+                via
+              </span>
+              {VARIANTS.map((value) => (
+                <label key={value} className="choice">
+                  <input
+                    type="radio"
+                    name={`prompt-variant-${group}`}
+                    value={value}
+                    checked={variant === value}
+                    onChange={() => setChosen(value)}
+                  />
+                  <span>{VARIANT_LABEL[value]}</span>
+                </label>
+              ))}
+            </fieldset>
+          )}
+        </div>
+        {/* Every note is laid out in the same cell and only the current one is
+            visible, so the cell is as tall as the longest and switching method
+            never resizes the dialog around it. */}
+        <div className="grid text-[13px] leading-relaxed text-ink-3">
+          {(encrypted ? (["encrypted"] as const) : VARIANTS).map((key) => (
+            <p
+              key={key}
+              className={`col-start-1 row-start-1 m-0 ${key === "encrypted" || key === variant ? "" : "invisible"}`}
+              aria-hidden={key !== "encrypted" && key !== variant}
+            >
+              {NOTE[key]}
+            </p>
+          ))}
+        </div>
       </div>
 
       {/* A preview, not a document: nobody reads this, they copy it. It stays
