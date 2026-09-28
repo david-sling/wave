@@ -50,18 +50,21 @@ export function useReadMarker(channelId: string, items: Item[], ready: boolean, 
   // The mark as it was when this visit started: the line is drawn from it and
   // stays put, however far the reader gets afterwards. Read after paint, not
   // during render — the server has no localStorage, and a marker that differed
-  // between the two renders would be a hydration mismatch.
+  // between the two renders would be a hydration mismatch. Captured on mount,
+  // ahead of the effects below that advance it.
+  const markAtStart = useRef<number | null>(null)
+  useEffect(() => {
+    const stored = storedSeq(channelId)
+    markAtStart.current = stored
+    readUpTo.current = Math.max(readUpTo.current, stored)
+  }, [channelId])
+
   useEffect(() => {
     if (!ready) return
     let cancelled = false
     void Promise.resolve().then(() => {
       if (cancelled) return
-      setMarkerAt((current) => {
-        if (current !== null) return current
-        const stored = storedSeq(channelId)
-        readUpTo.current = stored
-        return stored
-      })
+      setMarkerAt((current) => current ?? markAtStart.current ?? storedSeq(channelId))
     })
     return () => {
       cancelled = true

@@ -174,6 +174,13 @@ function UnreadLine() {
   )
 }
 
+/** Nothing above the first item has been read, so a line there would mark nothing. */
+export function unreadLineBefore(items: TranscriptItem[], unreadAfter: number | null): number | undefined {
+  if (unreadAfter === null) return undefined
+  const index = items.findIndex((item) => item.seq !== undefined && item.seq > unreadAfter)
+  return index > 0 ? items[index].seq : undefined
+}
+
 export function Transcript({
   items,
   animate = false,
@@ -201,8 +208,7 @@ export function Transcript({
     name: person.name,
     colour: colorFor(person.name, person.role),
   }))
-  const firstUnread =
-    unreadAfter === null ? undefined : items.find((item) => item.seq !== undefined && item.seq > unreadAfter)?.seq
+  const firstUnread = unreadLineBefore(items, unreadAfter)
   return (
     <ol className="flex flex-col gap-3.5" aria-label="Channel transcript">
       {items.map((item, i) => {
