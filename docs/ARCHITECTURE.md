@@ -520,3 +520,81 @@ The per-channel MCP endpoint from PRODUCT section 13. This is a sketch, not a de
 - Cursor: held server-side per MCP session in the same record, so the agent never sees a `seq`. This differs from the CLI, which keeps the cursor on the client, and is acceptable because the MCP session is the only reader of it.
 - What it buys: `claude mcp add --transport http wave <url> --header "Authorization: Bearer <invite>"` and no per-command permission prompt at all.
 - What it cannot do: `e2ee`. The endpoint runs on the instance and cannot decrypt. The fallback is a `wave mcp` subcommand that runs a stdio MCP server locally, holding a session string and its key for the life of the process. That may turn out to be the better design for both modes, since it needs no server code; the design pass should decide.
+
+## 14. Accounts and sign-in (design)
+
+The design for [AUTH.md](AUTH.md). Every constraint there is assumed; this section says how it is met, and names each place where the library chosen does not meet one on its own.
+
+### The library
+
+Sign-in is built on [Better Auth](https://better-auth.com) 1.7, a self-hosted TypeScript library with no hosted service behind it. AUTH.md 2.6 says identity is built, not bought; a library the instance runs itself is built in the sense that matters, which is that no self-hosted instance depends on anyone's uptime or terms. It is chosen because it already implements, in one dependency with public code, the four things the constraints ask for and that are expensive to get right alone: passkeys over WebAuthn (`@better-auth/passkey`), magic links with hashed tokens, server-side sessions that are listable and revocable, and the RFC 8628 device flow `wave login` needs. What it does not do is decided here and enforced in a thin wrapper, `lib/accounts/`, which is the only module that imports it.
+
+Plugins: `passkey`, `magicLink`, `deviceAuthorization`, `nextCookies`. Social providers from configuration. Not enabled: email and password, the bearer plugin, cookie caching, cross-subdomain cookies, implicit account linking.
+
+### The store
+
+Postgres, through the library's built-in Kysely adapter over a `pg` pool, configured by `DATABASE_URL`. One dialect, so one migration set and one thing to test. On the reference instance it is a Postgres from the Vercel marketplace in the runtime's region. Under Docker Compose a `postgres` service joins the app and Redis only when the operator turns sign-in on, through a compose profile, so the two-service instance in section 9 stays exactly as it is. Migrations run from the library's CLI (`npm run accounts:migrate`), by a one-shot compose service or before a deploy.
+
+The store holds the library's four tables (user, session, account, verification), the passkey and device-code tables, and one of ours: `owned_channel(account_id, channel_id, created_at, expires_at)`. Nothing else. Redis holds the channel and, on the channel hash, one new field, `owner_id`. Neither store references the other's records except by these two ids.
+
+### Off by default
+
+`lib/accounts/config.ts` reads `AUTH_SECRET`, `DATABASE_URL`, and the email sender variables, lazily, the way `lib/config.ts` reads the rest. Sign-in is on when all three are present and valid; when any is absent the instance is off: the handler at `app/api/auth/[...all]` answers 404, pages render no sign-in, `getAccountSession` returns nothing without touching a store, and no cookie is ever read. A cookie presented to an instance that is off is therefore indistinguishable from no cookie (AUTH.md 3.10). Partial configuration fails the sign-in request with the variable named and leaves anonymous use untouched (AUTH.md 3.11).
+
+The reference instance turns sign-in on. Preview deployments do not, unless given their own Postgres, for the same reason section 8 gives them their own Redis prefix.
+
+### Methods
+
+- **Email is the identifier.** Sign-up is: enter an email, receive a link, open it, and the account exists with the email verified. The page then offers to add a passkey, which registers against the account (`addPasskey`). No account exists with an unverified email.
+- **Passkeys are the first thing the sign-in page tries**, through conditional UI on the email field, so a person with a passkey never types anything. `rpID` is the hostname of `HOST`; `origin` is `HOST`. `residentKey: 'required'`, `userVerification: 'preferred'`.
+- **The magic link carries its token in the fragment.** `sendMagicLink` receives the raw token; the email links to `{{HOST}}/signin/link#<token>`. That page reads the fragment into memory and calls a server action, which calls `auth.api.magicLinkVerify` in-process, with the token in the call and never in a request URL. The library stores the token hashed (`storeToken: 'hashed'`) and expires it after five minutes. The server action is the only caller of the verify endpoint; the library's own `GET /magic-link/verify` is refused by a `hooks.before` rule so the token cannot be sent as a query by mistake.
+- **Simple OAuth** is the library's social providers, each configured by a pair of environment variables and absent when unset. Only providers that assert a verified email are offered, so the email rule holds for accounts created this way. `account.accountLinking.disableImplicitLinking` is on: a provider sign-in whose email matches an existing account is refused rather than linked, and a signed-in person links a provider from their account page instead (AUTH.md 5.5).
+- **The email sender** is SMTP, configured by `EMAIL_URL` and `EMAIL_FROM`. Any provider that speaks SMTP works and none is named. The message is plain text with the link and nothing else that identifies the instance beyond `HOST`.
+
+### Sessions
+
+Server-side rows, thirty days long, refreshed once a day when used, checked against the store on every request. `advanced.ipAddress.disableIpTracking` is on: no address is stored on a session, in keeping with PRODUCT section 15.1. The cookie is `HttpOnly`, `Secure`, `SameSite=Lax`, prefixed `wave`, on the origin of `HOST` and no wider.
+
+Provenance is two additional session fields, `method` and `issuer`, set in `databaseHooks.session.create.before` from the path that created the session: `passkey`, `magic-link`, `oauth` with the provider id as issuer, `device` for a session handed to the CLI. This is the seam AUTH.md 5.3 and 5.6 require, and it applies to any method a plugin adds later, because every method creates its session through the same hook.
+
+The account page lists sessions with method, created and last-used times, and a revoke button; revoking hits the library's `revokeSession`, which deletes the row.
+
+**Deviation to confirm in the spike.** The library's session table stores the session token as the cookie carries it, not hashed; AUTH.md 3.1 asks for a hash. The store sits inside the same trust boundary as `AUTH_SECRET`, so a read of one is a read of both, and the exposure is the same as the one PRODUCT 15.2 already accepts for `REDIS_URL`. If the spike confirms the token is plain, the constraint is amended to say so and why; if the library hashes it, nothing changes.
+
+### Ownership
+
+- `createChannel` takes an optional `ownerId`. The create route resolves the session from the request headers before calling it, and the id lands on the channel hash as `owner_id` and in `owned_channel` with the channel's expiry. It is written here and nowhere else.
+- **The owned-channels list** is the account's rows in `owned_channel`, joined against Redis for liveness. A row whose channel is gone is deleted on read, and `closeChannel` deletes the row on close, so the list is bounded (AUTH.md 4.3). The channels pane merges this list with the visited list the browser already keeps.
+- **Rotate the admin token** is a server action: session to account, `owner_id` on the channel hash must equal the account id or the action answers as if the channel did not exist, then a new token is generated, its hash replaces `admin_hash` in one `HSET`, and the plain token is returned once and stored by the page where the create dialog stores it today. There is no read; the old token fails on its next request (AUTH.md 3.6).
+- **Nothing on `/api/v1/*` reads a session.** `lib/auth.ts` is unchanged, and an integration test sends a valid session cookie to every API route and asserts it is treated as no credential.
+- **Per-account limits** join `lib/limits.ts`: live owned channels per account, channel creation per account per minute, and sign-in and link requests per address per window. The account counters key on a salted hash of the account id, like the IP counters. The library's own rate limiter is pointed at the same Redis counters through `rateLimit.customStorage`, with `customRules` for the sign-in, link, passkey, and device paths, so one mechanism counts everything.
+- **Account deletion** is the library's user delete, with a `databaseHooks.user.delete.before` hook that clears `owner_id` from every channel in `owned_channel`, then the rows, then the sessions. The channels keep running on their admin tokens.
+
+### `wave login`
+
+The library's device flow. `wave login --host {{HOST}}` asks `POST /api/auth/device/code` with client id `wave-cli`, prints the user code and `{{HOST}}/device`, and polls `/device/token` at the interval the server returns until the person approves. The approval page requires a live browser session, which is what makes whatever that session required apply. The CLI receives a session token whose provenance is `device`, and stores it under the host in the operating system's credential store through `@napi-rs/keyring`, a prebuilt native binding with no build step, the one module permitted by the extended no-state test (section 11). `wave logout` revokes the session server-side before deleting the local copy; `wave whoami` reads it. No agent command reads the store, and `join` never writes to it. Codes are eight characters, single-use, expire in ten minutes, and are bound to the session that claims them.
+
+### Tests
+
+- Every `/api/v1/*` route ignores a valid session cookie.
+- An instance with no sign-in configuration ignores any cookie and answers 404 on the auth handler.
+- The magic-link page never issues a request with the token in its URL; the library's GET verify path is refused.
+- A provider sign-in with an email matching an existing account is refused, not linked.
+- Rotate is refused for a channel the account does not own, with the same answer as for a channel that does not exist.
+- Sessions carry `method` and `issuer` for each method, including the device flow.
+- The sweep and close touch nothing in Postgres except `owned_channel`.
+- Isolation: two accounts, each sees only its own channels and sessions.
+
+### Order of work
+
+1. Spike: the library against the constraints above, in a branch, no UI. Confirms the provenance hook, the in-process link verification, the device flow's session token, and whether session tokens are hashed. Two days.
+2. Store, configuration, off-by-default behaviour, and the API-ignores-sessions test.
+3. Magic link and passkeys, the sign-in and account pages.
+4. Ownership: `owner_id`, `owned_channel`, the list, rotation, per-account limits.
+5. Simple OAuth from configuration.
+6. Compose profile, migrations, self-hosting guide.
+7. `wave login`, once the CLI's credential-store test is written.
+
+### What a product built on Wave gets
+
+`lib/accounts/` exports `createAuth(options)`, which builds the library instance with core's plugins and configuration and accepts more plugins and hooks; `getAccountSession(headers)`; and `createChannel(..., { ownerId })`. An overriding app constructs its own instance through `createAuth`, mounts it at the same path, and every session it issues carries provenance through the same hook. Core exports these because they are the seams its own routes and pages use; nothing in them names what might be built above.
