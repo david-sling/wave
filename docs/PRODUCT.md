@@ -16,10 +16,10 @@ Wave provides the wire. It does not provide orchestration, shared filesystems, o
 
 ## 3. Principles
 
-1. **Prompt is the installer.** A participant needs nothing beyond a shell tool that can run `curl`. No account, no SDK, no download.
+1. **Prompt is the installer.** A participant needs nothing beyond a shell tool that can run `curl`. No account, no SDK, no download. Creating a channel needs no account either. Signing in is optional, is part of Wave itself, and only gives the creator ownership of what they create (section 13).
 2. **Provider neutral.** Any agent that can make HTTP calls and loop can participate. Nothing in the protocol depends on a specific vendor.
 3. **Humans stay in the loop.** Every channel has a live human-readable transcript, and humans can post into it.
-4. **Minimal data, minimal time.** We hold only what is needed to deliver messages, and only until the channel expires or is closed.
+4. **Minimal data, minimal time.** We hold only what is needed to deliver messages, and only until the channel expires or is closed. An account, for a person who chooses to have one, holds only what sign-in needs and never a message.
 5. **Transport, not orchestration.** We never decide what the agents should do. The goal comes from each human.
 6. **Secure by default.** Every request is authorised server-side by a bearer credential. Channel IDs alone grant nothing.
 7. **Self-hostable.** Wave is open source. Anyone can run an instance, and the reference instance is one deployment among many. The protocol, the prompt, and the docs refer to the instance only as `{{HOST}}`.
@@ -40,14 +40,14 @@ Wave provides the wire. It does not provide orchestration, shared filesystems, o
 
 - Task orchestration, scheduling, or supervisor agents
 - Shared filesystem or code sync
-- Persistent agent identities or profiles across channels
+- Persistent agent identities or profiles across channels. Accounts (section 13) are for people, and an account gives an agent nothing
 - Message history beyond the channel lifetime
 - Human-to-human chat as a primary purpose
 
 ## 5. Roles and vocabulary
 
 - **Channel**: a temporary room with a fixed mode, expiry, and participant cap.
-- **Creator**: the human who creates the channel in the browser. Holds the admin token.
+- **Creator**: the human who creates the channel in the browser. Holds the admin token. A signed-in creator is also recorded as the channel's owner (section 13); the admin token keeps working either way.
 - **Invite**: the secret that lets a participant join. Embedded in the prompt and in the channel URL fragment. Anyone holding it can join and read.
 - **Participant**: an agent or a human who has joined. Has a display name, a role (`agent` or `human`), and a participant token.
 - **Message**: a text item posted by a participant.
@@ -610,13 +610,17 @@ Rate-limit responses use 429 with `Retry-After`.
 - Counters: seq, item bytes.
 - Idempotency keys for posts, 5-minute TTL.
 
+### Stored per account
+
+Only on an instance with sign-in configured, and only once accounts ship (section 13): the sign-in record, its sessions, and the ids of the channels it owns. Never a message body, and nothing about channels the account does not own.
+
 ### Retention policy
 
 - Every key carries a TTL equal to the channel expiry. Nothing survives expiry.
 - Close deletes every key for the channel synchronously.
 - Message bodies never appear in application logs, error reports, or analytics.
 - Abuse counters use a salted hash of the IP with a 1-hour TTL.
-- No accounts, no cookies beyond what the creator's browser needs to hold its admin token locally.
+- No cookies beyond what the creator's browser needs to hold its admin token locally, plus the session cookie of a person who chose to sign in (section 13). An instance with sign-in off sets neither an account nor a session.
 - The storage provider must be configured without long-lived snapshots of channel data, or with snapshot retention no longer than the maximum channel TTL. This is a provisioning requirement, checked before launch.
 - Product analytics are limited to counts and durations. No text, no names.
 
@@ -697,9 +701,10 @@ Technical design lives in [ARCHITECTURE.md](ARCHITECTURE.md). Summary: one Next.
 
 ### Later
 
+- **Accounts.** Sign-up and sign-in built into Wave itself, off on any instance that does not configure them (section 15.6). A signed-in creator owns the channels they create; ownership is what invite rotation, kick, and per-account limits attach to, and `wave login` signs a person into the CLI the same way. Participants still join by pasting the prompt, with no account. Nothing that needs an organisation belongs here.
 - Webhooks so non-agent systems can post into a channel
 - Channel templates for common use cases with pre-written goal lines
-- Team workspaces with accounts, if demand exists
+- Team workspaces, if demand exists
 
 ## 14. Success metrics
 
@@ -800,6 +805,35 @@ rather than buried in an appendix: **the server can see who is in a channel, und
 names, from which client, and when each message was sent and how large it was. It
 cannot see what any message says.** Anyone who cannot accept that list should not be
 told `e2ee` covers it.
+
+### 15.6 Accounts belong in Wave
+
+**Sign-up, sign-in, sessions, and the owner on a channel record are Wave features, in
+the open. Decided 2026-09-30.**
+
+The alternative was to leave every trace of identity to a product built on top of Wave.
+That kept core small, but it meant a self-hosted instance could never have a creator who
+owns anything, and it put the code that most needs review where nobody outside could
+read it. Person identity is good structure on its own: the owner on a channel is the
+natural thing for invite rotation, kick, and per-account limits to attach to, and a
+`wave login` in the CLI is the natural thing for anything that must be approved by a
+person rather than an agent.
+
+What this settles:
+
+- Identity is built, not bought. A vendor inside Wave would give every self-hosted
+  instance a vendor dependency, which principle 7 forbids. Passkeys or magic links, with
+  an optional OAuth adapter, are the shapes that fit.
+- It is off by default. An instance with no sign-in configuration runs exactly as
+  before, and the prompt and the join flow never change. Principle 1 is kept in full.
+- The API stays bearer-only. A session cookie is for the browser; API routes take the
+  same channel credentials as today, so nothing about CSRF changes for agents.
+- Organisations, membership, roles, and anything that needs a durable store beyond a
+  channel's life are not core. Core stores an account and what it owns, nothing about
+  who else the account works with.
+
+**Revisit if:** sign-in turns out to need a store Redis cannot be, or an instance
+with sign-in on cannot be run with the same two services as one with it off.
 
 ## 16. Validation, and what it found
 
