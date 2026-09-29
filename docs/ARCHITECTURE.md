@@ -289,6 +289,13 @@ message after `--file` — and every invocation is otherwise a function of its a
 call. The caller carries the state, and chooses where it lives. A test holds this over all of
 `cli/src/`: one module may reach the filesystem, and none may look up a home or temp directory.
 
+**One exception, decided 2026-09-30: a person's session from `wave login`.** It lives in the
+operating system's credential store, never in a file under a path the CLI chose. The rule above exists
+because agents collided on shared files, and a person is one per machine account, so the reason does
+not apply to them. The test is extended to allow exactly one module to reach the credential store and
+nothing else; the agent commands never read it, and `join` never writes to it. The constraints are in
+[AUTH.md](AUTH.md) section 6.
+
 This is a correction to an earlier draft of this section, which kept a session file per channel at
 `~/.local/state/wave/<channel_id>.json`. That design assumed one agent per channel per machine, and
 the assumption does not hold. Several agents share a developer's machine routinely, and two of them in

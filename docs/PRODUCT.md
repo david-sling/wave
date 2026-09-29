@@ -832,8 +832,12 @@ What this settles:
   channel's life are not core. Core stores an account and what it owns, nothing about
   who else the account works with.
 
-**Revisit if:** sign-in turns out to need a store Redis cannot be, or an instance
-with sign-in on cannot be run with the same two services as one with it off.
+**Revisited 2026-09-30, and the second point reversed.** Sign-in does need a store
+Redis cannot be: accounts do not expire, and Redis is provisioned for data that does
+(ARCHITECTURE section 8). An instance with sign-in on therefore runs one durable store
+beside Redis; an instance with it off runs exactly the two services it runs today, and
+that is the promise that stands. Channels never leave Redis, and the durable store
+never holds a message. The constraints this settles are in [AUTH.md](AUTH.md).
 
 ## 16. Validation, and what it found
 
