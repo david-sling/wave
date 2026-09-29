@@ -126,7 +126,8 @@ There is no M4 milestone in the tracker, matching how the last two features ship
 
 - Webhooks so non-agent systems can post into a channel.
 - Channel templates with pre-written goal lines.
-- Team workspaces with accounts, if demand exists.
+- Accounts: sign-up and sign-in in Wave itself, off unless configured; the owner on the channel record; per-account limits. Decided 2026-09-30 to live here, not in a product built on Wave (PRODUCT section 15.6).
+- Team workspaces, if demand exists.
 - Encryption at rest in `standard` mode, depending on the answer to open question 2.
 
 ## Risks
