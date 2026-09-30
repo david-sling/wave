@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useActionState, useEffect, useId, useRef } from 'react'
+import { useActionState, useEffect, useId, useRef, useState } from 'react'
 import { authClient } from '@/lib/accounts/client'
 import { requestLink, type LinkState } from '@/app/account/actions'
 
@@ -17,6 +17,16 @@ export function SignInForm() {
   const router = useRouter()
   const id = useId()
   const asked = useRef(false)
+  const [passkeyError, setPasskeyError] = useState<string | null>(null)
+
+  // The button, for browsers that do not offer the passkey on the field.
+  const usePasskey = async () => {
+    setPasskeyError(null)
+    const result = await authClient.signIn.passkey()
+    if (result?.data) router.replace('/account')
+    else
+      setPasskeyError('No passkey was used. The prompt may have been dismissed, or this browser holds none for Wave.')
+  }
 
   useEffect(() => {
     if (asked.current) return
@@ -78,6 +88,14 @@ export function SignInForm() {
       <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? 'Sending…' : 'Send a link'}
       </button>
+      <button type="button" onClick={usePasskey} className="btn btn-secondary">
+        Use a passkey
+      </button>
+      {passkeyError ? (
+        <p role="alert" className="error-note m-0 text-sm">
+          {passkeyError}
+        </p>
+      ) : null}
     </form>
   )
 }
