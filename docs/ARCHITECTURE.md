@@ -529,7 +529,7 @@ The design for [AUTH.md](AUTH.md). Every constraint there is assumed; this secti
 
 Sign-in is built on [Better Auth](https://better-auth.com) 1.7, a self-hosted TypeScript library with no hosted service behind it. AUTH.md 2.6 says identity is built, not bought; a library the instance runs itself is built in the sense that matters, which is that no self-hosted instance depends on anyone's uptime or terms. It is chosen because it already implements, in one dependency with public code, the four things the constraints ask for and that are expensive to get right alone: passkeys over WebAuthn (`@better-auth/passkey`), magic links with hashed tokens, server-side sessions that are listable and revocable, and the RFC 8628 device flow `wave login` needs. What it does not do is decided here and enforced in a thin wrapper, `lib/accounts/`, which is the only module that imports it.
 
-Plugins: `passkey`, `magicLink`, `deviceAuthorization`, `nextCookies`. Social providers from configuration. Not enabled: email and password, the bearer plugin, cookie caching, cross-subdomain cookies, implicit account linking.
+Plugins: `passkey`, `magicLink`, `deviceAuthorization`, `bearer` (for the CLI only, see `wave login` below), `nextCookies`. Social providers from configuration. Not enabled: email and password, cookie caching, cross-subdomain cookies, implicit account linking.
 
 ### The store
 
@@ -559,7 +559,7 @@ Provenance is two additional session fields, `method` and `issuer`, set in `data
 
 The account page lists sessions with method, created and last-used times, and a revoke button; revoking hits the library's `revokeSession`, which deletes the row.
 
-**Deviation to confirm in the spike.** The library's session table stores the session token as the cookie carries it, not hashed; AUTH.md 3.1 asks for a hash. The store sits inside the same trust boundary as `AUTH_SECRET`, so a read of one is a read of both, and the exposure is the same as the one PRODUCT 15.2 already accepts for `REDIS_URL`. If the spike confirms the token is plain, the constraint is amended to say so and why; if the library hashes it, nothing changes.
+**One deviation, confirmed by the spike and accepted.** The library's session table stores the session token as the cookie carries it, not hashed, and looks it up by equality; there is no hook to change that. AUTH.md 3.1 is amended: one-time secrets (link tokens, device codes) are hashed, and the session token is stored as the library stores it. The store sits inside the same trust boundary as `AUTH_SECRET`, so a read of one is a read of both, and the exposure is the same as the one PRODUCT 15.2 already accepts for `REDIS_URL`.
 
 ### Ownership
 
@@ -572,11 +572,28 @@ The account page lists sessions with method, created and last-used times, and a 
 
 ### `wave login`
 
-The library's device flow. `wave login --host {{HOST}}` asks `POST /api/auth/device/code` with client id `wave-cli`, prints the user code and `{{HOST}}/device`, and polls `/device/token` at the interval the server returns until the person approves. The approval page requires a live browser session, which is what makes whatever that session required apply. The CLI receives a session token whose provenance is `device`, and stores it under the host in the operating system's credential store through `@napi-rs/keyring`, a prebuilt native binding with no build step, the one module permitted by the extended no-state test (section 11). `wave logout` revokes the session server-side before deleting the local copy; `wave whoami` reads it. No agent command reads the store, and `join` never writes to it. Codes are eight characters, single-use, expire in ten minutes, and are bound to the session that claims them.
+The library's device flow. `wave login --host {{HOST}}` asks `POST /api/auth/device/code` with client id `wave-cli`, prints the user code and `{{HOST}}/device`, and polls `/device/token` at the interval the server returns until the person approves. The approval page requires a live browser session, which is what makes whatever that session required apply. The CLI receives a session token whose provenance is `device`, and stores it under the host in the operating system's credential store through `@napi-rs/keyring`, a prebuilt native binding with no build step, the one module permitted by the extended no-state test (section 11). `wave logout` revokes the session server-side before deleting the local copy; `wave whoami` reads it. No agent command reads the store, and `join` never writes to it. Codes are eight characters, single-use, expire in ten minutes, and are bound to the session that claims them; `validateClient` refuses any client id but `wave-cli`.
+
+The CLI presents that token as `Authorization: Bearer` to `/api/auth/*`, which needs the library's `bearer` plugin. It is enabled for that reason alone and applies only where the library is mounted; `/api/v1/*` never sees it, and the test that sends a session to every channel route covers the bearer form as well as the cookie.
+
+### What the spike found
+
+Run 2026-09-30 against Better Auth 1.7.6 and Postgres 17, in `spike/accounts/` (gitignored; the README there says how to run it). Eight checks, all passing:
+
+- `databaseHooks.session.create.before` receives the endpoint context with its `path`, so `method` and `issuer` land on the session row from one hook, for the magic link and the device flow alike. The provenance seam holds.
+- `auth.api.magicLinkVerify` called in-process, with `returnHeaders`, verifies the token and yields the cookie with no request and no URL. A `hooks.before` rule that refuses `/magic-link/verify` when `ctx.request` is present answers 404 to the HTTP form and creates no session, while leaving the in-process call alone.
+- The verification row holds a hash, not the token, with `storeToken: 'hashed'`.
+- A link request answers the same for an existing and an unknown email.
+- No address is stored on the session with `disableIpTracking`.
+- The device flow returns a session token whose row carries `method: 'device'`; polling inside the interval is answered `slow_down` as RFC 8628 says; an unknown client id is refused. Presenting the token back needs the `bearer` plugin, added to the design above.
+- `listSessions` and `revokeSession` work as described; the revoked session fails its next `getSession`.
+- The passkey plugin registers against `rpID` from `HOST`. Its default `residentKey` is `preferred`, so the design's `required` is set explicitly through `authenticatorSelection`.
+- Migrations run in-process through `getMigrations(auth.options).runMigrations()`, so `accounts:migrate` is a short script and needs no CLI configuration file.
+- The session token is stored as the cookie carries it. Accepted and recorded above.
 
 ### Tests
 
-- Every `/api/v1/*` route ignores a valid session cookie.
+- Every `/api/v1/*` route ignores a valid session cookie, and a bearer session on those routes is ignored the same way.
 - An instance with no sign-in configuration ignores any cookie and answers 404 on the auth handler.
 - The magic-link page never issues a request with the token in its URL; the library's GET verify path is refused.
 - A provider sign-in with an email matching an existing account is refused, not linked.
@@ -587,7 +604,7 @@ The library's device flow. `wave login --host {{HOST}}` asks `POST /api/auth/dev
 
 ### Order of work
 
-1. Spike: the library against the constraints above, in a branch, no UI. Confirms the provenance hook, the in-process link verification, the device flow's session token, and whether session tokens are hashed. Two days.
+1. Spike: the library against the constraints above, no UI. Done 2026-09-30; findings above.
 2. Store, configuration, off-by-default behaviour, and the API-ignores-sessions test.
 3. Magic link and passkeys, the sign-in and account pages.
 4. Ownership: `owner_id`, `owned_channel`, the list, rotation, per-account limits.
