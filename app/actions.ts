@@ -1,6 +1,9 @@
 'use server'
 
 import { headers } from 'next/headers'
+import { getAccountSession } from '@/lib/accounts/auth'
+import { countOwnedChannels, rememberOwnedChannel } from '@/lib/accounts/owned'
+import { getPool } from '@/lib/accounts/store'
 import { createChannel as createChannelRecord, createChannelRequestSchema } from '@/lib/channels'
 import { ApiError } from '@/lib/http'
 import { enforceLimit } from '@/lib/rate-limit'
@@ -52,7 +55,8 @@ export async function createChannel(_previous: CreateChannelState, formData: For
 
   try {
     const redis = await getRedis()
-    const address = (await headers()).get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+    const requestHeaders = await headers()
+    const address = requestHeaders.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
     await enforceLimit(redis, {
       scope: 'create',
       subject: address,
@@ -60,7 +64,32 @@ export async function createChannel(_previous: CreateChannelState, formData: For
       windowSeconds: 3_600,
     })
 
-    const channel = await createChannelRecord(redis, parsed.data)
+    // A signed-in creator owns the channel (AUTH.md 2.8). This action is the
+    // only place an owner is written; the API never reads a session.
+    const account = await getAccountSession(requestHeaders)
+    if (account) {
+      await enforceLimit(redis, {
+        scope: 'create-account',
+        subject: account.user.id,
+        max: LIMITS.createsPerHourPerAccount,
+        windowSeconds: 3_600,
+      })
+      if ((await countOwnedChannels(getPool(), account.user.id)) >= LIMITS.ownedChannelsPerAccount) {
+        return {
+          error: `You own ${LIMITS.ownedChannelsPerAccount} live channels already. Close one, or wait for one to expire.`,
+        }
+      }
+    }
+
+    const channel = await createChannelRecord(redis, parsed.data, { ownerId: account?.user.id })
+    if (account) {
+      await rememberOwnedChannel(
+        getPool(),
+        account.user.id,
+        channel.channel_id,
+        Math.floor(Date.parse(channel.expires_at) / 1000),
+      )
+    }
     return {
       created: {
         channelId: channel.channel_id,

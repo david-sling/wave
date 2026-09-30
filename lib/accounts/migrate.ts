@@ -1,19 +1,22 @@
 import { getMigrations } from 'better-auth/db/migration'
 import { Pool } from 'pg'
-import { createAuth } from './auth.ts'
 import type { AccountsConfig } from './config.ts'
+import { baseAuthOptions } from './options.ts'
+import { OWNED_CHANNEL_TABLE_SQL } from './schema.ts'
 
 /**
- * Brings the sign-in tables up to date. Runs in-process, so an instance needs
- * no CLI configuration file: `npm run accounts:migrate` before a deploy, or
- * the one-shot compose service.
+ * Brings the sign-in tables up to date. Runs in-process from the pure
+ * configuration, so an instance needs no CLI configuration file and no
+ * Redis: `npm run accounts:migrate` before a deploy, or the one-shot
+ * compose service.
  */
 export async function migrateAccounts(config: AccountsConfig, origin: string): Promise<void> {
   const pool = new Pool({ connectionString: config.migrationDatabaseUrl })
   try {
-    const auth = createAuth({ config, origin, pool, mailer: { send: async () => {} } })
-    const { runMigrations } = await getMigrations(auth.options)
+    const options = baseAuthOptions({ config, origin, mailer: { send: async () => {} } })
+    const { runMigrations } = await getMigrations({ ...options, database: pool })
     await runMigrations()
+    await pool.query(OWNED_CHANNEL_TABLE_SQL)
   } finally {
     await pool.end()
   }

@@ -33,17 +33,22 @@ function fingerprint(subject: string): string {
  * the answer does not reset its own window by retrying.
  */
 export async function enforceLimit(redis: WaveRedis, limit: Limit): Promise<void> {
-  const key = keys.rateLimit(limit.scope, fingerprint(limit.subject))
-  const count = await redis.incr(key)
-  if (count === 1) await redis.expire(key, limit.windowSeconds)
-  if (count <= limit.max) return
-
-  const ttl = await redis.ttl(key)
-  const retryAfter = ttl > 0 ? ttl : limit.windowSeconds
+  const { allowed, retryAfter } = await consumeLimit(redis, limit)
+  if (allowed) return
   throw new ApiError(429, 'rate_limited', `Too many requests. Try again in ${retryAfter} seconds.`, {
     headers: { 'Retry-After': String(retryAfter) },
     hint: `Nothing was done. Every request before then is refused too, so wait the full ${retryAfter}s and send once, rather than retrying in a loop.`,
   })
+}
+
+/** The counting half of {@link enforceLimit}, for callers that answer the refusal themselves. */
+export async function consumeLimit(redis: WaveRedis, limit: Limit): Promise<{ allowed: boolean; retryAfter: number }> {
+  const key = keys.rateLimit(limit.scope, fingerprint(limit.subject))
+  const count = await redis.incr(key)
+  if (count === 1) await redis.expire(key, limit.windowSeconds)
+  if (count <= limit.max) return { allowed: true, retryAfter: 0 }
+  const ttl = await redis.ttl(key)
+  return { allowed: false, retryAfter: ttl > 0 ? ttl : limit.windowSeconds }
 }
 
 /**

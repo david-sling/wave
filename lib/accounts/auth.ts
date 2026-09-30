@@ -1,36 +1,24 @@
-import { passkey } from '@better-auth/passkey'
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
-import { APIError, createAuthMiddleware } from 'better-auth/api'
-import { nextCookies } from 'better-auth/next-js'
-import { bearer } from 'better-auth/plugins/bearer'
-import { deviceAuthorization } from 'better-auth/plugins/device-authorization'
-import { magicLink } from 'better-auth/plugins/magic-link'
 import { Pool } from 'pg'
 import { getConfig } from '../config.ts'
+import { consumeLimit } from '../rate-limit.ts'
+import { getRedis, type WaveRedis } from '../redis.ts'
 import { getAccountsConfig, type AccountsConfig } from './config.ts'
-import { magicLinkMessage, smtpMailer, type Mailer } from './email.ts'
+import { smtpMailer, type Mailer } from './email.ts'
+import { baseAuthOptions, provenance } from './options.ts'
+import { disownChannels } from './owned.ts'
+import { getPool } from './store.ts'
 
 /**
- * Sign-in, built on Better Auth (ARCHITECTURE section 14). This is the only
- * module that imports the library. Everything the constraints in AUTH.md ask
- * for that the library does not do on its own is configured or enforced here.
+ * Sign-in, built on Better Auth (ARCHITECTURE section 14). The configuration
+ * is in options.ts; this file binds it to the store and to Redis and is the
+ * only thing that builds a live instance. Everything the constraints in
+ * AUTH.md ask for that the library does not do on its own is enforced in
+ * one of the two.
  */
 
-import { AUTH_BASE_PATH } from './paths.ts'
-
-export { AUTH_BASE_PATH }
-export const CLI_CLIENT_ID = 'wave-cli'
-
-/** Session provenance (AUTH.md 5.3), from the endpoint that created the session. */
-export function provenance(path: string | undefined): { method: string; issuer: string | null } {
-  if (!path) return { method: 'unknown', issuer: null }
-  if (path.startsWith('/magic-link/')) return { method: 'magic-link', issuer: null }
-  if (path.startsWith('/passkey/')) return { method: 'passkey', issuer: null }
-  if (path.startsWith('/device/')) return { method: 'device', issuer: null }
-  const social = path.match(/^\/callback\/([^/]+)/)
-  if (social) return { method: 'oauth', issuer: social[1] }
-  return { method: 'unknown', issuer: null }
-}
+export { CLI_CLIENT_ID, provenance } from './options.ts'
+export { AUTH_BASE_PATH } from './paths.ts'
 
 export type CreateAuthOptions = {
   config: AccountsConfig
@@ -41,82 +29,55 @@ export type CreateAuthOptions = {
   plugins?: NonNullable<BetterAuthOptions['plugins']>
   /** The store, when a caller already has one. */
   pool?: Pool
+  /** Where the counters live. Defaults to the instance's Redis. */
+  redis?: () => Promise<WaveRedis>
 }
 
-export function createAuth({ config, origin, mailer = smtpMailer(config), plugins = [], pool }: CreateAuthOptions) {
-  const rpID = new URL(origin).hostname
+export function createAuth({
+  config,
+  origin,
+  mailer = smtpMailer(config),
+  plugins = [],
+  pool,
+  redis = getRedis,
+}: CreateAuthOptions) {
+  const store = pool ?? new Pool({ connectionString: config.databaseUrl })
+  const base = baseAuthOptions({ config, origin, mailer })
   return betterAuth({
-    secret: config.secret,
-    baseURL: origin,
-    basePath: AUTH_BASE_PATH,
-    database: pool ?? new Pool({ connectionString: config.databaseUrl }),
-    trustedOrigins: [origin],
-    emailAndPassword: { enabled: false },
-    advanced: {
-      cookiePrefix: 'wave',
-      useSecureCookies: origin.startsWith('https:'),
-      // No address on a session (PRODUCT section 15.1).
-      ipAddress: { disableIpTracking: true },
-    },
-    account: {
-      // A provider sign-in whose email matches an account is refused, never
-      // linked; linking is something a signed-in person does (AUTH.md 5.5).
-      accountLinking: { enabled: true, disableImplicitLinking: true, trustedProviders: [] },
-    },
-    session: {
-      expiresIn: 60 * 60 * 24 * 30,
-      updateAge: 60 * 60 * 24,
-      additionalFields: {
-        method: { type: 'string', required: false, input: false },
-        issuer: { type: 'string', required: false, input: false },
-      },
-    },
+    ...base,
+    database: store,
     databaseHooks: {
       session: {
         create: {
           before: async (session, context) => ({ data: { ...session, ...provenance(context?.path) } }),
         },
       },
-    },
-    hooks: {
-      // The library verifies a magic link by GET with the token as a query,
-      // which over HTTP puts a secret in a logged URL (AUTH.md 3.2). The
-      // in-process call from the sign-in page carries no Request and is the
-      // only way in; the HTTP form is answered as if the route did not exist.
-      before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path === '/magic-link/verify' && ctx.request) {
-          throw new APIError('NOT_FOUND', { message: 'Not found.' })
-        }
-      }),
-    },
-    plugins: [
-      magicLink({
-        expiresIn: 300,
-        storeToken: 'hashed',
-        // The token rides in the fragment, which browsers never send.
-        sendMagicLink: async ({ email, token }) => {
-          const { subject, text } = magicLinkMessage(origin, `${origin}/signin/link#${token}`)
-          await mailer.send(email, subject, text)
+      user: {
+        delete: {
+          // The channels keep running on their admin tokens (AUTH.md 4.4).
+          before: async (user) => {
+            await disownChannels(store, await redis(), user.id)
+          },
         },
-      }),
-      passkey({
-        rpID,
-        rpName: 'Wave',
-        origin,
-        authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
-      }),
-      deviceAuthorization({
-        expiresIn: '10m',
-        interval: '5s',
-        userCodeLength: 8,
-        validateClient: async (clientId) => clientId === CLI_CLIENT_ID,
-      }),
-      // Only so the CLI can present the session the device flow handed it.
-      // Applies where the library is mounted; /api/v1/* never sees it.
-      bearer(),
-      nextCookies(),
-      ...plugins,
-    ],
+      },
+    },
+    rateLimit: {
+      ...base.rateLimit,
+      // The library's own limiter, counting in the instance's Redis with the
+      // same salted-hash counters as every other limit (lib/rate-limit.ts).
+      customStorage: {
+        consume: async (key, rule) => {
+          const { allowed, retryAfter } = await consumeLimit(await redis(), {
+            scope: 'auth',
+            subject: key,
+            max: rule.max,
+            windowSeconds: rule.window,
+          })
+          return { allowed, retryAfter: allowed ? null : retryAfter }
+        },
+      },
+    },
+    plugins: [...base.plugins, ...plugins],
   })
 }
 
@@ -128,7 +89,7 @@ let instance: Auth | undefined
 export function getAuth(): Auth | undefined {
   const state = getAccountsConfig()
   if (!state.enabled) return undefined
-  instance ??= createAuth({ config: state, origin: getConfig().host })
+  instance ??= createAuth({ config: state, origin: getConfig().host, pool: getPool() })
   return instance
 }
 

@@ -85,6 +85,12 @@ describe('channel records', () => {
     expect(parseChannel(stored)).toEqual(channel)
   })
 
+  it('carries an owner through the hash only when set', () => {
+    expect('owner_id' in serializeChannel(channel)).toBe(false)
+    const owned = { ...channel, owner_id: 'acct_1' }
+    expect(parseChannel(serializeChannel(owned))).toEqual(owned)
+  })
+
   it('reads an absent channel as undefined', () => {
     expect(parseChannel(undefined)).toBeUndefined()
     expect(parseChannel({})).toBeUndefined()

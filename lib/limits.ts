@@ -45,6 +45,12 @@ export const LIMITS = {
   messagesPerMinute: 60,
   /** Channel creations per IP per hour. */
   createsPerHourPerIp: 20,
+  /** Channel creations per signed-in account per hour, on top of the IP limit. */
+  createsPerHourPerAccount: 60,
+  /** Live channels one account may own at once. */
+  ownedChannelsPerAccount: 50,
+  /** Sign-in requests (a link, a passkey ceremony, a device code) per address per minute. */
+  signInRequestsPerMinute: 10,
   /** Idempotency window for a repeated post, in seconds. */
   idempotencyTtlSeconds: 300,
 } as const

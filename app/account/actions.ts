@@ -3,7 +3,10 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { APIError } from 'better-auth/api'
-import { getAuth } from '@/lib/accounts/auth'
+import { getAccountSession, getAuth } from '@/lib/accounts/auth'
+import { loadChannel } from '@/lib/auth'
+import { rotateAdminToken as rotate } from '@/lib/channels'
+import { getRedis } from '@/lib/redis'
 
 /**
  * Sign-in and account actions (ARCHITECTURE section 14). Each resolves the
@@ -68,4 +71,33 @@ export async function removePasskey(id: string): Promise<void> {
   const auth = getAuth()
   if (!auth) return
   await auth.api.deletePasskey({ body: { id }, headers: await headers() })
+}
+
+/**
+ * The one thing a session grants on a channel (AUTH.md 3.6): a new admin
+ * token for a channel this account owns, returned once. The old token stops
+ * working at once. A channel that is not this account's is answered exactly
+ * as one that does not exist.
+ */
+export async function rotateAdminToken(channelId: string): Promise<{ adminToken: string } | { error: string }> {
+  const gone = { error: 'This channel is not here any more.' }
+  const account = await getAccountSession(await headers())
+  if (!account) return { error: 'Sign in first.' }
+  const redis = await getRedis()
+  let channel
+  try {
+    channel = await loadChannel(redis, channelId)
+  } catch {
+    return gone
+  }
+  if (channel.owner_id !== account.user.id) return gone
+  return { adminToken: await rotate(redis, channel.id) }
+}
+
+/** Deletes the account, its sessions, and its passkeys. Its channels lose their owner and keep running. */
+export async function deleteAccount(): Promise<void> {
+  const auth = getAuth()
+  if (!auth) return
+  await auth.api.deleteUser({ body: {}, headers: await headers() })
+  redirect('/')
 }

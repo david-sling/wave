@@ -94,6 +94,8 @@ export const channelRecordSchema = z.object({
   max_participants: z.coerce.number().int().min(LIMITS.minParticipants).max(LIMITS.maxParticipants),
   invite_hash: z.string().length(64),
   admin_hash: z.string().length(64),
+  /** The account that created it, when the creator was signed in (AUTH.md). Never shown to participants. */
+  owner_id: z.string().min(1).optional(),
 })
 export type ChannelRecord = z.infer<typeof channelRecordSchema>
 
@@ -130,6 +132,7 @@ export function serializeChannel(channel: ChannelRecord): Record<string, string>
     max_participants: String(channel.max_participants),
     invite_hash: channel.invite_hash,
     admin_hash: channel.admin_hash,
+    ...(channel.owner_id ? { owner_id: channel.owner_id } : {}),
   }
 }
 

@@ -80,6 +80,30 @@ describe.skipIf(!databaseUrl)('sign-in', () => {
     expect(response.status).toBe(404)
   })
 
+  it('indexes owned channels, drops rows whose channel is gone, and disowns on delete', async () => {
+    const { fakeRedis } = await import('./../fake-redis')
+    const { createChannel } = await import('@/lib/channels')
+    const { countOwnedChannels, disownChannels, listOwnedChannels, rememberOwnedChannel } =
+      await import('@/lib/accounts/owned')
+    const { keys } = await import('@/lib/keys')
+    const { redis } = fakeRedis()
+    const cookie = await signIn('owner@example.test')
+    const { user } = (await auth.api.getSession({ headers: new Headers({ cookie }) }))!
+    const a = await createChannel(redis, { ttl: '1h', mode: 'standard' }, { ownerId: user.id })
+    const b = await createChannel(redis, { ttl: '1h', mode: 'standard' }, { ownerId: user.id })
+    for (const c of [a, b]) {
+      await rememberOwnedChannel(pool, user.id, c.channel_id, Math.floor(Date.parse(c.expires_at) / 1000))
+    }
+    expect(await countOwnedChannels(pool, user.id)).toBe(2)
+    await redis.del(keys.channel(b.channel_id))
+    const listed = await listOwnedChannels(pool, redis, user.id)
+    expect(listed.map((o) => o.channel.id)).toEqual([a.channel_id])
+    expect(await countOwnedChannels(pool, user.id)).toBe(1)
+    await disownChannels(pool, redis, user.id)
+    expect(await countOwnedChannels(pool, user.id)).toBe(0)
+    expect(await redis.hGetAll(keys.channel(a.channel_id))).not.toHaveProperty('owner_id')
+  })
+
   it('revokes a session immediately', async () => {
     const a = await signIn('three@example.test')
     const b = await signIn('three@example.test')

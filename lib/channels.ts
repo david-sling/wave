@@ -43,7 +43,16 @@ export type CreatedChannel = {
  * exist: storage keeps hashes, so a lost invite or admin token cannot be
  * recovered, only replaced by a new channel.
  */
-export async function createChannel(redis: WaveRedis, request: CreateChannelRequest): Promise<CreatedChannel> {
+export type CreateChannelOptions = {
+  /** The signed-in creator. Written here and nowhere else (ARCHITECTURE section 14). */
+  ownerId?: string
+}
+
+export async function createChannel(
+  redis: WaveRedis,
+  request: CreateChannelRequest,
+  options: CreateChannelOptions = {},
+): Promise<CreatedChannel> {
   const channelId = newChannelId()
   const inviteToken = newToken()
   const adminToken = newToken()
@@ -59,6 +68,7 @@ export async function createChannel(redis: WaveRedis, request: CreateChannelRequ
     max_participants: request.max_participants ?? LIMITS.defaultParticipants,
     invite_hash: hashToken(inviteToken),
     admin_hash: hashToken(adminToken),
+    ...(options.ownerId ? { owner_id: options.ownerId } : {}),
   }
 
   await redis
@@ -80,6 +90,17 @@ export async function createChannel(redis: WaveRedis, request: CreateChannelRequ
     // The invite rides in the fragment, so it never reaches the server in a page request.
     url: `${getConfig().host}/c/${channelId}#${inviteToken}`,
   }
+}
+
+/**
+ * Replaces the admin token. The old one fails on its next request; the new
+ * one is returned once and stored nowhere but as its hash. Recovery and
+ * rotation are the same operation (AUTH.md 3.6).
+ */
+export async function rotateAdminToken(redis: WaveRedis, channelId: string): Promise<string> {
+  const adminToken = newToken()
+  await redis.hSet(keys.channel(channelId), { admin_hash: hashToken(adminToken) })
+  return adminToken
 }
 
 export type ChannelState = 'live' | 'gone'
