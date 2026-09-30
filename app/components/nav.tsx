@@ -1,3 +1,4 @@
+import { AccountLink } from './account-link'
 import { Logo } from './logo'
 import { NavVeil } from './nav-veil'
 import { StarButton } from './star-button'
@@ -36,6 +37,7 @@ export function Nav({ atHome = true }: { atHome?: boolean }) {
           ))}
         </nav>
         <div className="flex items-center gap-3">
+          <AccountLink className="hidden text-[15px] text-ink-2 md:inline" />
           <StarButton label="Star" className="hidden md:inline-flex" />
           <a href="#create" className="btn btn-primary btn-sm">
             Create a channel

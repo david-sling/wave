@@ -16,7 +16,9 @@ import { magicLinkMessage, smtpMailer, type Mailer } from './email.ts'
  * for that the library does not do on its own is configured or enforced here.
  */
 
-export const AUTH_BASE_PATH = '/api/auth'
+import { AUTH_BASE_PATH } from './paths.ts'
+
+export { AUTH_BASE_PATH }
 export const CLI_CLIENT_ID = 'wave-cli'
 
 /** Session provenance (AUTH.md 5.3), from the endpoint that created the session. */
