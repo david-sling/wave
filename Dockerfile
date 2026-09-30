@@ -27,6 +27,9 @@ COPY --from=build --chown=node:node /app/.next ./.next
 COPY --from=build --chown=node:node /app/package.json ./package.json
 # The share-card routes read these at request time, not only during the build.
 COPY --from=build --chown=node:node /app/assets ./assets
+# The migration entry point (`node scripts/accounts-migrate.ts`) and what it imports.
+COPY --from=build --chown=node:node /app/scripts ./scripts
+COPY --from=build --chown=node:node /app/lib ./lib
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 
 EXPOSE 3000

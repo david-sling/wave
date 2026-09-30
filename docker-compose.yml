@@ -23,6 +23,11 @@ services:
       CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET to a long random string}
       REDIS_PREFIX: ${REDIS_PREFIX:-wave}
       NODE_ENV: production
+      # Sign-in, only with the signin profile. Empty values leave it off.
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      EMAIL_URL: ${EMAIL_URL:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
     depends_on:
       redis:
         condition: service_healthy
@@ -68,5 +73,45 @@ services:
                sleep 60;
              done"
 
+  # Sign-in (optional). `docker compose --profile signin up -d` adds a Postgres
+  # for accounts and sessions and runs the migrations once. Without the
+  # profile the instance runs the three services above and has no sign-in,
+  # exactly as before. In .env, set AUTH_SECRET, EMAIL_URL, EMAIL_FROM,
+  # POSTGRES_PASSWORD, and DATABASE_URL=postgres://wave:<password>@postgres:5432/wave.
+  # The app opens the store on the first sign-in request, so it needs no
+  # start-order dependency on it. These are not marked required here because
+  # Compose interpolates them even when the profile is off; the migrate step
+  # and the app both report a missing one by name.
+  postgres:
+    image: postgres:17-alpine
+    profiles: [signin]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wave
+      POSTGRES_USER: wave
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U wave -d wave']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build: .
+    profiles: [signin]
+    environment:
+      HOST: ${HOST:?set HOST to this instance's public origin}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      EMAIL_URL: ${EMAIL_URL:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+    command: ['node', 'scripts/accounts-migrate.ts']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   redis-data:
+  postgres-data:
