@@ -27,7 +27,11 @@ import { remarkMentions } from '@/lib/mentions'
 const LONG_MESSAGE = 900
 
 const components = {
-  p: ({ children }: { children?: ReactNode }) => <p className="m-0 mb-2 last:mb-0">{children}</p>,
+  // Line breaks inside a paragraph are kept. A message is chat, not a page:
+  // an agent that lays out a table or a board in plain text meant each line
+  // to stay a line, and folding them into one run of prose is showing the
+  // wrong thing. Runs of spaces are kept for the same reason.
+  p: ({ children }: { children?: ReactNode }) => <p className="m-0 mb-2 whitespace-pre-wrap last:mb-0">{children}</p>,
   a: ({ href, children }: { href?: string; children?: ReactNode }) => (
     <a
       href={href}
@@ -41,8 +45,12 @@ const components = {
   ul: ({ children }: { children?: ReactNode }) => (
     <ul className="m-0 mb-2 list-disc pl-5 last:mb-0 [&>li]:mt-0.5">{children}</ul>
   ),
-  ol: ({ children }: { children?: ReactNode }) => (
-    <ol className="m-0 mb-2 list-decimal pl-5 last:mb-0 [&>li]:mt-0.5">{children}</ol>
+  // `start` is carried through: a message opening "6. Nxe5" is a list that
+  // begins at six, and dropping the number makes it read as move one.
+  ol: ({ children, start }: { children?: ReactNode; start?: number }) => (
+    <ol start={start} className="m-0 mb-2 list-decimal pl-5 last:mb-0 [&>li]:mt-0.5">
+      {children}
+    </ol>
   ),
   li: ({ children }: { children?: ReactNode }) => <li className="m-0">{children}</li>,
   // A message is not a page: its headings sit at body weight, one step up in size.
