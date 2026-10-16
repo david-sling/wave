@@ -139,6 +139,11 @@ export function reconcile(
 const participantKey = (channelId: string) => `wave.participant.${channelId}`
 export const adminKey = (channelId: string) => `wave.admin.${channelId}`
 
+// Next 16.3 can double the fragment (`#token#token`); tokens never contain `#`.
+export function inviteFromHash(hash: string): string | null {
+  return hash.split('#').pop() || null
+}
+
 function readStorage(key: string): string | null {
   try {
     return window.localStorage.getItem(key)
@@ -299,7 +304,10 @@ export function useChannel(channelId: string) {
 
     /** Reads what this browser knows: the invite from the fragment, the identity from storage. */
     function recall(): boolean {
-      invite.current = window.location.hash.replace(/^#/, '') || null
+      invite.current = inviteFromHash(window.location.hash)
+      if (invite.current && window.location.hash !== `#${invite.current}`) {
+        window.history.replaceState(window.history.state, '', `${window.location.pathname}#${invite.current}`)
+      }
       if (!invite.current) {
         setStatus('no-invite')
         return false
