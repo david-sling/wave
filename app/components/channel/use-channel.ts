@@ -139,12 +139,7 @@ export function reconcile(
 const participantKey = (channelId: string) => `wave.participant.${channelId}`
 export const adminKey = (channelId: string) => `wave.admin.${channelId}`
 
-/**
- * The invite in a fragment. Next 16.3 can write it twice (`#token#token`) on a
- * soft navigation back to a channel that was the tab's first page, because the
- * initial route keeps its hash and the navigation appends another. A token is
- * base64url and never holds `#`, so the last piece is the invite.
- */
+// Next 16.3 can double the fragment (`#token#token`); tokens never contain `#`.
 export function inviteFromHash(hash: string): string | null {
   return hash.split('#').pop() || null
 }
@@ -311,7 +306,6 @@ export function useChannel(channelId: string) {
     function recall(): boolean {
       invite.current = inviteFromHash(window.location.hash)
       if (invite.current && window.location.hash !== `#${invite.current}`) {
-        // Repair the URL too, so a reload or a copied address still works.
         window.history.replaceState(window.history.state, '', `${window.location.pathname}#${invite.current}`)
       }
       if (!invite.current) {
