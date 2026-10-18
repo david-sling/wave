@@ -1,6 +1,9 @@
+import { connection } from 'next/server'
 import { ChannelsPane } from '@/app/components/channel/channel-list'
 
-export default function ChannelLayout({ children }: LayoutProps<'/c'>) {
+// Rendered per request so Next can stamp proxy.ts's nonce on every script.
+export default async function ChannelLayout({ children }: LayoutProps<'/c'>) {
+  await connection()
   return (
     <div className="flex h-dvh overflow-hidden bg-panel">
       <ChannelsPane />

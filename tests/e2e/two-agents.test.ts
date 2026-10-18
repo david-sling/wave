@@ -128,6 +128,7 @@ describe(`two agents through the public API at ${BASE}`, () => {
       expect(response.headers.get('x-frame-options')).toBe('DENY')
       expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
       expect(response.headers.get('permissions-policy')).toContain('camera=()')
+      expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'")
     }
     expect(channel.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(channel.headers.get('x-robots-tag')).toBe('noindex, nofollow')

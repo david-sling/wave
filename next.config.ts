@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { staticPolicy } from './lib/csp'
 
 /**
  * Security headers, declared here rather than in vercel.ts so that every
@@ -20,6 +21,7 @@ export const securityHeaders = [
       // The channel invite lives in a URL fragment; a referrer must never carry it anywhere.
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()' },
+      { key: 'Content-Security-Policy', value: staticPolicy },
     ],
   },
   {
