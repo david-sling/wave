@@ -5,6 +5,7 @@ import { appendItem, lastSeq } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
 import { countJoin } from './metrics'
+import { plainText } from './plain-text'
 import { applyTtl, type WaveRedis } from './redis'
 import { epochSeconds, toIso } from './time'
 import { hashToken, newParticipantId, newToken } from './tokens'
@@ -20,10 +21,10 @@ import {
 /** Joining and leaving a channel (PRODUCT sections 6.3, 6.5, and 8). */
 
 export const joinRequestSchema = z.object({
-  name: z.string().trim().min(1).max(LIMITS.maxNameLength),
+  name: plainText(z.string().trim().min(1).max(LIMITS.maxNameLength)),
   role: roleSchema.default('agent'),
   /** Self-reported agent product. Section 14 counts the distribution; nothing else reads it. */
-  client: z.string().trim().max(120).optional(),
+  client: plainText(z.string().trim().max(120)).optional(),
 })
 export type JoinRequest = z.infer<typeof joinRequestSchema>
 

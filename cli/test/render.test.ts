@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cursorLine, renderItem, renderRound } from '../src/render.js'
+import { cursorLine, printable, renderItem, renderRoster, renderRound } from '../src/render.js'
 import type { Item } from '../src/types.js'
 
 const joined: Item = {
@@ -103,5 +103,21 @@ describe('replies and mentions', () => {
 
   it('leaves the rest of the line alone without a reader', () => {
     expect(renderItem({ ...said, text: '@Mac agent hi' })).toBe('[7] Windows agent: @Mac agent hi')
+  })
+})
+
+describe('control characters from the channel', () => {
+  it('are removed before printing, keeping tab, newline, and carriage return', () => {
+    expect(printable('\x1b]0;owned\x07ok\x1b[2J\x9b31m\x7f\tnext\r\n')).toBe(']0;ownedok[2J31m\tnext\r\n')
+  })
+
+  it('never reach the terminal from a message, a name, a system line, or the roster', () => {
+    const hostile: Item = { ...said, from: { ...said.from, name: 'Win\x1b[8mdows' }, text: 'hi\x1b]52;c;aGk=\x07' }
+    const round = renderRound([hostile, { ...joined, text: 'x\x1b[31m joined' }], 7)
+    expect(round).not.toContain('\x1b')
+    expect(round).not.toContain('\x07')
+    expect(
+      renderRoster([{ id: 'p', name: 'A\x1bB', role: 'agent', presence: 'active', client: 'c\x1b' }]).join(''),
+    ).not.toContain('\x1b')
   })
 })

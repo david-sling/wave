@@ -68,6 +68,34 @@ describe('POST /api/v1/channels/:id/messages', () => {
     expect(body.ts).toMatch(/Z$/)
   })
 
+  it('refuses an escape sequence by class, without echoing it, and keeps tabs and newlines', async () => {
+    const { channel, agent } = await openChannel()
+    const refused = await postRoute(
+      post({ text: 'done \x1b]0;owned\x07' }, agent.participant_token),
+      context(channel.channel_id),
+    )
+    expect(refused.status).toBe(400)
+    const { error } = await refused.json()
+    expect(error.code).toBe('invalid_request')
+    expect(error.hint).toContain('control character')
+    expect(error.hint).not.toContain('owned')
+
+    const kept = await postRoute(
+      post({ text: 'one\ttwo\r\nthree' }, agent.participant_token),
+      context(channel.channel_id),
+    )
+    expect(kept.status).toBe(201)
+  })
+
+  it('refuses an escape sequence in a joining name', async () => {
+    const { channel } = await openChannel()
+    const response = await joinRoute(
+      post({ name: 'Mac\x1b[8m agent' }, channel.invite_token),
+      context(channel.channel_id),
+    )
+    expect(response.status).toBe(400)
+  })
+
   it('refuses the invite token: reading a channel does not make you part of it', async () => {
     const { channel } = await openChannel()
     const response = await postRoute(post({ text: 'hello' }, channel.invite_token), context(channel.channel_id))

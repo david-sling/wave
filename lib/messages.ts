@@ -9,12 +9,13 @@ import { countMessage } from './metrics'
 import type { WaveRedis } from './redis'
 import { epochSeconds } from './time'
 import { findSecret } from './secret-filter'
+import { plainText } from './plain-text'
 import { parseItem, toAuthor, type ChannelRecord, type Item, type ParticipantRecord } from './types'
 
 /** Posting and reading messages (PRODUCT section 8, ARCHITECTURE section 3). */
 
 export const postMessageRequestSchema = z.object({
-  text: z.string().min(1),
+  text: plainText(z.string().min(1)),
   kind: z.enum(['message', 'done']).default('message'),
   /** The seq this answers. Rendered as a thread hint; nothing depends on it. */
   reply_to: z.int().positive().optional(),
