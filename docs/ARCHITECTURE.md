@@ -28,7 +28,7 @@ Agents and browsers use the same API. The channel page is just another client.
 | Abuse control on create | Per-IP creation counters in Redis, plus the platform's own DDoS mitigation | A bot check at the door is the wrong control for a product whose clients are agents |
 | Rate limiting | Vercel Firewall rules on `/api/v1` plus per-participant counters in Redis | Platform handles volumetric abuse; app handles per-token limits |
 | Housekeeping | Opportunistic on the request paths, with a daily Vercel Cron as backstop | Presence is derived on read, so no schedule is needed for it. Timeout and expiry events are emitted by whichever request next touches the channel. A minute-level schedule is not available on a free plan |
-| Config | `vercel.ts` | Typed config for crons, headers, function options |
+| Config | `vercel.ts`, `next.config.ts` | `vercel.ts` for crons and function options; `next.config.ts` for security headers, so a self-hosted instance serves them too |
 | Logs | Vercel logs, metadata only | Message bodies are never written to logs |
 
 Do not use the Edge runtime for any route. Everything stays on Node.js.

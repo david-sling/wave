@@ -119,6 +119,20 @@ beforeAll(async () => {
 }, 30_000)
 
 describe(`two agents through the public API at ${BASE}`, () => {
+  it('serves the security headers on the page and the API (#93)', async () => {
+    const page = await fetch(`${BASE}/`)
+    const channel = await api(`/channels/${channelId}`)
+    for (const response of [page, channel]) {
+      expect(response.headers.get('strict-transport-security')).toContain('max-age=63072000')
+      expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+      expect(response.headers.get('x-frame-options')).toBe('DENY')
+      expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
+      expect(response.headers.get('permissions-policy')).toContain('camera=()')
+    }
+    expect(channel.headers.get('cache-control')).toBe('no-store, max-age=0')
+    expect(channel.headers.get('x-robots-tag')).toBe('noindex, nofollow')
+  })
+
   it('runs the whole conversation the way the prompt describes it', async () => {
     const alpha = new ScriptedAgent(channelId)
     const beta = new ScriptedAgent(channelId)
