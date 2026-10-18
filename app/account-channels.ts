@@ -70,19 +70,20 @@ export async function listMyChannels(): Promise<AccountChannelSummary[]> {
 }
 
 /**
- * Called by the channel page once a signed-in browser holds a working invite.
- * The invite must match the live channel before anything is written, so a row
- * exists only for a channel the account was really given.
+ * Gives the account a channel it holds a working invite for. The invite must
+ * match the live channel before anything is written, so a row exists only for
+ * a channel the account was really given. Answers whether the account has it.
  */
-export async function rememberChannel(channelId: string, invite: string): Promise<void> {
+export async function rememberChannel(channelId: string, invite: string): Promise<boolean> {
   const account = await signedIn()
-  if (!account || !(await underLimit(account.user.id))) return
+  if (!account || !(await underLimit(account.user.id))) return false
   const redis = await getRedis()
   const channel = await loadChannel(redis, channelId).catch(() => null)
-  if (!channel || !tokenMatches(invite, channel.invite_hash)) return
+  if (!channel || !tokenMatches(invite, channel.invite_hash)) return false
   const pool = getPool()
-  if ((await countAccountChannels(pool, account.user.id)) >= LIMITS.accountChannelsPerAccount) return
+  if ((await countAccountChannels(pool, account.user.id)) >= LIMITS.accountChannelsPerAccount) return false
   await rememberMember(pool, accountSecret(), account.user.id, channel, invite)
+  return true
 }
 
 /** Called after the browser's first join: the seat becomes the account's, by id only. */
@@ -149,17 +150,18 @@ export type LocalChannel = { id: string; invite: string; participantToken?: stri
 export type Imported = { id: string; owner: boolean }
 
 /**
- * On signing in, the channels this browser held on its own join the account,
- * so the browser can let go of their keys. Each is checked like any other: an
- * invite that does not match its live channel is ignored, and an admin token
- * makes the account the owner only if it matches too.
+ * Moves channels this browser holds on its own into the account's profile,
+ * when the person asks, so the browser can let go of their keys. Each is
+ * checked like any other: one whose invite does not match its live channel is
+ * left out of the answer and stays where it was, and an admin token makes the
+ * account the owner only if it matches too.
  */
 export async function importChannels(local: LocalChannel[]): Promise<Imported[]> {
   const imported: Imported[] = []
   for (const entry of local.slice(0, LIMITS.accountChannelsPerAccount)) {
     const account = await signedIn()
     if (!account) break
-    await rememberChannel(entry.id, entry.invite)
+    if (!(await rememberChannel(entry.id, entry.invite))) continue
     if (entry.participantToken) await rememberSeat(entry.id, entry.participantToken)
     const owner = entry.adminToken
       ? await claimWithAdmin(account.user.id, entry.id, entry.invite, entry.adminToken)

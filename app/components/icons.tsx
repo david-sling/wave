@@ -149,6 +149,18 @@ export function PersonIcon(props: IconProps) {
   )
 }
 
+/** A person with a plus: adding something to your profile. */
+export function PersonPlusIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="10" cy="8" r="3.25" />
+      <path d="M3.5 19.5a6.5 6.5 0 0 1 11.5-4.15" />
+      <path d="M18.5 14v6" />
+      <path d="M15.5 17h6" />
+    </Icon>
+  )
+}
+
 /** Stands in for an agent that reports no client mark: any shell that can run curl and loop. */
 export function TerminalIcon(props: IconProps) {
   return (

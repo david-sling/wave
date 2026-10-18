@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { closeMyChannel, importChannels, openHere } from '@/app/account-channels'
+import { closeMyChannel, importChannels, openHere, type OpenedHere } from '@/app/account-channels'
 import { sessionAuth } from '@/lib/session-auth'
 import { accountState } from '../account-link'
 import { refreshAccountChannels } from './use-account-channels'
@@ -377,49 +377,45 @@ export function useChannel(channelId: string) {
     /**
      * Finds the invite and, if there is one, this person's seat.
      *
-     * Signed in, they are the account's: an invite from a shared link is given
-     * to the account first, with any keys this browser kept from before it
-     * signed in, which it then lets go of. The account answers with who the
-     * seat is and the invite to show, and the invite leaves the address bar.
+     * Signed in, a channel on the account's profile opens through the account:
+     * it answers with who the seat is and the invite to show, the invite leaves
+     * the address bar, and every request goes with the session. A shared link
+     * to a channel this browser does not hold yet is added to the profile
+     * first. A channel this browser holds on its own stays on this device, with
+     * its own keys, until it is moved to the profile from the pane.
      *
-     * Signed out, it is as it always was: the invite from the fragment, the
-     * identity from this browser's storage.
+     * Signed out, or on this device only, it is as it always was: the invite
+     * from the fragment, the identity from this browser's storage.
      */
     async function recall(): Promise<boolean> {
       const fromLink = inviteFromHash(window.location.hash)
-      viaAccount.current = (await accountState()).who === 'in'
-
-      if (viaAccount.current) {
-        const given = fromLink ?? readVisited().find((entry) => entry.id === channelId)?.invite
-        if (given) {
-          const [handed] = await importChannels([
-            {
-              id: channelId,
-              invite: given,
-              participantToken: readIdentity()?.token,
-              adminToken: readStorage(adminKey(channelId)) ?? undefined,
-            },
-          ]).catch(() => [])
-          if (handed) {
-            dropStorage(participantKey(channelId))
-            if (handed.owner) dropStorage(adminKey(channelId))
-            forgetChannel(channelId)
+      let opened: OpenedHere | null = null
+      if ((await accountState()).who === 'in') {
+        opened = await openHere(channelId).catch(() => null)
+        const onThisDevice = readVisited().some((entry) => entry.id === channelId)
+        if (!opened && fromLink && !onThisDevice) {
+          const [added] = await importChannels([{ id: channelId, invite: fromLink }]).catch(() => [])
+          if (added) {
+            opened = await openHere(channelId).catch(() => null)
+            void refreshAccountChannels()
           }
         }
+      }
+      if (controller.signal.aborted) return false
+      viaAccount.current = opened !== null
+
+      if (opened) {
         if (window.location.hash) {
           window.history.replaceState(window.history.state, '', window.location.pathname)
         }
-        const opened = await openHere(channelId).catch(() => null)
-        if (controller.signal.aborted) return false
         // Owned, the session closes it: a kept admin token is one key fewer to leave behind.
-        if (opened?.relation === 'owner') dropStorage(adminKey(channelId))
-        invite.current = opened?.invite ?? null
-        if (opened?.participant) {
+        if (opened.relation === 'owner') dropStorage(adminKey(channelId))
+        invite.current = opened.invite
+        if (opened.participant) {
           const seat = { ...opened.participant, token: '' }
           meRef.current = seat
           setMe(seat)
         }
-        if (given) void refreshAccountChannels()
       } else {
         invite.current = fromLink
         if (invite.current && window.location.hash !== `#${invite.current}`) {

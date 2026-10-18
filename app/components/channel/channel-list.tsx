@@ -7,7 +7,7 @@ import { byActivity, live, type VisitedChannel } from '@/lib/visited-channels'
 import { forgetEverywhere, importChannels } from '@/app/account-channels'
 import { SignOutForm, useAccount } from '../account-link'
 import { CreateChannelButton } from '../create-channel'
-import { CloseIcon, PersonIcon, PlusIcon, SignOutIcon } from '../icons'
+import { CloseIcon, PersonIcon, PersonPlusIcon, PlusIcon, SignOutIcon } from '../icons'
 import { Logo } from '../logo'
 import { hideAccountChannel, refreshAccountChannels, useAccountChannels } from './use-account-channels'
 import { useHeadProbe } from './use-head-probe'
@@ -33,23 +33,31 @@ function OtherRow({
   unread,
   everywhere,
   onForget,
+  onMove,
 }: {
   entry: VisitedChannel
   unread: boolean
-  /** The channel is the account's, so forgetting it here forgets it on every device. */
+  /** The channel is on the profile, so forgetting it here forgets it on every device. */
   everywhere: boolean
   onForget: (entry: VisitedChannel) => void
+  /** Present for a channel on this device only, while signed in: moves it to the profile. */
+  onMove?: (entry: VisitedChannel) => void
 }) {
+  const label = `#${entry.name || 'unnamed-channel'}`
+  const action =
+    'absolute top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-[6px] text-ink-3 transition-[opacity,color,background-color] hover:bg-line-2 hover:text-ink pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100'
   return (
     <li className="group relative">
       {/* Link, not <a>: a soft navigation commits the fragment before the
           next page reads its invite (#69). No prefetch, since each visible
           row would otherwise be a request to the server. */}
       <Link
-        // An account's channel this browser has not opened has no invite yet; the page asks the account for it.
+        // A profile channel carries no invite: the page asks the account for it.
         href={entry.invite ? `/c/${entry.id}#${entry.invite}` : `/c/${entry.id}`}
         prefetch={false}
-        className="block rounded-[8px] border border-transparent px-2 py-1 pr-14 transition-colors hover:bg-panel pointer-fine:pr-8"
+        className={`block rounded-[8px] border border-transparent px-2 py-1 transition-colors hover:bg-panel ${
+          onMove ? 'pr-20 pointer-fine:pr-14' : 'pr-14 pointer-fine:pr-8'
+        }`}
       >
         <RowName
           name={entry.name}
@@ -60,15 +68,28 @@ function OtherRow({
       {unread ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute right-9 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-ink transition-opacity pointer-fine:right-3 pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0"
+          className={`pointer-events-none absolute top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-ink transition-opacity pointer-fine:right-3 pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0 ${
+            onMove ? 'right-16' : 'right-9'
+          }`}
         />
+      ) : null}
+      {onMove ? (
+        <button
+          type="button"
+          onClick={() => onMove(entry)}
+          aria-label={`Add ${label} to your profile`}
+          title="Add to your profile, to open it on every device"
+          className={`${action} right-8`}
+        >
+          <PersonPlusIcon size={14} />
+        </button>
       ) : null}
       <button
         type="button"
         onClick={() => onForget(entry)}
-        aria-label={`Forget #${entry.name || 'unnamed-channel'}`}
+        aria-label={`Forget ${label}`}
         title={everywhere ? 'Forget this channel on every device' : 'Forget this channel in this browser'}
-        className="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-[6px] text-ink-3 transition-[opacity,color,background-color] hover:bg-line-2 hover:text-ink pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
+        className={`${action} right-1`}
       >
         <CloseIcon size={13} />
       </button>
@@ -77,37 +98,29 @@ function OtherRow({
 }
 
 /**
- * On signing in, this browser's own channels join the account, and the
- * browser lets go of their invites and seat keys: from then on the account
- * hands them over each time a channel opens (AUTH.md 3.6). Admin tokens stay,
- * since a channel made without an account never gains an owner and its token
- * is the only way to close it.
+ * Moves a channel this browser holds on its own to the account's profile,
+ * with its seat and, when it was made here, its admin token, and lets go of
+ * the browser's copies once the account has it (AUTH.md 3.6). A channel the
+ * account could not take stays where it was.
  */
-function useImportOnSignIn(who: string, stored: VisitedChannel[]) {
-  const importing = useRef(false)
-  useEffect(() => {
-    if (who !== 'in' || stored.length === 0 || importing.current) return
-    importing.current = true
-    const local = stored.map((entry) => ({
+async function moveToProfile(entry: VisitedChannel): Promise<void> {
+  const [moved] = await importChannels([
+    {
       id: entry.id,
       invite: entry.invite,
       participantToken: keptSeatToken(entry.id),
       adminToken: keptAdminToken(entry.id),
-    }))
-    void importChannels(local)
-      .then((imported) => {
-        for (const { id, owner } of imported) {
-          forgetChannel(id)
-          dropKeptSeat(id)
-          if (owner) dropKeptAdmin(id)
-        }
-        return refreshAccountChannels()
-      })
-      .catch(() => {})
-      .finally(() => {
-        importing.current = false
-      })
-  }, [who, stored])
+    },
+  ]).catch(() => [])
+  if (!moved) return
+  await refreshAccountChannels()
+  forgetChannel(entry.id)
+  dropKeptSeat(entry.id)
+  if (moved.owner) dropKeptAdmin(entry.id)
+}
+
+function GroupHeading({ children }: { children: React.ReactNode }) {
+  return <h3 className="m-0 mb-1 px-2 text-[12px] font-medium text-ink-3">{children}</h3>
 }
 
 export function ChannelList() {
@@ -115,14 +128,11 @@ export function ChannelList() {
   const stored = useVisitedChannels()
   const account = useAccountChannels()
   const { who } = useAccount()
-  useImportOnSignIn(who, stored)
   useUnreadVersion()
   const [now, setNow] = useState(() => Date.now())
-  const [forgotten, setForgotten] = useState<{ entry: VisitedChannel; local: boolean; everywhere: boolean } | null>(
-    null,
-  )
+  const [forgotten, setForgotten] = useState<{ entry: VisitedChannel; everywhere: boolean } | null>(null)
   const undo = useRef<HTMLButtonElement>(null)
-  const list = useRef<HTMLUListElement>(null)
+  const list = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000)
@@ -141,14 +151,13 @@ export function ChannelList() {
     return () => clearTimeout(timer)
   }, [forgotten])
 
-  // Signed in, the account's channels are the list and this browser keeps none;
-  // signed out, it is this browser's own, by activity.
+  // Signed in, two groups: the profile's channels, on every device and kept by
+  // the account, and this browser's own, kept here until moved. Signed out,
+  // only this browser's own, and no headings.
   const signedIn = who === 'in'
-  const accountIds = new Set(account.map((entry) => entry.id))
-  const local = signedIn ? [] : byActivity(live(stored, now))
-  const localIds = new Set(local.map((entry) => entry.id))
-  const elsewhere: VisitedChannel[] = account
-    .filter((entry) => !localIds.has(entry.id) && entry.expiresAt > now)
+  const profileIds = new Set(account.map((entry) => entry.id))
+  const profile: VisitedChannel[] = account
+    .filter((entry) => entry.expiresAt > now)
     .map((entry) => ({
       id: entry.id,
       invite: '',
@@ -158,63 +167,78 @@ export function ChannelList() {
       addedAt: 0,
       lastMessageAt: 0,
     }))
-  const known = [...local, ...elsewhere]
+  const device = byActivity(live(stored, now)).filter((entry) => !profileIds.has(entry.id))
+  const known = [...profile, ...device]
+
   const forget = (entry: VisitedChannel) => {
-    const wasLocal = localIds.has(entry.id)
-    if (wasLocal) forgetChannel(entry.id)
-    if (accountIds.has(entry.id)) hideAccountChannel(entry.id)
-    setForgotten({ entry, local: wasLocal, everywhere: accountIds.has(entry.id) })
+    const everywhere = profileIds.has(entry.id)
+    if (everywhere) hideAccountChannel(entry.id)
+    else forgetChannel(entry.id)
+    setForgotten({ entry, everywhere })
   }
+  const move = (entry: VisitedChannel) => void moveToProfile(entry)
+
+  const row = (entry: VisitedChannel, onProfile: boolean) =>
+    entry.id === currentId ? (
+      <li key={entry.id}>
+        {/* A link rather than a label, so it is in the tab order and announced as where you are. */}
+        <Link
+          href={`/c/${entry.id}`}
+          aria-current="page"
+          onClick={(event) => event.preventDefault()}
+          className="block cursor-default rounded-[8px] border border-line bg-panel px-2 py-1"
+        >
+          <RowName name={entry.name} className="font-semibold text-ink" />
+        </Link>
+      </li>
+    ) : (
+      <OtherRow
+        key={entry.id}
+        entry={entry}
+        unread={unreadOf(entry.id, now) === 'unread'}
+        everywhere={onProfile}
+        onForget={forget}
+        onMove={signedIn && !onProfile ? move : undefined}
+      />
+    )
 
   return (
-    <div className="grid gap-3">
-      <ul ref={list} tabIndex={-1} className="m-0 grid list-none gap-px p-0 outline-none">
-        {known.map((entry) =>
-          entry.id === currentId ? (
-            <li key={entry.id}>
-              {/* A link rather than a label, so it is in the tab order and announced as where you are. */}
-              <Link
-                href={`/c/${entry.id}`}
-                aria-current="page"
-                onClick={(event) => event.preventDefault()}
-                className="block cursor-default rounded-[8px] border border-line bg-panel px-2 py-1"
-              >
-                <RowName name={entry.name} className="font-semibold text-ink" />
-              </Link>
-            </li>
-          ) : (
-            <OtherRow
-              key={entry.id}
-              entry={entry}
-              unread={unreadOf(entry.id, now) === 'unread'}
-              everywhere={accountIds.has(entry.id)}
-              onForget={forget}
-            />
-          ),
-        )}
+    <div ref={list} tabIndex={-1} className="grid gap-3 outline-none">
+      {signedIn && profile.length > 0 ? (
+        <section aria-label="Your profile">
+          <GroupHeading>Your profile</GroupHeading>
+          <ul className="m-0 grid list-none gap-px p-0">{profile.map((entry) => row(entry, true))}</ul>
+        </section>
+      ) : null}
 
-        {forgotten ? (
-          <li role="status" className="flex items-center justify-between gap-2 px-2 py-1 text-[12.5px] text-ink-3">
-            <span className="min-w-0 truncate">
-              Forgot #{forgotten.entry.name || 'unnamed-channel'}
-              {forgotten.everywhere ? ' everywhere' : ''}
-            </span>
-            <button
-              ref={undo}
-              type="button"
-              className="shrink-0 font-semibold text-ink-2 underline underline-offset-2 hover:text-ink"
-              onClick={() => {
-                if (forgotten.local) rememberChannel(forgotten.entry, forgotten.entry.lastSeenAt)
-                // The account has not been told yet, so reading it again brings the row back.
-                if (forgotten.everywhere) void refreshAccountChannels()
-                setForgotten(null)
-              }}
-            >
-              Undo
-            </button>
-          </li>
-        ) : null}
-      </ul>
+      {device.length > 0 ? (
+        <section aria-label="On this device">
+          {signedIn ? <GroupHeading>On this device</GroupHeading> : null}
+          <ul className="m-0 grid list-none gap-px p-0">{device.map((entry) => row(entry, false))}</ul>
+        </section>
+      ) : null}
+
+      {forgotten ? (
+        <p role="status" className="m-0 flex items-center justify-between gap-2 px-2 py-1 text-[12.5px] text-ink-3">
+          <span className="min-w-0 truncate">
+            Forgot #{forgotten.entry.name || 'unnamed-channel'}
+            {forgotten.everywhere ? ' everywhere' : ''}
+          </span>
+          <button
+            ref={undo}
+            type="button"
+            className="shrink-0 font-semibold text-ink-2 underline underline-offset-2 hover:text-ink"
+            onClick={() => {
+              if (!forgotten.everywhere) rememberChannel(forgotten.entry, forgotten.entry.lastSeenAt)
+              // The account has not been told yet, so reading it again brings the row back.
+              else void refreshAccountChannels()
+              setForgotten(null)
+            }}
+          >
+            Undo
+          </button>
+        </p>
+      ) : null}
 
       {known.every((entry) => entry.id === currentId) && !forgotten ? (
         <p className="m-0 px-2 text-[12.5px] leading-relaxed text-ink-3">
