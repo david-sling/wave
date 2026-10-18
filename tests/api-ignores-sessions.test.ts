@@ -6,7 +6,8 @@ import type { WaveRedis } from '@/lib/redis'
 
 /**
  * The API stays bearer-only (AUTH.md 2.4, 3.7): no channel route reads a
- * session, as a cookie or as a bearer. Two checks. Statically, nothing under
+ * session, as a cookie or as a bearer. The signed-in page's routes under
+ * app/api/web are the mirror image: a session and never a token. Two checks. Statically, nothing under
  * app/api/v1 or in lib/auth.ts imports the accounts module. Behaviourally, a
  * session presented to every channel route is treated as no credential: the
  * cookie is never read, and the bearer is compared against channel tokens
@@ -36,6 +37,12 @@ describe('channel routes never read a session', () => {
     const files = [...walk('app/api/v1'), 'lib/auth.ts', 'lib/channels.ts', 'lib/participants.ts', 'lib/messages.ts']
     for (const file of files) {
       expect(readFileSync(file, 'utf8'), file).not.toMatch(/lib\/accounts|better-auth/)
+    }
+  })
+
+  it('the page API reads no token: app/api/web authenticates by session alone', () => {
+    for (const file of walk('app/api/web')) {
+      expect(readFileSync(file, 'utf8'), file).not.toMatch(/@\/lib\/auth'|bearerToken|authorization/i)
     }
   })
 

@@ -12,7 +12,7 @@ import { CloseIcon, PersonIcon, PlusIcon, SignOutIcon } from '../icons'
 import { Logo } from '../logo'
 import { hideAccountChannel, refreshAccountChannels, useAccountChannels } from './use-account-channels'
 import { useHeadProbe } from './use-head-probe'
-import { dropKeptSeat, keptSeatToken } from './use-channel'
+import { dropKeptAdmin, dropKeptSeat, keptAdminToken, keptSeatToken } from './use-channel'
 import { unreadOf, useUnreadVersion } from './use-unread'
 import { forgetChannel, rememberChannel, useVisitedChannels } from './use-visited-channels'
 
@@ -93,12 +93,14 @@ function useImportOnSignIn(who: string, stored: VisitedChannel[]) {
       id: entry.id,
       invite: entry.invite,
       participantToken: keptSeatToken(entry.id),
+      adminToken: keptAdminToken(entry.id),
     }))
     void importChannels(local)
       .then((imported) => {
-        for (const id of imported) {
+        for (const { id, owner } of imported) {
           forgetChannel(id)
           dropKeptSeat(id)
+          if (owner) dropKeptAdmin(id)
         }
         return refreshAccountChannels()
       })

@@ -29,7 +29,6 @@ describe('key layout', () => {
       keys.items,
       keys.bytes,
       keys.parts,
-      keys.devices,
       keys.names,
       keys.emitted,
     ].map((build) => build('abc'))

@@ -4,19 +4,18 @@ import { headers } from 'next/headers'
 import { getAccountSession } from '@/lib/accounts/auth'
 import {
   attachSeat,
+  claimOwnership,
   countAccountChannels,
   forgetAccountChannel,
   listAccountChannels,
   openAccountChannel,
   ownsChannel,
-  recordDevice,
   rememberMember,
   type Relation,
 } from '@/lib/accounts/channels'
 import { accountSecret, getPool } from '@/lib/accounts/store'
 import { findParticipantByToken, loadChannel } from '@/lib/auth'
 import { closeChannel } from '@/lib/channels'
-import { issueDeviceToken } from '@/lib/devices'
 import { keys } from '@/lib/keys'
 import { LIMITS } from '@/lib/limits'
 import { consumeLimit } from '@/lib/rate-limit'
@@ -31,10 +30,11 @@ import { parseParticipant } from '@/lib/types'
  * checked against that account's rows and the live channel. A channel that
  * is not the account's is answered exactly as one that does not exist.
  *
- * A signed-in browser keeps none of a channel's secrets: the invite and the
- * key to its seat come from here each time a page opens the channel, live in
- * that page's memory, and are gone when it closes. Signing out leaves nothing
- * behind to clean up (AUTH.md 3.6).
+ * A signed-in browser holds no key to a channel. It reads and posts with its
+ * session (lib/accounts/channel-access.ts), and its seat's token is never
+ * sent to it. The invite comes from here only to be shown and shared, lives
+ * in the page's memory, and authenticates nothing the page does. Signing out
+ * leaves nothing behind to clean up (AUTH.md 3.6).
  *
  * With sign-in off, or signed out, each answers as if the account had no
  * channels, so the channel page can call them without asking first.
@@ -98,16 +98,14 @@ export async function rememberSeat(channelId: string, participantToken: string):
 }
 
 export type OpenedHere = {
+  /** To show and share. The page never sends it: its session is its access. */
   invite: string
   relation: Relation
-  /** Present when the account has a seat: a fresh device token for it, bound to this session. */
-  participant?: { id: string; token: string; name: string }
+  /** The account's seat, when it has one. Who it is, never a key to it. */
+  participant?: { id: string; name: string }
 }
 
-/**
- * Opens one of the account's channels on this device (AUTH.md 3.6): the
- * invite back, and a device token for the account's seat when it has one.
- */
+/** Opens one of the account's channels on this device (AUTH.md 3.6). */
 export async function openHere(channelId: string): Promise<OpenedHere | null> {
   const account = await signedIn()
   if (!account || !(await underLimit(account.user.id))) return null
@@ -120,9 +118,7 @@ export async function openHere(channelId: string): Promise<OpenedHere | null> {
   const stored = await redis.hGet(keys.parts(opened.channel.id), opened.participantId)
   const seat = stored ? parseParticipant(stored) : null
   if (!seat || seat.left_at !== undefined) return { invite: opened.invite, relation: opened.relation }
-  const { token, tokenHash } = await issueDeviceToken(redis, opened.channel, seat.id)
-  await recordDevice(getPool(), redis, account.session.id, opened.channel, tokenHash)
-  return { invite: opened.invite, relation: opened.relation, participant: { id: seat.id, token, name: seat.name } }
+  return { invite: opened.invite, relation: opened.relation, participant: { id: seat.id, name: seat.name } }
 }
 
 /** Forget everywhere, and what leaving does: the row goes, on every device. */
@@ -134,7 +130,7 @@ export async function forgetEverywhere(channelId: string): Promise<void> {
 
 /**
  * Closes a channel the account owns (AUTH.md 3.6). The session stands in for
- * the admin token a signed-in browser no longer keeps.
+ * the admin token a signed-in browser does not keep.
  */
 export async function closeMyChannel(channelId: string): Promise<{ ok: true } | { error: string }> {
   const gone = { error: 'This channel is not here any more.' }
@@ -148,20 +144,34 @@ export async function closeMyChannel(channelId: string): Promise<{ ok: true } | 
   return { ok: true }
 }
 
-export type LocalChannel = { id: string; invite: string; participantToken?: string }
+export type LocalChannel = { id: string; invite: string; participantToken?: string; adminToken?: string }
+
+export type Imported = { id: string; owner: boolean }
 
 /**
  * On signing in, the channels this browser held on its own join the account,
- * so the browser can let go of their secrets. Each is checked like any other:
- * an invite that does not match its live channel is ignored.
+ * so the browser can let go of their keys. Each is checked like any other: an
+ * invite that does not match its live channel is ignored, and an admin token
+ * makes the account the owner only if it matches too.
  */
-export async function importChannels(local: LocalChannel[]): Promise<string[]> {
-  const imported: string[] = []
+export async function importChannels(local: LocalChannel[]): Promise<Imported[]> {
+  const imported: Imported[] = []
   for (const entry of local.slice(0, LIMITS.accountChannelsPerAccount)) {
-    if (!(await signedIn())) break
+    const account = await signedIn()
+    if (!account) break
     await rememberChannel(entry.id, entry.invite)
     if (entry.participantToken) await rememberSeat(entry.id, entry.participantToken)
-    imported.push(entry.id)
+    const owner = entry.adminToken
+      ? await claimWithAdmin(account.user.id, entry.id, entry.invite, entry.adminToken)
+      : false
+    imported.push({ id: entry.id, owner })
   }
   return imported
+}
+
+async function claimWithAdmin(accountId: string, channelId: string, invite: string, admin: string): Promise<boolean> {
+  const redis = await getRedis()
+  const channel = await loadChannel(redis, channelId).catch(() => null)
+  if (!channel || !tokenMatches(invite, channel.invite_hash) || !tokenMatches(admin, channel.admin_hash)) return false
+  return claimOwnership(getPool(), redis, accountSecret(), accountId, channel, invite)
 }

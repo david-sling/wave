@@ -6,7 +6,7 @@ import { getRedis, type WaveRedis } from '../redis.ts'
 import { getAccountsConfig, type AccountsConfig } from './config.ts'
 import { smtpMailer, type Mailer } from './email.ts'
 import { baseAuthOptions, provenance } from './options.ts'
-import { disownChannels, revokeSessionDevices } from './channels.ts'
+import { disownChannels } from './channels.ts'
 import { getPool } from './store.ts'
 
 /**
@@ -50,13 +50,6 @@ export function createAuth({
       session: {
         create: {
           before: async (session, context) => ({ data: { ...session, ...provenance(context?.path) } }),
-        },
-        delete: {
-          // However a session ends, the device tokens it took stop working
-          // (AUTH.md 3.6). The library runs this for single and bulk deletes.
-          after: async (session) => {
-            await revokeSessionDevices(store, await redis(), session.id)
-          },
         },
       },
       user: {

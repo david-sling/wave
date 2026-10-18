@@ -2,8 +2,11 @@
 
 import { useParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
+import { sessionAuth } from '@/lib/session-auth'
 import { headKey, parseHead, PROBE, probeCandidates } from '@/lib/unread'
 import { live, readVisited } from '@/lib/visited-channels'
+import { useAccount } from '../account-link'
+import { useAccountChannels } from './use-account-channels'
 import { publishHead } from './use-unread'
 import { forgetChannel, noteChannelMessage } from './use-visited-channels'
 
@@ -15,13 +18,24 @@ function storedHead(id: string) {
   }
 }
 
+/** A room to ask about, and how: its invite on the agent API signed out, the session on the page API signed in. */
+export type ProbeRoom = { id: string; api: 'v1' | 'web'; headers: Record<string, string> }
+
+function visitedRooms(now: number): ProbeRoom[] {
+  return live(readVisited(), now).map((room) => ({
+    id: room.id,
+    api: 'v1',
+    headers: { authorization: `Bearer ${room.invite}` },
+  }))
+}
+
 /** One round: asks about the rooms that need it and records what comes back. Returns how many requests it made. */
 export async function probeRound(
   currentId: string | undefined,
   signal?: AbortSignal,
   now = Date.now(),
+  rooms: ProbeRoom[] = visitedRooms(now),
 ): Promise<number> {
-  const rooms = live(readVisited(), now)
   const heads = new Map(rooms.map((room) => [room.id, storedHead(room.id)]))
   const ids = probeCandidates(
     rooms.map((room) => room.id),
@@ -37,8 +51,8 @@ export async function probeRound(
     made++
     let response: Response
     try {
-      response = await fetch(`/api/v1/channels/${id}/head`, {
-        headers: { authorization: `Bearer ${room.invite}` },
+      response = await fetch(`/api/${room.api}/channels/${id}/head`, {
+        headers: room.headers,
         signal,
       })
     } catch {
@@ -68,14 +82,17 @@ export async function probeRound(
  * hidden tab skips its rounds rather than catching up on return, so switching
  * back to the tab never sets off a burst.
  */
-export function startHeadProbe(currentId: () => string | undefined): () => void {
+export function startHeadProbe(
+  currentId: () => string | undefined,
+  rooms: () => ProbeRoom[] | undefined = () => undefined,
+): () => void {
   const controller = new AbortController()
   let timer: ReturnType<typeof setTimeout>
   const schedule = () => {
     timer = setTimeout(round, PROBE.intervalMs + (Math.random() * 2 - 1) * PROBE.jitterMs)
   }
   const round = async () => {
-    if (document.visibilityState === 'visible') await probeRound(currentId(), controller.signal)
+    if (document.visibilityState === 'visible') await probeRound(currentId(), controller.signal, Date.now(), rooms())
     if (!controller.signal.aborted) schedule()
   }
   schedule()
@@ -88,10 +105,30 @@ export function startHeadProbe(currentId: () => string | undefined): () => void 
 export function useHeadProbe(): void {
   const { id } = useParams<{ id?: string }>()
   const current = useRef(id)
+  // Signed in, the rooms are the account's and the session asks; signed out, this browser's own.
+  const { who } = useAccount()
+  const account = useAccountChannels()
+  const rooms = useRef<ProbeRoom[] | undefined>(undefined)
 
   useEffect(() => {
     current.current = id
   }, [id])
 
-  useEffect(() => startHeadProbe(() => current.current), [])
+  useEffect(() => {
+    rooms.current =
+      who === 'in'
+        ? account
+            .filter((entry) => entry.expiresAt > Date.now())
+            .map((entry) => ({ id: entry.id, api: 'web' as const, headers: sessionAuth }))
+        : undefined
+  }, [who, account])
+
+  useEffect(
+    () =>
+      startHeadProbe(
+        () => current.current,
+        () => rooms.current,
+      ),
+    [],
+  )
 }

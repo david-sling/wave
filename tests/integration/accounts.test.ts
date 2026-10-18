@@ -152,58 +152,91 @@ describe.skipIf(!databaseUrl)('sign-in', () => {
     expect(await openAccountChannel(pool, redis, secret, alice.user.id, channel.id)).toBeNull()
   })
 
-  it("withdraws a session's device tokens when the session ends", async () => {
+  it('answers a signed-in page from its account and from nothing else', async () => {
+    const { authenticateSession } = await import('@/lib/accounts/channel-access')
+    const { attachSeat, rememberMember } = await import('@/lib/accounts/channels')
     const { createChannel } = await import('@/lib/channels')
-    const { findParticipantByToken, loadChannel } = await import('@/lib/auth')
-    const { joinChannel } = await import('@/lib/participants')
-    const { issueDeviceToken } = await import('@/lib/devices')
-    const { recordDevice } = await import('@/lib/accounts/channels')
+    const { loadChannel } = await import('@/lib/auth')
+    const { joinChannel, leaveChannel } = await import('@/lib/participants')
+    const { sessionAuth } = await import('@/lib/session-auth')
     const carol = await account('carol@example.test')
     const other = await account('carol@example.test')
+    const mallory = await account('mallory@example.test')
     const created = await createChannel(redis, { ttl: '1h', mode: 'standard' }, {})
     const channel = await loadChannel(redis, created.channel_id)
-    const seat = await joinChannel(redis, channel, { name: 'Carol', role: 'human' })
-    const device = await issueDeviceToken(redis, channel, seat.participant_id)
-    await recordDevice(pool, redis, other.session.id, channel, device.tokenHash)
-    expect((await findParticipantByToken(redis, channel.id, device.token))?.id).toBe(seat.participant_id)
+    await rememberMember(pool, secret, carol.user.id, channel, created.invite_token)
 
+    const deps = {
+      session: (headers: Headers) => auth.api.getSession({ headers }),
+      pool: () => pool,
+      secret: () => secret,
+    }
+    const url = `${origin}/api/v1/channels/${channel.id}`
+    const page = (cookie: string, extra: Record<string, string> = {}) =>
+      new Request(url, { headers: { cookie, ...sessionAuth, 'sec-fetch-site': 'same-origin', ...extra } })
+    const access = (request: Request, grant: 'read' | 'seat' = 'read') =>
+      authenticateSession(redis, channel.id, grant, request, deps).then(
+        (granted) => ({ status: 200, participant: granted.participant?.id, account: granted.accountId }),
+        (error: { status: number }) => ({ status: error.status }),
+      )
+
+    expect(await access(page(carol.cookie))).toEqual({ status: 200, participant: undefined, account: carol.user.id })
+    // No seat yet: reading, not posting.
+    expect(await access(page(carol.cookie), 'seat')).toEqual({ status: 401 })
+    const seat = await joinChannel(redis, channel, { name: 'Carol', role: 'human' })
+    await attachSeat(pool, carol.user.id, channel.id, seat.participant_id)
+    // Any session of the account speaks from its one seat, and reading carries it.
+    expect(await access(page(other.cookie), 'seat')).toMatchObject({ status: 200, participant: seat.participant_id })
+    expect(await access(page(carol.cookie))).toMatchObject({ status: 200, participant: seat.participant_id })
+
+    // Another account, or no session: nothing.
+    expect(await access(page(mallory.cookie))).toEqual({ status: 401 })
+    expect(await access(page(''))).toEqual({ status: 401 })
+    // Not from this origin's own pages, refused before the session is read: no
+    // header, another site, another origin. A token is no substitute.
+    expect(await access(new Request(url, { headers: { cookie: carol.cookie } }))).toEqual({ status: 403 })
+    expect(await access(page(carol.cookie, { 'sec-fetch-site': 'cross-site' }))).toEqual({ status: 403 })
+    expect(await access(page(carol.cookie, { origin: 'https://evil.example' }))).toEqual({ status: 403 })
+    expect(await access(page(mallory.cookie, { authorization: `Bearer ${created.invite_token}` }))).toEqual({
+      status: 401,
+    })
+
+    // Ending one session ends its access at once; the other keeps its own.
     await auth.api.revokeSession({
       body: { token: other.session.token },
       headers: new Headers({ cookie: carol.cookie }),
     })
-    expect(await findParticipantByToken(redis, channel.id, device.token)).toBeUndefined()
-    // The seat's own token is untouched.
-    expect((await findParticipantByToken(redis, channel.id, seat.participant_token))?.id).toBe(seat.participant_id)
+    expect(await access(page(other.cookie))).toEqual({ status: 401 })
+    expect(await access(page(carol.cookie))).toMatchObject({ status: 200 })
+
+    // A seat given up stays given up.
+    const { keys } = await import('@/lib/keys')
+    const { parseParticipant } = await import('@/lib/types')
+    const stored = (await redis.hGet(keys.parts(channel.id), seat.participant_id))!
+    await leaveChannel(redis, channel, parseParticipant(stored))
+    expect(await access(page(carol.cookie), 'seat')).toEqual({ status: 401 })
+    expect(await access(page(carol.cookie))).toEqual({ status: 200, participant: undefined, account: carol.user.id })
   })
 
-  it('lets only the owner close by session, and keeps a few device tokens per session and channel', async () => {
+  it('lets only the owner close by session, and hands over a channel only with its admin token', async () => {
     const { createChannel } = await import('@/lib/channels')
-    const { findParticipantByToken, loadChannel } = await import('@/lib/auth')
-    const { joinChannel } = await import('@/lib/participants')
-    const { issueDeviceToken } = await import('@/lib/devices')
-    const { DEVICE_TOKENS_PER_SESSION_CHANNEL, ownsChannel, recordDevice, rememberMember, rememberOwner } =
-      await import('@/lib/accounts/channels')
+    const { loadChannel } = await import('@/lib/auth')
+    const { claimOwnership, ownsChannel, rememberMember, rememberOwner } = await import('@/lib/accounts/channels')
     const owner = await account('dana@example.test')
     const member = await account('erin@example.test')
     const created = await createChannel(redis, { ttl: '1h', mode: 'standard' }, { ownerId: owner.user.id })
     const channel = await loadChannel(redis, created.channel_id)
-    const expires = channel.expires_at
-    await rememberOwner(pool, secret, owner.user.id, channel.id, expires, created.invite_token)
+    await rememberOwner(pool, secret, owner.user.id, channel.id, channel.expires_at, created.invite_token)
     await rememberMember(pool, secret, member.user.id, channel, created.invite_token)
     expect(await ownsChannel(pool, owner.user.id, channel)).toBe(true)
     expect(await ownsChannel(pool, member.user.id, channel)).toBe(false)
+    // Owned by another account: not taken over.
+    expect(await claimOwnership(pool, redis, secret, member.user.id, channel, created.invite_token)).toBe(false)
 
-    const seat = await joinChannel(redis, channel, { name: 'Dana', role: 'human' })
-    const tokens = []
-    for (let i = 0; i < DEVICE_TOKENS_PER_SESSION_CHANNEL + 2; i++) {
-      const device = await issueDeviceToken(redis, channel, seat.participant_id)
-      await recordDevice(pool, redis, owner.session.id, channel, device.tokenHash)
-      tokens.push(device.token)
-      await new Promise((resolve) => setTimeout(resolve, 5))
-    }
-    const working = []
-    for (const token of tokens) working.push(Boolean(await findParticipantByToken(redis, channel.id, token)))
-    expect(working).toEqual([false, false, ...Array(DEVICE_TOKENS_PER_SESSION_CHANNEL).fill(true)])
+    const anonymous = await createChannel(redis, { ttl: '1h', mode: 'standard' }, {})
+    const made = await loadChannel(redis, anonymous.channel_id)
+    expect(await claimOwnership(pool, redis, secret, member.user.id, made, anonymous.invite_token)).toBe(true)
+    expect(await ownsChannel(pool, member.user.id, await loadChannel(redis, made.id))).toBe(true)
   })
 
   it('revokes a session immediately', async () => {

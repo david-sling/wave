@@ -1,5 +1,4 @@
 import type { Pool } from 'pg'
-import { revokeDeviceToken } from '../devices.ts'
 import { keys } from '../keys.ts'
 import type { WaveRedis } from '../redis.ts'
 import { epochSeconds } from '../time.ts'
@@ -66,6 +65,25 @@ export async function rememberMember(
        set invite_sealed = coalesce(account_channel.invite_sealed, excluded.invite_sealed)`,
     [accountId, channel.id, sealInvite(secret, accountId, channel.id, invite), channel.expires_at],
   )
+}
+
+/**
+ * A channel this browser made before it signed in, handed to the account with
+ * its admin token on sign-in. The caller has checked the admin token and the
+ * invite against the live channel. A channel another account owns stays its.
+ */
+export async function claimOwnership(
+  pool: Pool,
+  redis: WaveRedis,
+  secret: string,
+  accountId: string,
+  channel: ChannelRecord,
+  invite: string,
+): Promise<boolean> {
+  if (channel.owner_id !== undefined && channel.owner_id !== accountId) return false
+  await redis.hSet(keys.channel(channel.id), { owner_id: accountId })
+  await rememberOwner(pool, secret, accountId, channel.id, channel.expires_at, invite)
+  return true
 }
 
 /** The account's seat, once it has one. Only the id: the token is never stored. */
@@ -166,15 +184,13 @@ export async function forgetAccountChannel(pool: Pool, accountId: string, channe
 
 /** The sweep's share: rows whose channel has expired on its own. */
 export async function pruneAccountChannels(pool: Pool): Promise<number> {
-  const channels = await pool.query(`delete from account_channel where expires_at <= now()`)
-  await pool.query(`delete from account_device where expires_at <= now()`)
-  return channels.rowCount ?? 0
+  const { rowCount } = await pool.query(`delete from account_channel where expires_at <= now()`)
+  return rowCount ?? 0
 }
 
 /**
  * Before an account is deleted: its channels lose their owner and keep
- * running on their admin tokens (AUTH.md 4.4), and its rows go. Its device
- * tokens go with its sessions.
+ * running on their admin tokens (AUTH.md 4.4), and its rows go.
  */
 export async function disownChannels(pool: Pool, redis: WaveRedis, accountId: string): Promise<void> {
   const { rows } = await pool.query<{ channel_id: string; relation: Relation }>(
@@ -184,43 +200,4 @@ export async function disownChannels(pool: Pool, redis: WaveRedis, accountId: st
   for (const row of rows) {
     if (row.relation === 'owner') await redis.hDel(keys.channel(row.channel_id), 'owner_id')
   }
-}
-
-/** How many device tokens one session keeps for one channel: one per open tab, within reason. */
-export const DEVICE_TOKENS_PER_SESSION_CHANNEL = 5
-
-/**
- * Records a device token a session took for a channel. Each open tab takes
- * its own, since the page keeps it in memory only; past the cap, the oldest
- * are withdrawn first.
- */
-export async function recordDevice(
-  pool: Pool,
-  redis: WaveRedis,
-  sessionId: string,
-  channel: ChannelRecord,
-  tokenHash: string,
-): Promise<void> {
-  await pool.query(
-    `insert into account_device (session_id, channel_id, token_hash, expires_at)
-     values ($1, $2, $3, to_timestamp($4)) on conflict do nothing`,
-    [sessionId, channel.id, tokenHash, channel.expires_at],
-  )
-  const { rows } = await pool.query<{ token_hash: string }>(
-    `delete from account_device where session_id = $1 and channel_id = $2 and token_hash in (
-       select token_hash from account_device where session_id = $1 and channel_id = $2
-       order by created_at desc offset $3
-     ) returning token_hash`,
-    [sessionId, channel.id, DEVICE_TOKENS_PER_SESSION_CHANNEL],
-  )
-  for (const row of rows) await revokeDeviceToken(redis, channel.id, row.token_hash)
-}
-
-/** A session ended: every device token it took stops working at once (AUTH.md 3.6). */
-export async function revokeSessionDevices(pool: Pool, redis: WaveRedis, sessionId: string): Promise<void> {
-  const { rows } = await pool.query<{ channel_id: string; token_hash: string }>(
-    `delete from account_device where session_id = $1 returning channel_id, token_hash`,
-    [sessionId],
-  )
-  for (const row of rows) await revokeDeviceToken(redis, row.channel_id, row.token_hash)
 }

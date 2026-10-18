@@ -1,15 +1,9 @@
 import { authenticate, authenticateParticipant } from '@/lib/auth'
-import { listParticipants, roster } from '@/lib/channels'
+import { pollChannel, speakInChannel } from '@/lib/channel-requests'
 import { otherMethods } from '@/lib/endpoints'
-import { readJson, toErrorResponse } from '@/lib/http'
-import { lastSeq } from '@/lib/items'
-import { LIMITS } from '@/lib/limits'
-import { itemsAfter, parsePollQuery, postMessage, postMessageRequestSchema } from '@/lib/messages'
-import { touchParticipant } from '@/lib/participants'
-import { callerAddress, limitImmediatePolling, limitPosting, withConcurrencyLimit } from '@/lib/rate-limit'
+import { toErrorResponse } from '@/lib/http'
+import { parsePollQuery } from '@/lib/messages'
 import { getRedis } from '@/lib/redis'
-import { sweepChannel } from '@/lib/sweep'
-import { openWake } from '@/lib/wake'
 
 /**
  * The channel's message stream (PRODUCT section 8).
@@ -19,35 +13,11 @@ import { openWake } from '@/lib/wake'
  */
 export const maxDuration = 60
 
-/** How often an unsubscribed poll looks, since nothing will tell it. */
-const POLL_INTERVAL_MS = 1_000
-
 /**
- * How often a subscribed poll looks anyway: the floor under a signal that
- * never came. Reconnects announce themselves (lib/wake.ts), so this only has
- * to catch a publish that never went out.
- */
-const WAKE_TICK_MS = 25_000
-
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(finish, ms)
-    signal.addEventListener('abort', finish, { once: true })
-    function finish() {
-      clearTimeout(timer)
-      signal.removeEventListener('abort', finish)
-      resolve()
-    }
-  })
-}
-
-/**
- * GET — long-poll for items after `seq`.
+ * GET — long-poll for items after `seq` (lib/channel-requests.ts).
  *
  * Takes a participant token, and also the invite, so the channel page can
- * follow the conversation before anyone has typed into it. Only a participant
- * is marked alive by polling; a reader watching over the invite is not in the
- * roster, has no presence to update, and leaves no read receipt behind.
+ * follow the conversation before anyone has typed into it.
  */
 export async function GET(
   request: Request,
@@ -55,58 +25,10 @@ export async function GET(
 ): Promise<Response> {
   try {
     const { id } = await context.params
-    const { after, wait, receipts } = parsePollQuery(new URL(request.url))
+    const query = parsePollQuery(new URL(request.url))
     const redis = await getRedis()
     const { channel, participant } = await authenticate(redis, id, ['participant', 'invite'], request)
-
-    // Before anything that writes, so refusing is cheap.
-    if (wait === 0) {
-      await limitImmediatePolling(redis, participant?.id ?? callerAddress(request))
-    }
-
-    // Once per request, at the start, as ARCHITECTURE section 3 specifies. The
-    // cursor rides along with it: taking delivery is a fact about this request,
-    // not about how long the poll that made it ends up holding.
-    if (participant) await touchParticipant(redis, channel, participant, after)
-    await sweepChannel(redis, channel)
-
-    const poll = async (): Promise<Response> => {
-      const deadline = Date.now() + wait * 1_000
-      // Before the first read, never after: a message landing in between would
-      // signal an empty room and this poll would hold with the answer in Redis.
-      const wake = wait > 0 ? await openWake(redis, channel.id) : undefined
-      const tick = wake ? WAKE_TICK_MS : POLL_INTERVAL_MS
-      try {
-        for (;;) {
-          const seq = await lastSeq(redis, channel.id)
-          const remaining = deadline - Date.now()
-          if (seq > after || remaining <= 0 || request.signal.aborted) {
-            return Response.json({
-              items: seq > after ? await itemsAfter(redis, channel.id, after) : [],
-              last_seq: seq,
-              // Receipts are as fresh as this read and no fresher. Nothing
-              // publishes when a cursor moves, so a held poll is not woken by
-              // one — it carries whatever the roster says at the moment it
-              // returns for a reason of its own.
-              participants: roster(await listParticipants(redis, channel.id), {
-                ...(receipts ? { receiptsUpTo: seq } : {}),
-              }),
-            })
-          }
-          // Never past the deadline: the caller asked for at most `wait`
-          // seconds, and the function has only ten more than that before it is cut off.
-          const nap = Math.min(tick, remaining)
-          await (wake ? wake.wait(nap, request.signal) : sleep(nap, request.signal))
-        }
-      } finally {
-        await wake?.close()
-      }
-    }
-
-    // Only a held request needs a slot: an immediate read costs nothing to allow.
-    return participant && wait > 0
-      ? await withConcurrencyLimit(redis, participant.id, LIMITS.maxConcurrentPolls, poll)
-      : await poll()
+    return await pollChannel(redis, request, channel, participant, query)
   } catch (error) {
     return toErrorResponse(error)
   }
@@ -121,12 +43,7 @@ export async function POST(
     const { id } = await context.params
     const redis = await getRedis()
     const { channel, participant } = await authenticateParticipant(redis, id, request)
-    const body = await readJson(request, postMessageRequestSchema)
-
-    await limitPosting(redis, participant.id)
-    const alive = await touchParticipant(redis, channel, participant)
-    await sweepChannel(redis, channel)
-    return Response.json(await postMessage(redis, channel, alive, body), { status: 201 })
+    return await speakInChannel(redis, request, channel, participant)
   } catch (error) {
     return toErrorResponse(error)
   }
