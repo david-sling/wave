@@ -38,9 +38,8 @@ export function bearerToken(request: Request): string | undefined {
   const header = request.headers.get('authorization')
   if (!header) return undefined
   const [scheme, ...rest] = header.trim().split(/\s+/)
-  if (scheme.toLowerCase() !== 'bearer') return undefined
-  const token = rest.join('')
-  return token.length > 0 ? token : undefined
+  if (scheme.toLowerCase() !== 'bearer' || rest.length !== 1) return undefined
+  return rest[0]
 }
 
 /** Loads a live channel. A missing, malformed, or expired ID is all the same 410. */
