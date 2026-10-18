@@ -27,7 +27,7 @@ export function AddPasskey() {
   }
 
   return (
-    <form onSubmit={add} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+    <form onSubmit={add} className="grid gap-2.5">
       <div className="grid gap-1.5">
         <label htmlFor={`${id}-name`} className="text-[13px] font-semibold">
           Name <span className="font-normal text-ink-3">optional</span>
@@ -42,11 +42,11 @@ export function AddPasskey() {
           className="input"
         />
       </div>
-      <button type="submit" disabled={busy} className="btn btn-primary btn-sm h-11">
+      <button type="submit" disabled={busy} className="btn btn-secondary btn-sm">
         {busy ? 'Waiting for the browser…' : 'Add a passkey'}
       </button>
       {error ? (
-        <p role="alert" className="error-note m-0 text-sm sm:col-span-2">
+        <p role="alert" className="error-note m-0 text-sm">
           {error}
         </p>
       ) : null}

@@ -16,3 +16,19 @@ export function relativeTime(iso: string, now: Date = new Date()): string {
   if (seconds < 86_400) return `${Math.floor(seconds / 3_600)}h ago`
   return `${Math.floor(seconds / 86_400)}d ago`
 }
+
+/**
+ * Time remaining until an expiry, as coarse as {@link relativeTime}. Rounds
+ * down for the same reason: never promise a channel more time than it has.
+ */
+export function timeLeft(iso: string, now: Date = new Date()): string {
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return ''
+
+  const seconds = Math.floor((then - now.getTime()) / 1000)
+  if (seconds <= 0) return 'expired'
+  if (seconds < 60) return 'under a minute left'
+  if (seconds < 3_600) return `${Math.floor(seconds / 60)}m left`
+  if (seconds < 86_400) return `${Math.floor(seconds / 3_600)}h left`
+  return `${Math.floor(seconds / 86_400)}d left`
+}

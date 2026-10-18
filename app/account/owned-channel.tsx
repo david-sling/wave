@@ -6,7 +6,7 @@ import { rotateAdminToken } from './actions'
 import { adminTokenKey } from '@/app/components/create-channel'
 import { snapshot, subscribe } from '@/app/components/channel/use-visited-channels'
 
-type Props = { id: string; name: string; expiresAt: string; createdAt: string }
+type Props = { id: string; name: string; createdAt: string; left: string }
 
 const hasAdminToken = (id: string) => {
   try {
@@ -22,7 +22,7 @@ const hasAdminToken = (id: string) => {
  * when it has one. The button is AUTH.md 3.6: a new admin token, kept where
  * the create dialog keeps it, so this device can close the channel.
  */
-export function OwnedChannel({ id, name, expiresAt, createdAt }: Props) {
+export function OwnedChannel({ id, name, createdAt, left }: Props) {
   const visited = useSyncExternalStore(subscribe, snapshot, () => [])
   const invite = visited.find((entry) => entry.id === id)?.invite
   const [held, setHeld] = useState<boolean | null>(null)
@@ -48,10 +48,10 @@ export function OwnedChannel({ id, name, expiresAt, createdAt }: Props) {
   }
 
   return (
-    <li className="grid gap-2 rounded-[12px] border border-line-2 bg-panel-2 px-3.5 py-2.5">
+    <li className="grid gap-2 py-3.5">
       <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0 text-[14px]">
-          <div className="truncate font-medium">
+        <div className="min-w-0">
+          <div className="truncate text-[15px] font-medium">
             {invite ? (
               <Link href={`/c/${id}#${invite}`} className="link no-underline hover:underline" prefetch={false}>
                 #{name || 'unnamed-channel'}
@@ -61,7 +61,7 @@ export function OwnedChannel({ id, name, expiresAt, createdAt }: Props) {
             )}
           </div>
           <div className="text-[13px] text-ink-3">
-            Created {createdAt} · expires {expiresAt}
+            {left} · created {createdAt}
             {invite ? '' : ' · not opened in this browser'}
           </div>
         </div>
