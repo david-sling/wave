@@ -18,6 +18,8 @@ export const LIMITS = {
   maxChannelNameLength: 60,
   /** One message body, in bytes. */
   maxMessageBytes: 64 * 1024,
+  /** One request body, in bytes: a full message escaped twice over, with room for the other fields. */
+  maxBodyBytes: 192 * 1024,
   /** Whole channel: whichever comes first. */
   maxItemsPerChannel: 5_000,
   maxChannelBytes: 20 * 1024 * 1024,

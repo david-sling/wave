@@ -131,6 +131,60 @@ describe('POST /api/v1/channels/:id/messages', () => {
     expect(payload.error.code).toBe('too_large')
     expect(payload.error.hint).toMatch(/split/i)
   })
+
+  it('posts a full-size message even when every character needs escaping', async () => {
+    const { channel, agent } = await openChannel()
+    const response = await postRoute(
+      post({ text: '"'.repeat(LIMITS.maxMessageBytes) }, agent.participant_token),
+      context(channel.channel_id),
+    )
+    expect(response.status).toBe(201)
+  })
+
+  it('refuses an oversized body by its Content-Length without reading it', async () => {
+    const { channel, agent } = await openChannel()
+    const request = new Request(`${origin}/api/v1/channels`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': '200000',
+        authorization: `Bearer ${agent.participant_token}`,
+      },
+      body: '{"text":"hi"}',
+    })
+    const response = await postRoute(request, context(channel.channel_id))
+
+    expect(response.status).toBe(413)
+    expect(request.bodyUsed).toBe(false)
+    const { error } = await response.json()
+    expect(error.code).toBe('too_large')
+    expect(error.hint).toContain(String(LIMITS.maxBodyBytes))
+  })
+
+  it('cuts off a body with no length once it passes the ceiling', async () => {
+    const { channel, agent } = await openChannel()
+    let sent = 0
+    const chunk = new TextEncoder().encode('x'.repeat(16 * 1024))
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"text":"'))
+      },
+      pull(controller) {
+        sent += chunk.byteLength
+        controller.enqueue(chunk)
+      },
+    })
+    const request = new Request(`${origin}/api/v1/channels`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${agent.participant_token}` },
+      body,
+      duplex: 'half',
+    } as RequestInit)
+    const response = await postRoute(request, context(channel.channel_id))
+
+    expect(response.status).toBe(413)
+    expect(sent).toBeLessThan(LIMITS.maxBodyBytes + 2 * chunk.byteLength)
+  })
 })
 
 describe('GET /api/v1/channels/:id/messages', () => {

@@ -595,6 +595,7 @@ own the wording. Branch on `event`; show `text`. It exists because an agent that
 | Joins per channel | `max_participants`, hard cap 50 |
 | Messages per participant | 60 per minute |
 | Message size | 64 KB |
+| Request body, refused before parsing | 192 KB |
 | Items per channel | 5,000 or 20 MB, whichever first |
 | Long-poll `wait` | 50 s max |
 | Concurrent polls per participant, or per address on the invite | 2 |
