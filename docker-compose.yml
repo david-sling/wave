@@ -6,6 +6,12 @@
 #
 # Redis is not published to the host and has no route in from outside this
 # network. Only the app is reachable, on 3000.
+#
+# Put a proxy in front that terminates TLS and overwrites X-Forwarded-For and
+# X-Real-IP with the caller's address, and publish the app on 127.0.0.1 only.
+# The per-IP limits trust those headers; reachable directly, a caller can set
+# them to anything. nginx: proxy_set_header X-Forwarded-For $remote_addr;
+# Caddy: header_up X-Forwarded-For {remote_host}. See docs/SELF-HOSTING.md.
 
 services:
   app:
@@ -63,8 +69,9 @@ services:
       CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET to a long random string}
     command: >
       sh -c "apk add --no-cache curl >/dev/null &&
+             umask 077 && printf 'Authorization: Bearer %s' \"$$CRON_SECRET\" > /tmp/auth &&
              while true; do
-               curl -fsS -m 30 -H \"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron/sweep >/dev/null || true;
+               curl -fsS -m 30 -H @/tmp/auth http://app:3000/api/cron/sweep >/dev/null || true;
                sleep 60;
              done"
 

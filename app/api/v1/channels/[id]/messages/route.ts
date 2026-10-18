@@ -104,9 +104,9 @@ export async function GET(
     }
 
     // Only a held request needs a slot: an immediate read costs nothing to allow.
-    return participant && wait > 0
-      ? await withConcurrencyLimit(redis, participant.id, LIMITS.maxConcurrentPolls, poll)
-      : await poll()
+    if (wait === 0) return await poll()
+    const holder = participant?.id ?? `invite:${channel.id}:${callerAddress(request)}`
+    return await withConcurrencyLimit(redis, holder, LIMITS.maxConcurrentPolls, poll)
   } catch (error) {
     return toErrorResponse(error)
   }

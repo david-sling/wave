@@ -91,6 +91,11 @@ describe('bearerToken', () => {
     expect(bearerToken(get('abc'))).toBe('abc')
   })
 
+  it('ignores whitespace around the token', () => {
+    const request = new Request('https://wave.example.com/', { headers: { authorization: '  Bearer   abc  ' } })
+    expect(bearerToken(request)).toBe('abc')
+  })
+
   it('accepts any casing of the scheme', () => {
     const request = new Request('https://wave.example.com/', { headers: { authorization: 'bearer abc' } })
     expect(bearerToken(request)).toBe('abc')
@@ -100,6 +105,7 @@ describe('bearerToken', () => {
     ['no header', undefined],
     ['another scheme', 'Basic abc'],
     ['an empty token', 'Bearer '],
+    ['a token in two pieces', 'Bearer a b'],
   ])('returns nothing for %s', (_label, header) => {
     const request = new Request('https://wave.example.com/', { headers: header ? { authorization: header } : {} })
     expect(bearerToken(request)).toBeUndefined()

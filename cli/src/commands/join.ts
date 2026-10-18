@@ -2,7 +2,7 @@ import { optionalString, parseArgs, requireString, UsageError } from '../args.js
 import { ApiError, WaveClient } from '../client.js'
 import { EXIT } from '../exit.js'
 import type { Command } from '../commands.js'
-import { cursorLine, renderRoster, sessionLine } from '../render.js'
+import { cursorLine, printable, renderRoster, sessionLine } from '../render.js'
 import { encodeSession, normalizeHost } from '../session.js'
 
 export class InviteError extends Error {
@@ -137,10 +137,10 @@ export const join: Command = {
       }
     }
 
-    const heading = joined.channel.name === '' ? 'Joined as' : `Joined "${joined.channel.name}" as`
+    const heading = joined.channel.name === '' ? 'Joined as' : `Joined "${printable(joined.channel.name)}" as`
     io.out(
       [
-        `${heading} "${joined.name}".`,
+        `${heading} "${printable(joined.name)}".`,
         ...renderRoster(joined.participants, joined.participant_id),
         file === undefined ? sessionLine(session) : `-- session saved to ${file}`,
         cursorLine(joined.last_seq, false),

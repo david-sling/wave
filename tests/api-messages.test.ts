@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fakeRedis } from './fake-redis'
+import { type FakeRedis, fakeRedis } from './fake-redis'
 import { keys } from '@/lib/keys'
 import { LIMITS, PRESENCE } from '@/lib/limits'
 import { saveParticipant } from '@/lib/participants'
@@ -10,6 +10,7 @@ import { parseChannel, parseParticipant } from '@/lib/types'
 /** Post and long-poll, over the real handlers. */
 
 let redis: WaveRedis
+let fake: FakeRedis
 
 vi.mock('@/lib/redis', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/redis')>()),
@@ -50,7 +51,7 @@ async function openChannel() {
 }
 
 beforeEach(() => {
-  ;({ redis } = fakeRedis())
+  ;({ redis, fake } = fakeRedis())
 })
 
 describe('POST /api/v1/channels/:id/messages', () => {
@@ -65,6 +66,34 @@ describe('POST /api/v1/channels/:id/messages', () => {
     const body = await response.json()
     expect(body.seq).toBe(2)
     expect(body.ts).toMatch(/Z$/)
+  })
+
+  it('refuses an escape sequence by class, without echoing it, and keeps tabs and newlines', async () => {
+    const { channel, agent } = await openChannel()
+    const refused = await postRoute(
+      post({ text: 'done \x1b]0;owned\x07' }, agent.participant_token),
+      context(channel.channel_id),
+    )
+    expect(refused.status).toBe(400)
+    const { error } = await refused.json()
+    expect(error.code).toBe('invalid_request')
+    expect(error.hint).toContain('control character')
+    expect(error.hint).not.toContain('owned')
+
+    const kept = await postRoute(
+      post({ text: 'one\ttwo\r\nthree' }, agent.participant_token),
+      context(channel.channel_id),
+    )
+    expect(kept.status).toBe(201)
+  })
+
+  it('refuses an escape sequence in a joining name', async () => {
+    const { channel } = await openChannel()
+    const response = await joinRoute(
+      post({ name: 'Mac\x1b[8m agent' }, channel.invite_token),
+      context(channel.channel_id),
+    )
+    expect(response.status).toBe(400)
   })
 
   it('refuses the invite token: reading a channel does not make you part of it', async () => {
@@ -101,6 +130,60 @@ describe('POST /api/v1/channels/:id/messages', () => {
     const payload = await response.json()
     expect(payload.error.code).toBe('too_large')
     expect(payload.error.hint).toMatch(/split/i)
+  })
+
+  it('posts a full-size message even when every character needs escaping', async () => {
+    const { channel, agent } = await openChannel()
+    const response = await postRoute(
+      post({ text: '"'.repeat(LIMITS.maxMessageBytes) }, agent.participant_token),
+      context(channel.channel_id),
+    )
+    expect(response.status).toBe(201)
+  })
+
+  it('refuses an oversized body by its Content-Length without reading it', async () => {
+    const { channel, agent } = await openChannel()
+    const request = new Request(`${origin}/api/v1/channels`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': '200000',
+        authorization: `Bearer ${agent.participant_token}`,
+      },
+      body: '{"text":"hi"}',
+    })
+    const response = await postRoute(request, context(channel.channel_id))
+
+    expect(response.status).toBe(413)
+    expect(request.bodyUsed).toBe(false)
+    const { error } = await response.json()
+    expect(error.code).toBe('too_large')
+    expect(error.hint).toContain(String(LIMITS.maxBodyBytes))
+  })
+
+  it('cuts off a body with no length once it passes the ceiling', async () => {
+    const { channel, agent } = await openChannel()
+    let sent = 0
+    const chunk = new TextEncoder().encode('x'.repeat(16 * 1024))
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"text":"'))
+      },
+      pull(controller) {
+        sent += chunk.byteLength
+        controller.enqueue(chunk)
+      },
+    })
+    const request = new Request(`${origin}/api/v1/channels`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${agent.participant_token}` },
+      body,
+      duplex: 'half',
+    } as RequestInit)
+    const response = await postRoute(request, context(channel.channel_id))
+
+    expect(response.status).toBe(413)
+    expect(sent).toBeLessThan(LIMITS.maxBodyBytes + 2 * chunk.byteLength)
   })
 })
 
@@ -198,6 +281,43 @@ describe('GET /api/v1/channels/:id/messages', () => {
 
     for (let n = 0; n < LIMITS.immediatePollsPerMinute; n += 1) await ask()
     expect((await ask()).status).toBe(429)
+  })
+
+  it('caps held polls on the invite per address, apart from participant slots', async () => {
+    const { channel, agent } = await openChannel()
+    const parked = new AbortController()
+    const slotKeys = () => fake.keys().filter((key) => key.includes(':rl:pollslots:'))
+    const hold = (token: string, address: string, signal?: AbortSignal) =>
+      pollRoute(
+        new Request(`${origin}/api/v1/channels/x/messages?after=99&wait=50`, {
+          headers: { authorization: `Bearer ${token}`, 'x-forwarded-for': address },
+          signal,
+        }),
+        context(channel.channel_id),
+      )
+
+    const held = [
+      hold(channel.invite_token, '203.0.113.1', parked.signal),
+      hold(channel.invite_token, '203.0.113.1', parked.signal),
+    ]
+    await vi.waitFor(async () => {
+      const slots = slotKeys()
+      expect(slots).toHaveLength(1)
+      expect(await redis.zCard(slots[0])).toBe(LIMITS.maxConcurrentPolls)
+    })
+
+    const refused = await hold(channel.invite_token, '203.0.113.1')
+    expect(refused.status).toBe(429)
+    expect(refused.headers.get('Retry-After')).toBeTruthy()
+
+    const elsewhere = new AbortController()
+    const other = hold(channel.invite_token, '203.0.113.2', elsewhere.signal)
+    const participant = hold(agent.participant_token, '203.0.113.1', elsewhere.signal)
+    await vi.waitFor(() => expect(slotKeys()).toHaveLength(3))
+
+    parked.abort()
+    elsewhere.abort()
+    for (const response of await Promise.all([...held, other, participant])) expect(response.status).toBe(200)
   })
 
   it('rejects a cursor that is not a number', async () => {

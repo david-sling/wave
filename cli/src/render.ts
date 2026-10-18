@@ -3,14 +3,28 @@ import type { Item, RosterEntry } from './types.js'
 
 export type Reader = { name: string; roster: readonly string[] }
 
+/**
+ * Channel text with control characters removed, other than tab, newline and
+ * carriage return, so a peer cannot drive the reader's terminal (#96).
+ */
+export function printable(text: string): string {
+  let out = ''
+  for (const char of text) {
+    const code = char.codePointAt(0)!
+    const control = (code < 0x20 && char !== '\t' && char !== '\n' && char !== '\r') || (code >= 0x7f && code <= 0x9f)
+    if (!control) out += char
+  }
+  return out
+}
+
 export function renderItem(item: Item, reader?: Reader): string {
   if (item.type === 'system') {
-    return `* ${item.text ?? item.event}`
+    return `* ${printable(item.text ?? item.event)}`
   }
   const marks: string[] = []
   if (item.reply_to !== undefined) marks.push(`reply to ${item.reply_to}`)
   if (reader !== undefined && mentionedNames(item.text, reader.roster).includes(reader.name)) marks.push('mentions you')
-  return `[${item.seq}] ${item.from.name}${marks.length > 0 ? ` (${marks.join(', ')})` : ''}: ${item.text}`
+  return `[${item.seq}] ${printable(item.from.name)}${marks.length > 0 ? ` (${marks.join(', ')})` : ''}: ${printable(item.text)}`
 }
 
 export function cursorLine(cursor: number, json: boolean): string {
@@ -26,9 +40,9 @@ export function renderRound(items: Item[], cursor: number, options: { json?: boo
 
 export function renderRoster(participants: RosterEntry[], selfId?: string): string[] {
   return participants.map((participant) => {
-    const name = participant.id === selfId ? `${participant.name} (you)` : participant.name
+    const name = printable(participant.id === selfId ? `${participant.name} (you)` : participant.name)
     const parts = [name, participant.presence]
-    if (participant.client !== undefined && participant.client !== '') parts.push(participant.client)
+    if (participant.client !== undefined && participant.client !== '') parts.push(printable(participant.client))
     if (participant.read_seq !== undefined) parts.push(`read to ${participant.read_seq}`)
     return parts.join(' - ')
   })

@@ -28,7 +28,7 @@ Agents and browsers use the same API. The channel page is just another client.
 | Abuse control on create | Per-IP creation counters in Redis, plus the platform's own DDoS mitigation | A bot check at the door is the wrong control for a product whose clients are agents |
 | Rate limiting | Vercel Firewall rules on `/api/v1` plus per-participant counters in Redis | Platform handles volumetric abuse; app handles per-token limits |
 | Housekeeping | Opportunistic on the request paths, with a daily Vercel Cron as backstop | Presence is derived on read, so no schedule is needed for it. Timeout and expiry events are emitted by whichever request next touches the channel. A minute-level schedule is not available on a free plan |
-| Config | `vercel.ts` | Typed config for crons, headers, function options |
+| Config | `vercel.ts`, `next.config.ts` | `vercel.ts` for crons and function options; `next.config.ts` for security headers, so a self-hosted instance serves them too |
 | Logs | Vercel logs, metadata only | Message bodies are never written to logs |
 
 Do not use the Edge runtime for any route. Everything stays on Node.js.
@@ -180,7 +180,7 @@ A link expander fetches the page the same way, without the fragment, to draw a c
 - HTTPS only, HSTS on.
 - No cookies for API calls; bearer headers only.
 - CORS restricted to the site's own origin for browser calls; agents use curl and are unaffected.
-- Response headers deny framing and sniffing.
+- Response headers deny framing and sniffing, and carry a Content-Security-Policy: a per-request nonce on the channel pages (`proxy.ts`), and `'self'` plus inline scripts on the prerendered pages, which render nothing untrusted.
 - Secret-pattern filter on post rejects bodies that look like API keys, private key blocks, or `KEY=value` dumps with a 422 and a hint the agent can relay.
 - Firewall rate limits per IP on create and per IP on join, in addition to per-token limits in the app.
 - Every request an agent can issue in a loop is bounded. A held poll needs no counter — two at a time, fifty seconds each — but a poll asking for no wait returns at once, so it is counted per caller per minute. Without that, one client mis-reading the prompt can cost an instance more than all of its honest traffic put together.

@@ -2,19 +2,20 @@ import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from './http'
 import { withText } from './events'
-import { appendItem, lastSeq } from './items'
+import { appendItem, lastSeq, reserveItem } from './items'
 import { keys } from './keys'
 import { LIMITS } from './limits'
 import { countMessage } from './metrics'
 import type { WaveRedis } from './redis'
 import { epochSeconds } from './time'
 import { findSecret } from './secret-filter'
+import { plainText } from './plain-text'
 import { parseItem, toAuthor, type ChannelRecord, type Item, type ParticipantRecord } from './types'
 
 /** Posting and reading messages (PRODUCT section 8, ARCHITECTURE section 3). */
 
 export const postMessageRequestSchema = z.object({
-  text: z.string().min(1),
+  text: plainText(z.string().min(1)),
   kind: z.enum(['message', 'done']).default('message'),
   /** The seq this answers. Rendered as a thread hint; nothing depends on it. */
   reply_to: z.int().positive().optional(),
@@ -34,6 +35,17 @@ type StoredResult = z.infer<typeof postResultSchema>
 
 function digest(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 32)
+}
+
+/** The unscripted check, for a store that will not run the reservation: a race can pass it. */
+async function checkRoom(redis: WaveRedis, channelId: string, bytes: number): Promise<'items' | 'bytes' | undefined> {
+  const [items, channelBytes] = await Promise.all([
+    redis.zCard(keys.items(channelId)),
+    redis.get(keys.bytes(channelId)),
+  ])
+  if (items >= LIMITS.maxItemsPerChannel) return 'items'
+  if (Number(channelBytes ?? 0) + bytes > LIMITS.maxChannelBytes) return 'bytes'
+  return undefined
 }
 
 /** Reads the stored result of an earlier post with this client_id, if it is still in the window. */
@@ -94,34 +106,42 @@ export async function postMessage(
     })
   }
 
-  const [items, channelBytes, seq] = await Promise.all([
-    redis.zCard(keys.items(channel.id)),
-    redis.get(keys.bytes(channel.id)),
-    lastSeq(redis, channel.id),
-  ])
-  if (items >= LIMITS.maxItemsPerChannel) {
-    throw new ApiError(413, 'too_large', `This channel has reached its limit of ${LIMITS.maxItemsPerChannel} items.`, {
-      hint: 'Start a new channel to continue.',
-    })
-  }
-  if (Number(channelBytes ?? 0) + bytes > LIMITS.maxChannelBytes) {
-    throw new ApiError(413, 'too_large', 'This channel has reached its size limit.', {
-      hint: 'Start a new channel to continue.',
-    })
-  }
+  const seq = await lastSeq(redis, channel.id)
   if (request.reply_to !== undefined && request.reply_to > seq) {
     throw new ApiError(400, 'invalid_request', `reply_to ${request.reply_to} is ahead of this channel.`, {
       hint: `The highest sequence number here is ${seq}.`,
     })
   }
 
-  const item = await appendItem(redis, channel, {
-    type: 'message',
-    from: toAuthor(participant),
-    text: request.text,
-    kind: request.kind,
-    ...(request.reply_to !== undefined ? { reply_to: request.reply_to } : {}),
+  const reserved = await reserveItem(redis, channel.id, bytes, {
+    maxItems: LIMITS.maxItemsPerChannel,
+    maxBytes: LIMITS.maxChannelBytes,
   })
+  const full =
+    typeof reserved === 'string' ? reserved : reserved ? undefined : await checkRoom(redis, channel.id, bytes)
+  if (full === 'items') {
+    throw new ApiError(413, 'too_large', `This channel has reached its limit of ${LIMITS.maxItemsPerChannel} items.`, {
+      hint: 'Start a new channel to continue.',
+    })
+  }
+  if (full === 'bytes') {
+    throw new ApiError(413, 'too_large', 'This channel has reached its size limit.', {
+      hint: 'Start a new channel to continue.',
+    })
+  }
+
+  const item = await appendItem(
+    redis,
+    channel,
+    {
+      type: 'message',
+      from: toAuthor(participant),
+      text: request.text,
+      kind: request.kind,
+      ...(request.reply_to !== undefined ? { reply_to: request.reply_to } : {}),
+    },
+    typeof reserved === 'object' ? reserved : undefined,
+  )
   const result: PostMessageResult = { seq: item.seq, ts: item.ts }
 
   if (request.client_id) {

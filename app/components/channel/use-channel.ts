@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { publishHead } from './use-unread'
+import { readAdminToken as readStoredAdminToken } from '@/lib/admin-tokens'
 import { forgetChannel, noteChannelMessage, rememberChannel } from './use-visited-channels'
 
 /**
@@ -137,11 +138,17 @@ export function reconcile(
 }
 
 const participantKey = (channelId: string) => `wave.participant.${channelId}`
-export const adminKey = (channelId: string) => `wave.admin.${channelId}`
-
 // Next 16.3 can double the fragment (`#token#token`); tokens never contain `#`.
 export function inviteFromHash(hash: string): string | null {
   return hash.split('#').pop() || null
+}
+
+export function readAdminToken(channelId: string): string | null {
+  try {
+    return readStoredAdminToken(window.localStorage, channelId)
+  } catch {
+    return null
+  }
 }
 
 function readStorage(key: string): string | null {
@@ -286,7 +293,7 @@ export function useChannel(channelId: string) {
   )
 
   const closeChannel = useCallback(async (): Promise<void> => {
-    const admin = readStorage(adminKey(channelId))
+    const admin = readAdminToken(channelId)
     if (!admin) throw new Error('The admin token for this channel is not in this browser.')
 
     const response = await fetch(`/api/v1/channels/${channelId}/close`, {
