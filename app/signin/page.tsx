@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import { getAccountSession } from '@/lib/accounts/auth'
 import { getAccountsConfig } from '@/lib/accounts/config'
 import { siteName } from '@/lib/site'
@@ -18,6 +19,9 @@ export const metadata: Metadata = {
  * instance without sign-in this address does not exist.
  */
 export default async function SignInPage() {
+  // Read per request, never at build: a build that sees half the sign-in
+  // variables must still succeed, and only sign-in fails (AUTH.md 3.11).
+  await connection()
   if (!getAccountsConfig().enabled) notFound()
   if (await getAccountSession(await headers())) redirect('/account')
   return (

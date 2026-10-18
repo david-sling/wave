@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import { Footer } from '@/app/components/footer'
 import { Nav } from '@/app/components/nav'
 import { getAccountSession, getAuth } from '@/lib/accounts/auth'
@@ -33,6 +34,9 @@ const methodLabel: Record<string, string> = {
  * owns join it with ownership.
  */
 export default async function AccountPage() {
+  // Read per request, never at build: a build that sees half the sign-in
+  // variables must still succeed, and only sign-in fails (AUTH.md 3.11).
+  await connection()
   const auth = getAuth()
   if (!auth) notFound()
   const requestHeaders = await headers()
