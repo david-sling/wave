@@ -49,7 +49,7 @@ A channel and two tokens come back. Open the `url` from the response in a browse
 | `REDIS_PREFIX` | No, default `wave` | Namespace in front of every key. Change it to run two instances against one Redis. |
 | `PORT` | No, default `3000` | Host port the app is published on. |
 | `AUTH_SECRET` | Sign-in only | Signs session cookies and hashes one-time tokens. 32 random bytes. |
-| `DATABASE_URL` | Sign-in only | Postgres 14 or later, for accounts and sessions. `POSTGRES_URL` is read too, for hosted stores that inject that name. |
+| `DATABASE_URL` | Sign-in only | Postgres 14 or later, for accounts and sessions. `POSTGRES_URL` is read too, for hosted stores that inject that name, and both under a `STORAGE_` prefix. |
 | `EMAIL_URL` | Sign-in only | SMTP, `smtp://user:pass@host:port` or `smtps://`, for the sign-in link. |
 | `EMAIL_FROM` | Sign-in only | The From header on the sign-in email. |
 

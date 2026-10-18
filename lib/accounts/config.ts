@@ -34,10 +34,17 @@ const MIN_SECRET_LENGTH = 32
 
 /**
  * Names a hosted Postgres may arrive under. DATABASE_URL is the documented
- * one; the rest are what the Vercel marketplace injects. First one wins.
+ * one; the rest are what the Vercel marketplace injects, optionally behind a
+ * prefix the operator chose when connecting the store, as with Redis. First
+ * one wins.
  */
-const DATABASE_URL_ALIASES = ['DATABASE_URL', 'POSTGRES_URL'] as const
-const MIGRATION_URL_ALIASES = ['DATABASE_URL_UNPOOLED', 'POSTGRES_URL_NON_POOLING'] as const
+const DATABASE_URL_ALIASES = ['DATABASE_URL', 'POSTGRES_URL', 'STORAGE_DATABASE_URL', 'STORAGE_POSTGRES_URL'] as const
+const MIGRATION_URL_ALIASES = [
+  'DATABASE_URL_UNPOOLED',
+  'POSTGRES_URL_NON_POOLING',
+  'STORAGE_DATABASE_URL_UNPOOLED',
+  'STORAGE_POSTGRES_URL_NON_POOLING',
+] as const
 
 type Env = Record<string, string | undefined>
 

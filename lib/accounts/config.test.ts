@@ -47,4 +47,14 @@ describe('readAccountsConfig', () => {
     })
     expect(state).toMatchObject({ databaseUrl: 'postgres://pooled', migrationDatabaseUrl: 'postgres://direct' })
   })
+
+  it('accepts the marketplace aliases behind the STORAGE_ prefix', () => {
+    const { DATABASE_URL: _, ...rest } = on
+    const state = readAccountsConfig({
+      ...rest,
+      STORAGE_DATABASE_URL: 'postgres://pooled',
+      STORAGE_DATABASE_URL_UNPOOLED: 'postgres://direct',
+    })
+    expect(state).toMatchObject({ databaseUrl: 'postgres://pooled', migrationDatabaseUrl: 'postgres://direct' })
+  })
 })
