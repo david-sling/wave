@@ -61,10 +61,20 @@ export async function signOut(): Promise<void> {
   redirect('/')
 }
 
-export async function revokeSession(token: string): Promise<void> {
+/**
+ * Ends one of this account's sessions, named by its id. The token it is
+ * revoked by is looked up here and never leaves the server: bound action
+ * arguments are written into the page, and a token there is readable by any
+ * script on it, which is what the HttpOnly cookie exists to prevent.
+ */
+export async function revokeSession(sessionId: string): Promise<void> {
   const auth = getAuth()
   if (!auth) return
-  await auth.api.revokeSession({ body: { token }, headers: await headers() })
+  const requestHeaders = await headers()
+  const sessions = await auth.api.listSessions({ headers: requestHeaders })
+  const session = sessions.find((candidate) => candidate.id === sessionId)
+  if (!session) return
+  await auth.api.revokeSession({ body: { token: session.token }, headers: requestHeaders })
 }
 
 export async function removePasskey(id: string): Promise<void> {

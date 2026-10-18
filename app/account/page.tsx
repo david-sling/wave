@@ -132,7 +132,7 @@ export default async function AccountPage() {
               </div>
               <ul className="m-0 grid list-none gap-2 p-0">
                 {sessions.map((session) => {
-                  const here = session.token === current.session.token
+                  const here = session.id === current.session.id
                   const method = (session as { method?: string | null }).method ?? 'unknown'
                   return (
                     <li
@@ -157,7 +157,7 @@ export default async function AccountPage() {
                           </button>
                         </form>
                       ) : (
-                        <form action={revokeSession.bind(null, session.token)}>
+                        <form action={revokeSession.bind(null, session.id)}>
                           <button type="submit" className="btn btn-secondary btn-sm">
                             End
                           </button>
