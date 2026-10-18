@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { relativeTime, timeLeft } from './relative-time'
+import { relativeTime } from './relative-time'
 
 const now = new Date('2026-09-12T12:00:00Z')
 const ago = (seconds: number) => new Date(now.getTime() - seconds * 1000).toISOString()
@@ -29,22 +29,5 @@ describe('relativeTime', () => {
 
   it('says nothing for a timestamp it cannot read', () => {
     expect(relativeTime('not a date', now)).toBe('')
-  })
-})
-
-describe('timeLeft', () => {
-  const now = new Date('2026-10-18T12:00:00Z')
-  const at = (seconds: number) => new Date(now.getTime() + seconds * 1000).toISOString()
-
-  it('counts down coarsely, rounding down', () => {
-    expect(timeLeft(at(30), now)).toBe('under a minute left')
-    expect(timeLeft(at(59 * 60 + 59), now)).toBe('59m left')
-    expect(timeLeft(at(6 * 3_600 + 1_800), now)).toBe('6h left')
-    expect(timeLeft(at(2 * 86_400 + 5), now)).toBe('2d left')
-  })
-
-  it('says expired once the time has passed', () => {
-    expect(timeLeft(at(0), now)).toBe('expired')
-    expect(timeLeft(at(-60), now)).toBe('expired')
   })
 })

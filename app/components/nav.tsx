@@ -1,4 +1,4 @@
-import { AccountLink } from './account-link'
+import { AccountLink, NavAction } from './account-link'
 import { Logo } from './logo'
 import { NavVeil } from './nav-veil'
 import { StarButton } from './star-button'
@@ -16,7 +16,8 @@ const links = [
  * page they stay bare fragments, so the browser scrolls smoothly instead of
  * fetching the page again; anywhere else they carry the path, so they lead
  * home. `Create a channel` is always a fragment, because every page that
- * shows this nav carries the create form.
+ * shows this nav carries the create form; signed in, it becomes `View
+ * channels` instead (NavAction).
  *
  * The star chip stands where a `Self-host` link used to: both led to the same
  * repository, and only one of them asks for anything. It hides with the links
@@ -39,9 +40,7 @@ export function Nav({ atHome = true }: { atHome?: boolean }) {
         <div className="flex items-center gap-3">
           <AccountLink className="hidden text-[15px] text-ink-2 md:inline" />
           <StarButton label="Star" className="hidden md:inline-flex" />
-          <a href="#create" className="btn btn-primary btn-sm">
-            Create a channel
-          </a>
+          <NavAction />
         </div>
       </div>
     </header>

@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { byActivity, live, type VisitedChannel } from '@/lib/visited-channels'
+import { useAccount } from '../account-link'
 import { CreateChannelButton } from '../create-channel'
-import { CloseIcon, PlusIcon } from '../icons'
+import { CloseIcon, PersonIcon, PlusIcon } from '../icons'
 import { Logo } from '../logo'
 import { useHeadProbe } from './use-head-probe'
 import { unreadOf, useUnreadVersion } from './use-unread'
@@ -151,14 +152,49 @@ export function ChannelList() {
 export const channelListNote = 'Kept in this browser only, and gone when each room expires.'
 
 /**
- * Lives in the /c layout, not the page, so it stays put while the channel
- * beside it is swapped.
+ * The way to the account, at the foot of the pane: Account when signed in,
+ * Sign in when not, and nothing on an instance without sign-in.
+ */
+function AccountRow() {
+  const { who, email } = useAccount()
+  const here = usePathname() === '/account'
+  if (who === 'off') return null
+  const signedIn = who === 'in'
+  return (
+    <div className="shrink-0 border-t border-line px-2 py-2">
+      <Link
+        href={signedIn ? '/account' : '/signin'}
+        aria-current={here ? 'page' : undefined}
+        className={`flex items-center gap-2.5 rounded-[8px] border px-2 py-1.5 no-underline transition-colors ${
+          here ? 'border-line bg-panel text-ink' : 'border-transparent text-ink-2 hover:bg-panel hover:text-ink'
+        }`}
+      >
+        <PersonIcon size={16} className="shrink-0 text-ink-3" />
+        <span className="grid min-w-0">
+          <span className={`text-[13.5px] leading-snug ${here ? 'font-semibold' : 'font-medium'}`}>
+            {signedIn ? 'Account' : 'Sign in'}
+          </span>
+          {signedIn && email ? (
+            <span className="truncate text-[12px] leading-snug text-ink-3" title={email}>
+              {email}
+            </span>
+          ) : null}
+        </span>
+      </Link>
+    </div>
+  )
+}
+
+/**
+ * Lives in the layouts of /c and /account, not their pages, so it stays put
+ * while the page beside it is swapped.
  */
 export function ChannelsPane() {
   useHeadProbe()
-  const { id } = useParams<{ id?: string }>()
-  // At /c the list is the page, so on a phone it takes the whole width; beside a channel it is a desktop column.
-  const index = id === undefined
+  // At /c the list is the page, so on a phone it takes the whole width; beside
+  // a channel or the account it is a desktop column, and a phone reaches it
+  // through the back link at /c.
+  const index = usePathname() === '/c'
   return (
     <nav
       className={`${index ? 'flex w-full lg:w-[240px]' : 'hidden w-[240px] lg:flex'} shrink-0 flex-col border-line bg-panel-2 lg:border-r`}
@@ -185,6 +221,7 @@ export function ChannelsPane() {
       <p className="m-0 shrink-0 border-t border-line px-4 py-3 text-[12px] leading-relaxed text-ink-3">
         {channelListNote}
       </p>
+      <AccountRow />
     </nav>
   )
 }

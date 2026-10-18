@@ -7,7 +7,11 @@ import { live } from '@/lib/visited-channels'
 import { unreadOf, useUnreadVersion } from './channel/use-unread'
 import { useVisitedChannels } from './channel/use-visited-channels'
 
-/** The way back to your channels from any page that is not one, once this browser has opened any. */
+/**
+ * The way back to your channels from any page that is not one, once this
+ * browser has opened any. Pages that carry the channels pane already show
+ * them, so it stays off there.
+ */
 export function ChannelsShortcut() {
   const pathname = usePathname()
   const stored = useVisitedChannels()
@@ -20,7 +24,8 @@ export function ChannelsShortcut() {
   }, [])
 
   const rooms = live(stored, now)
-  if (pathname === '/c' || pathname.startsWith('/c/') || rooms.length === 0) return null
+  const withPane = pathname === '/c' || pathname.startsWith('/c/') || pathname === '/account'
+  if (withPane || rooms.length === 0) return null
   const unread = rooms.some((room) => unreadOf(room.id, now) === 'unread')
 
   return (

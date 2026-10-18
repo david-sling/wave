@@ -1,10 +1,5 @@
-import { ChannelsPane } from '@/app/components/channel/channel-list'
+import { AppShell } from '@/app/components/app-shell'
 
 export default function ChannelLayout({ children }: LayoutProps<'/c'>) {
-  return (
-    <div className="flex h-dvh overflow-hidden bg-panel">
-      <ChannelsPane />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-    </div>
-  )
+  return <AppShell>{children}</AppShell>
 }
