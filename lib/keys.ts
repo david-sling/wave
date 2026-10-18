@@ -27,6 +27,13 @@ export const keys = {
   bytes: (channelId: string) => `${ns()}:ch:${channelId}:bytes`,
   /** hash: participant_id -> JSON participant record */
   parts: (channelId: string) => `${ns()}:ch:${channelId}:parts`,
+  /**
+   * hash: token_hash -> participant_id, for the extra tokens a seat carries
+   * when its account opens the channel on another device (ARCHITECTURE
+   * section 14, "Device tokens"). Channel data only: nothing here names a
+   * session or an account.
+   */
+  devices: (channelId: string) => `${ns()}:ch:${channelId}:devices`,
   /** set: lowercased display names, for collision checks */
   names: (channelId: string) => `${ns()}:ch:${channelId}:names`,
   /** set: markers for events that must be emitted at most once, e.g. `timed_out:{participant_id}` */
@@ -72,6 +79,7 @@ export function channelKeys(channelId: string): string[] {
     keys.items(channelId),
     keys.bytes(channelId),
     keys.parts(channelId),
+    keys.devices(channelId),
     keys.names(channelId),
     keys.emitted(channelId),
   ]

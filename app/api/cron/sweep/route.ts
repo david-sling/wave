@@ -1,5 +1,5 @@
 import { getAccountsConfig } from '@/lib/accounts/config'
-import { pruneOwnedChannels } from '@/lib/accounts/owned'
+import { pruneAccountChannels } from '@/lib/accounts/channels'
 import { getPool } from '@/lib/accounts/store'
 import { getConfig } from '@/lib/config'
 import { toErrorResponse, unauthorized } from '@/lib/http'
@@ -23,9 +23,9 @@ async function sweep(request: Request): Promise<Response> {
       throw unauthorized('This route requires the instance CRON_SECRET as a bearer token.')
     }
     const swept = await sweepAllChannels(await getRedis())
-    // With sign-in on, the owned-channel index sheds rows whose channel expired on its own.
+    // With sign-in on, the account-channel index sheds rows whose channel expired on its own.
     if (!getAccountsConfig().enabled) return Response.json(swept)
-    return Response.json({ ...swept, owned_pruned: await pruneOwnedChannels(getPool()) })
+    return Response.json({ ...swept, account_channels_pruned: await pruneAccountChannels(getPool()) })
   } catch (error) {
     return toErrorResponse(error)
   }

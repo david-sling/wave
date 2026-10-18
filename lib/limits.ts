@@ -49,6 +49,10 @@ export const LIMITS = {
   createsPerHourPerAccount: 60,
   /** Live channels one account may own at once. */
   ownedChannelsPerAccount: 50,
+  /** Live channels one account may hold at once, created and joined together. */
+  accountChannelsPerAccount: 200,
+  /** Channels an account may open on a device, or remember, per minute. */
+  accountChannelOpensPerMinute: 30,
   /** Sign-in requests (a link, a passkey ceremony, a device code) per address per minute. */
   signInRequestsPerMinute: 10,
   /** Idempotency window for a repeated post, in seconds. */

@@ -11,6 +11,13 @@ export function getPool(): Pool {
   return pool
 }
 
+/** The signing secret, which also keys the sealed invites (AUTH.md 3.12). Throws when sign-in is off. */
+export function accountSecret(): string {
+  const state = getAccountsConfig()
+  if (!state.enabled) throw new Error('Sign-in is off; there is no secret.')
+  return state.secret
+}
+
 /** Test seam. */
 export async function resetPoolForTests(): Promise<void> {
   await pool?.end()

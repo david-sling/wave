@@ -2,8 +2,8 @@
 
 import { headers } from 'next/headers'
 import { getAccountSession } from '@/lib/accounts/auth'
-import { countOwnedChannels, rememberOwnedChannel } from '@/lib/accounts/owned'
-import { getPool } from '@/lib/accounts/store'
+import { countAccountChannels, rememberOwner } from '@/lib/accounts/channels'
+import { accountSecret, getPool } from '@/lib/accounts/store'
 import { createChannel as createChannelRecord, createChannelRequestSchema } from '@/lib/channels'
 import { ApiError } from '@/lib/http'
 import { enforceLimit } from '@/lib/rate-limit'
@@ -74,7 +74,7 @@ export async function createChannel(_previous: CreateChannelState, formData: For
         max: LIMITS.createsPerHourPerAccount,
         windowSeconds: 3_600,
       })
-      if ((await countOwnedChannels(getPool(), account.user.id)) >= LIMITS.ownedChannelsPerAccount) {
+      if ((await countAccountChannels(getPool(), account.user.id, 'owner')) >= LIMITS.ownedChannelsPerAccount) {
         return {
           error: `You own ${LIMITS.ownedChannelsPerAccount} live channels already. Close one, or wait for one to expire.`,
         }
@@ -83,11 +83,13 @@ export async function createChannel(_previous: CreateChannelState, formData: For
 
     const channel = await createChannelRecord(redis, parsed.data, { ownerId: account?.user.id })
     if (account) {
-      await rememberOwnedChannel(
+      await rememberOwner(
         getPool(),
+        accountSecret(),
         account.user.id,
         channel.channel_id,
         Math.floor(Date.parse(channel.expires_at) / 1000),
+        channel.invite_token,
       )
     }
     return {

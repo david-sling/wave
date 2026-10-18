@@ -2,7 +2,7 @@ import { gone, unauthorized } from './http'
 import { keys } from './keys'
 import type { WaveRedis } from './redis'
 import { epochSeconds } from './time'
-import { isChannelId, tokenMatches } from './tokens'
+import { hashToken, isChannelId, tokenMatches } from './tokens'
 import { parseChannel, parseParticipant, type ChannelRecord, type ParticipantRecord } from './types'
 
 /**
@@ -52,7 +52,8 @@ export async function loadChannel(redis: WaveRedis, channelId: string): Promise<
   return channel
 }
 
-async function findParticipantByToken(
+/** The seat a participant or device token belongs to, if any. Pure channel data: no session is read. */
+export async function findParticipantByToken(
   redis: WaveRedis,
   channelId: string,
   token: string,
@@ -62,7 +63,11 @@ async function findParticipantByToken(
     const participant = parseParticipant(raw)
     if (tokenMatches(token, participant.token_hash)) return participant
   }
-  return undefined
+  // A device token: another device's key to the same seat (lib/devices.ts).
+  const participantId = await redis.hGet(keys.devices(channelId), hashToken(token))
+  if (!participantId) return undefined
+  const raw = await redis.hGet(keys.parts(channelId), participantId)
+  return raw ? parseParticipant(raw) : undefined
 }
 
 /**

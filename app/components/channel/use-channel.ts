@@ -1,6 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { openHere, rememberChannel as rememberForAccount, rememberSeat } from '@/app/account-channels'
+import { accountState } from '../account-link'
+import { refreshAccountChannels } from './use-account-channels'
 import { publishHead } from './use-unread'
 import { forgetChannel, noteChannelMessage, rememberChannel } from './use-visited-channels'
 
@@ -137,6 +140,30 @@ export function reconcile(
 }
 
 const participantKey = (channelId: string) => `wave.participant.${channelId}`
+
+/**
+ * Tells the account about this channel and this browser's seat in it, once
+ * per tab, so it follows the account to its other devices (ARCHITECTURE
+ * section 14, "Account channels"). Signed out, or without sign-in, nothing is
+ * sent. The server checks the invite and the token before it keeps anything.
+ */
+async function shareWithAccount(channelId: string, invite: string, participantToken: string | undefined) {
+  if ((await accountState()).who !== 'in') return
+  const mark = `wave.account-shared.${channelId}${participantToken ? '.seat' : ''}`
+  try {
+    if (window.sessionStorage.getItem(mark)) return
+  } catch {
+    // No session storage: share every time, which is only redundant.
+  }
+  await rememberForAccount(channelId, invite)
+  if (participantToken) await rememberSeat(channelId, participantToken)
+  try {
+    window.sessionStorage.setItem(mark, '1')
+  } catch {
+    // As above.
+  }
+  void refreshAccountChannels()
+}
 export const adminKey = (channelId: string) => `wave.admin.${channelId}`
 
 // Next 16.3 can double the fragment (`#token#token`); tokens never contain `#`.
@@ -157,6 +184,14 @@ function writeStorage(key: string, value: string): void {
     window.localStorage.setItem(key, value)
   } catch {
     // Private browsing. The channel still works for this tab.
+  }
+}
+
+function dropStorage(key: string): void {
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // As above.
   }
 }
 
@@ -215,6 +250,7 @@ export function useChannel(channelId: string) {
         meRef.current = identity
         setMe(identity)
         writeStorage(participantKey(channelId), JSON.stringify(identity))
+        void shareWithAccount(channelId, invite.current ?? '', identity.token).catch(() => {})
         return identity
       })()
 
@@ -301,10 +337,26 @@ export function useChannel(channelId: string) {
   useEffect(() => {
     const controller = new AbortController()
     let stopped = false
+    /** Whether this page has already asked the account for a fresh key to its seat. */
+    let reseated = false
 
-    /** Reads what this browser knows: the invite from the fragment, the identity from storage. */
-    function recall(): boolean {
+    /**
+     * Reads what this browser knows: the invite from the fragment, the identity
+     * from storage. Missing either, a signed-in account that holds the channel
+     * opens it here: the invite comes back, and a device token for its seat,
+     * so this browser posts as the account's seat rather than a new one.
+     */
+    async function recall(): Promise<boolean> {
       invite.current = inviteFromHash(window.location.hash)
+      const seated = readStorage(participantKey(channelId)) !== null
+      if ((!invite.current || !seated) && (await accountState()).who === 'in') {
+        const opened = await openHere(channelId).catch(() => null)
+        if (controller.signal.aborted) return false
+        if (opened) {
+          invite.current ??= opened.invite
+          if (opened.participant) writeStorage(participantKey(channelId), JSON.stringify(opened.participant))
+        }
+      }
       if (invite.current && window.location.hash !== `#${invite.current}`) {
         window.history.replaceState(window.history.state, '', `${window.location.pathname}#${invite.current}`)
       }
@@ -371,6 +423,24 @@ export function useChannel(channelId: string) {
         setStatus('gone')
         return 'gone'
       }
+      if (response.status === 401 && meRef.current) {
+        // The seat's key stopped working here: a device token whose session
+        // ended. Read with the invite again, and let a signed-in account hand
+        // this device a fresh key to the same seat, once.
+        meRef.current = null
+        setMe(null)
+        dropStorage(participantKey(channelId))
+        if (!reseated && (await accountState()).who === 'in') {
+          reseated = true
+          const opened = await openHere(channelId).catch(() => null)
+          if (opened?.participant) {
+            meRef.current = opened.participant
+            setMe(opened.participant)
+            writeStorage(participantKey(channelId), JSON.stringify(opened.participant))
+          }
+        }
+        return 'retry'
+      }
       if (response.status === 429) {
         // Two polls already open, probably another tab. Back off and try again.
         await new Promise((resolve) => setTimeout(resolve, 3_000))
@@ -417,8 +487,9 @@ export function useChannel(channelId: string) {
     }
 
     void (async () => {
-      if (!recall()) return
+      if (!(await recall())) return
       if (!(await bootstrap().catch(() => false))) return
+      void shareWithAccount(channelId, invite.current ?? '', meRef.current?.token).catch(() => {})
 
       // The channel is not ready when its metadata lands, it is ready when its
       // transcript does. Opening on an empty room that fills in a moment later

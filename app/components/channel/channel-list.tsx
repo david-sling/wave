@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { byActivity, live, type VisitedChannel } from '@/lib/visited-channels'
+import { forgetEverywhere } from '@/app/account-channels'
 import { useAccount } from '../account-link'
 import { CreateChannelButton } from '../create-channel'
 import { CloseIcon, PersonIcon, PlusIcon } from '../icons'
 import { Logo } from '../logo'
+import { hideAccountChannel, refreshAccountChannels, useAccountChannels } from './use-account-channels'
 import { useHeadProbe } from './use-head-probe'
 import { unreadOf, useUnreadVersion } from './use-unread'
 import { forgetChannel, rememberChannel, useVisitedChannels } from './use-visited-channels'
@@ -28,10 +30,13 @@ function RowName({ name, className }: { name: string; className: string }) {
 function OtherRow({
   entry,
   unread,
+  everywhere,
   onForget,
 }: {
   entry: VisitedChannel
   unread: boolean
+  /** The channel is the account's, so forgetting it here forgets it on every device. */
+  everywhere: boolean
   onForget: (entry: VisitedChannel) => void
 }) {
   return (
@@ -40,7 +45,8 @@ function OtherRow({
           next page reads its invite (#69). No prefetch, since each visible
           row would otherwise be a request to the server. */}
       <Link
-        href={`/c/${entry.id}#${entry.invite}`}
+        // An account's channel this browser has not opened has no invite yet; the page asks the account for it.
+        href={entry.invite ? `/c/${entry.id}#${entry.invite}` : `/c/${entry.id}`}
         prefetch={false}
         className="block rounded-[8px] border border-transparent px-2 py-1 pr-14 transition-colors hover:bg-panel pointer-fine:pr-8"
       >
@@ -60,7 +66,7 @@ function OtherRow({
         type="button"
         onClick={() => onForget(entry)}
         aria-label={`Forget #${entry.name || 'unnamed-channel'}`}
-        title="Forget this channel in this browser"
+        title={everywhere ? 'Forget this channel on every device' : 'Forget this channel in this browser'}
         className="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-[6px] text-ink-3 transition-[opacity,color,background-color] hover:bg-line-2 hover:text-ink pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
       >
         <CloseIcon size={13} />
@@ -72,9 +78,12 @@ function OtherRow({
 export function ChannelList() {
   const { id: currentId } = useParams<{ id?: string }>()
   const stored = useVisitedChannels()
+  const account = useAccountChannels()
   useUnreadVersion()
   const [now, setNow] = useState(() => Date.now())
-  const [forgotten, setForgotten] = useState<VisitedChannel | null>(null)
+  const [forgotten, setForgotten] = useState<{ entry: VisitedChannel; local: boolean; everywhere: boolean } | null>(
+    null,
+  )
   const undo = useRef<HTMLButtonElement>(null)
   const list = useRef<HTMLUListElement>(null)
 
@@ -88,15 +97,34 @@ export function ChannelList() {
     undo.current?.focus()
     const timer = setTimeout(() => {
       if (document.activeElement === undo.current) list.current?.focus()
+      // Only once the chance to undo has passed does the account forget it.
+      if (forgotten.everywhere) void forgetEverywhere(forgotten.entry.id).then(refreshAccountChannels)
       setForgotten(null)
     }, UNDO_MS)
     return () => clearTimeout(timer)
   }, [forgotten])
 
-  const known = byActivity(live(stored, now))
+  // This browser's channels by activity, then the account's that this browser has not opened.
+  const accountIds = new Set(account.map((entry) => entry.id))
+  const local = byActivity(live(stored, now))
+  const localIds = new Set(local.map((entry) => entry.id))
+  const elsewhere: VisitedChannel[] = account
+    .filter((entry) => !localIds.has(entry.id) && entry.expiresAt > now)
+    .map((entry) => ({
+      id: entry.id,
+      invite: '',
+      name: entry.name,
+      expiresAt: entry.expiresAt,
+      lastSeenAt: 0,
+      addedAt: 0,
+      lastMessageAt: 0,
+    }))
+  const known = [...local, ...elsewhere]
   const forget = (entry: VisitedChannel) => {
-    forgetChannel(entry.id)
-    setForgotten(entry)
+    const wasLocal = localIds.has(entry.id)
+    if (wasLocal) forgetChannel(entry.id)
+    if (accountIds.has(entry.id)) hideAccountChannel(entry.id)
+    setForgotten({ entry, local: wasLocal, everywhere: accountIds.has(entry.id) })
   }
 
   return (
@@ -116,19 +144,30 @@ export function ChannelList() {
               </Link>
             </li>
           ) : (
-            <OtherRow key={entry.id} entry={entry} unread={unreadOf(entry.id, now) === 'unread'} onForget={forget} />
+            <OtherRow
+              key={entry.id}
+              entry={entry}
+              unread={unreadOf(entry.id, now) === 'unread'}
+              everywhere={accountIds.has(entry.id)}
+              onForget={forget}
+            />
           ),
         )}
 
         {forgotten ? (
           <li role="status" className="flex items-center justify-between gap-2 px-2 py-1 text-[12.5px] text-ink-3">
-            <span className="min-w-0 truncate">Forgot #{forgotten.name || 'unnamed-channel'}</span>
+            <span className="min-w-0 truncate">
+              Forgot #{forgotten.entry.name || 'unnamed-channel'}
+              {forgotten.everywhere ? ' everywhere' : ''}
+            </span>
             <button
               ref={undo}
               type="button"
               className="shrink-0 font-semibold text-ink-2 underline underline-offset-2 hover:text-ink"
               onClick={() => {
-                rememberChannel(forgotten, forgotten.lastSeenAt)
+                if (forgotten.local) rememberChannel(forgotten.entry, forgotten.entry.lastSeenAt)
+                // The account has not been told yet, so reading it again brings the row back.
+                if (forgotten.everywhere) void refreshAccountChannels()
                 setForgotten(null)
               }}
             >
@@ -141,15 +180,18 @@ export function ChannelList() {
       {known.every((entry) => entry.id === currentId) && !forgotten ? (
         <p className="m-0 px-2 text-[12.5px] leading-relaxed text-ink-3">
           {known.length === 0
-            ? 'Channels you open in this browser will be listed here.'
-            : 'Other channels you open in this browser will be listed here.'}
+            ? 'Channels you open will be listed here.'
+            : 'Other channels you open will be listed here.'}
         </p>
       ) : null}
     </div>
   )
 }
 
-export const channelListNote = 'Kept in this browser only, and gone when each room expires.'
+const channelListNote = {
+  browser: 'Kept in this browser only, and gone when each room expires.',
+  account: 'Kept with your account on every device you sign in on, and gone when each room expires.',
+}
 
 /**
  * The way to the account, at the foot of the pane: Account when signed in,
@@ -191,6 +233,7 @@ function AccountRow() {
  */
 export function ChannelsPane() {
   useHeadProbe()
+  const { who } = useAccount()
   // At /c the list is the page, so on a phone it takes the whole width; beside
   // a channel or the account it is a desktop column, and a phone reaches it
   // through the back link at /c.
@@ -219,7 +262,7 @@ export function ChannelsPane() {
         <ChannelList />
       </div>
       <p className="m-0 shrink-0 border-t border-line px-4 py-3 text-[12px] leading-relaxed text-ink-3">
-        {channelListNote}
+        {who === 'in' ? channelListNote.account : channelListNote.browser}
       </p>
       <AccountRow />
     </nav>

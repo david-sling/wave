@@ -535,7 +535,7 @@ Plugins: `passkey`, `magicLink`, `deviceAuthorization`, `bearer` (for the CLI on
 
 Postgres, through the library's built-in Kysely adapter over a `pg` pool, configured by `DATABASE_URL`. One dialect, so one migration set and one thing to test. On the reference instance it is a Postgres from the Vercel marketplace in the runtime's region. Under Docker Compose a `postgres` service joins the app and Redis only when the operator turns sign-in on, through a compose profile, so the two-service instance in section 9 stays exactly as it is. Migrations run from the library's CLI (`npm run accounts:migrate`), by a one-shot compose service or before a deploy.
 
-The store holds the library's four tables (user, session, account, verification), the passkey and device-code tables, and one of ours: `owned_channel(account_id, channel_id, created_at, expires_at)`. Nothing else. Redis holds the channel and, on the channel hash, one new field, `owner_id`. Neither store references the other's records except by these two ids.
+The store holds the library's four tables (user, session, account, verification), the passkey and device-code tables, and two of ours: `account_channel` and `account_device` ("Account channels" below). Nothing else. Redis holds the channel and, for sign-in, one field on the channel hash, `owner_id`, and one hash per channel, `ch:{id}:devices`. Neither store references the other's records except by ids and token hashes.
 
 ### Off by default
 
@@ -561,14 +561,31 @@ The account page lists sessions with method, created and last-used times, and a 
 
 **One deviation, confirmed by the spike and accepted.** The library's session table stores the session token as the cookie carries it, not hashed, and looks it up by equality; there is no hook to change that. AUTH.md 3.1 is amended: one-time secrets (link tokens, device codes) are hashed, and the session token is stored as the library stores it. The store sits inside the same trust boundary as `AUTH_SECRET`, so a read of one is a read of both, and the exposure is the same as the one PRODUCT 15.2 already accepts for `REDIS_URL`.
 
-### Ownership
+### Account channels
 
-- `createChannel` takes an optional `ownerId`. The create *action*, the browser's path, resolves the session before calling it, and the id lands on the channel hash as `owner_id` and in `owned_channel` with the channel's expiry. It is written here and nowhere else; the API's create route never reads a session, so a channel created by an agent has no owner.
-- **The owned-channels list** is the account's rows in `owned_channel`, joined against Redis for liveness. A row whose channel is gone is deleted on read, and the sweep prunes rows past their expiry, so the list is bounded (AUTH.md 4.3) without `closeChannel` learning about the store. It is shown on the account page; a row links into the channel only when this browser holds the invite, since the invite lives nowhere on the server.
-- **Rotate the admin token** is a server action: session to account, `owner_id` on the channel hash must equal the account id or the action answers as if the channel did not exist, then a new token is generated, its hash replaces `admin_hash` in one `HSET`, and the plain token is returned once and stored by the page where the create dialog stores it today. There is no read; the old token fails on its next request (AUTH.md 3.6).
-- **Nothing on `/api/v1/*` reads a session.** `lib/auth.ts` is unchanged, and an integration test sends a valid session cookie to every API route and asserts it is treated as no credential.
-- **Per-account limits** join `lib/limits.ts`: live owned channels per account, channel creation per account per minute, and sign-in and link requests per address per window. The account counters key on a salted hash of the account id, like the IP counters. The library's own rate limiter is pointed at the same Redis counters through `rateLimit.customStorage`, with `customRules` for the sign-in, link, passkey, and device paths, so one mechanism counts everything.
-- **Account deletion** is the library's user delete, with a `databaseHooks.user.delete.before` hook that clears `owner_id` from every channel in `owned_channel`, then the rows, then the sessions. The channels keep running on their admin tokens.
+An account's channels are the ones it created and the ones it joined, and they follow it to every device it signs in on (AUTH.md 3.6, decided 2026-10-18). One table holds them, `account_channel`, replacing the `owned_channel` of the first release:
+
+| Column | Holds |
+|---|---|
+| `account_id`, `channel_id` | Primary key |
+| `relation` | `owner` or `member` |
+| `participant_id` | The account's seat, once it has posted; null before |
+| `invite_sealed` | The invite, sealed (below) |
+| `created_at`, `expires_at` | `expires_at` is the channel's; the sweep prunes past it |
+
+- **Sealing.** `lib/accounts/seal.ts` derives a key from `AUTH_SECRET` with HKDF-SHA256 and its own info label, and seals with AES-256-GCM: a random 96-bit nonce per value, the account and channel ids as associated data, stored as `v1.<nonce>.<ciphertext+tag>` in base64url. A value moved to another row fails authentication. Rotating `AUTH_SECRET` signs everyone out and makes every sealed invite unreadable together, which the rows treat as gone.
+- **Owner rows** are written by the create action, as before, with the invite it was just handed. `owner_id` still lands on the channel hash, and it is still written nowhere else; the API's create route never reads a session.
+- **Member rows** are written by `rememberChannel(channelId, invite)`, a server action the channel page calls once a signed-in browser has a working invite. It checks the invite against `invite_hash` on the live channel before writing anything, so a row exists only for a channel the account was really given. An existing owner row is left as it is.
+- **The seat** is attached by `rememberSeat(channelId, participantToken)` after the browser's first join: the token is checked against the channel's participants, and only the participant id is stored.
+- **The list** is the account's live rows, joined against Redis for liveness and named from the channel hash; rows whose channel is gone are deleted on read. `listAccountChannels()` returns id, name, expiry, and relation, never a secret. The channels pane merges it with the browser's own list.
+- **Opening a channel here** is `openHere(channelId)`. Session to account, row to live channel, unseal, and the invite must still match `invite_hash`; any failure answers as if there were no such channel. When the row has a seat, it also issues a device token for it (below). The page writes the invite into the fragment and both into `localStorage`, and from there it is the ordinary channel page.
+- **Device tokens.** A seat can carry more than one token: one per device that opened the channel through an account. They live in a per-channel Redis hash, `ch:{id}:devices`, mapping a token's hash to a participant id, with the channel's TTL and deleted with it. `lib/auth.ts` checks it when a participant token matches no participant directly. It still reads no session: the hash is channel data. The durable store records which session each device token belongs to, in `account_device(session_id, channel_id, token_hash, expires_at)`.
+- **Revocation.** `databaseHooks.session.delete.after` deletes that session's device tokens from Redis and their rows. The library runs it for every way a session ends that deletes the row: sign out, ending one session, ending all of them, and account deletion. A session that merely expires keeps its device tokens until the channel does.
+- **Leaving** through the page deletes the row, so a seat given up stays given up; **Forget everywhere** in the pane does the same without leaving. Forget alone stays local to the browser.
+- **Rotate the admin token** is unchanged in substance: session to account, `owner_id` must equal the account id or the action answers as if the channel did not exist, then a new token replaces `admin_hash` in one `HSET` and is returned once. It moves to the channel's own menu, shown to its owner.
+- **Nothing on `/api/v1/*` reads a session.** An integration test sends a valid session cookie to every API route and asserts it is treated as no credential.
+- **Per-account limits** join `lib/limits.ts`: live owned channels per account, live account channels per account, channel creation per account per hour, opens per account per minute, and sign-in and link requests per address per window. The account counters key on a salted hash of the account id, like the IP counters. The library's own rate limiter is pointed at the same Redis counters through `rateLimit.customStorage`, with `customRules` for the sign-in, link, passkey, and device paths, so one mechanism counts everything.
+- **Account deletion** is the library's user delete, with a `databaseHooks.user.delete.before` hook that clears `owner_id` from every channel the account owns, then the rows; its sessions go after, and their device tokens with them. The channels keep running on their admin tokens.
 
 ### `wave login`
 
@@ -599,8 +616,12 @@ Run 2026-09-30 against Better Auth 1.7.6 and Postgres 17, in `spike/accounts/` (
 - A provider sign-in with an email matching an existing account is refused, not linked.
 - Rotate is refused for a channel the account does not own, with the same answer as for a channel that does not exist.
 - Sessions carry `method` and `issuer` for each method, including the device flow.
-- The sweep and close touch nothing in Postgres except `owned_channel`.
+- The sweep and close touch nothing in Postgres except `account_channel` and `account_device`.
 - Isolation: two accounts, each sees only its own channels and sessions.
+- Isolation: an account cannot open, take a seat in, or remember a channel through another account's row, and `openHere` answers a stranger's channel exactly as a missing one.
+- A sealed invite moved to another account's or channel's row does not open.
+- Ending a session, in each of the ways a session ends, makes its device tokens fail their next request.
+- A member row is written only for an invite that matches the live channel.
 
 ### Order of work
 
@@ -608,6 +629,7 @@ Run 2026-09-30 against Better Auth 1.7.6 and Postgres 17, in `spike/accounts/` (
 2. Store, configuration, off-by-default behaviour, and the API-ignores-sessions test.
 3. Magic link and passkeys, the sign-in and account pages.
 4. Ownership: `owner_id`, `owned_channel`, the list, rotation, per-account limits.
+4a. Account channels across devices: `account_channel` replaces `owned_channel`, sealed invites, device tokens, the merged pane. Decided 2026-10-18.
 5. Simple OAuth from configuration.
 6. Compose profile, migrations, self-hosting guide.
 7. `wave login`, once the CLI's credential-store test is written.

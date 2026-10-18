@@ -41,6 +41,11 @@ export class FakeRedis {
     return hash instanceof Map ? Object.fromEntries(hash as Map<string, string>) : {}
   }
 
+  async hGet(key: string, field: string): Promise<string | null> {
+    const hash = this.store.get(key)?.value
+    return hash instanceof Map ? ((hash as Map<string, string>).get(field) ?? null) : null
+  }
+
   async hVals(key: string): Promise<string[]> {
     const hash = this.store.get(key)?.value
     return hash instanceof Map ? [...(hash as Map<string, string>).values()] : []

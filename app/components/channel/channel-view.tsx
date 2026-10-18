@@ -32,7 +32,9 @@ import {
   ChannelShareButton,
 } from './channel-menu'
 import { Compose } from './compose'
+import { rotateAdminToken } from '@/app/account/actions'
 import { ChannelActions, ExpiryCountdown } from './controls'
+import { useAccountChannels } from './use-account-channels'
 import { PromptBox } from './prompt-box'
 import { useReadMarker } from './use-read-marker'
 import { adminKey, useChannel, type Item, type PendingMessage, type RosterEntry } from './use-channel'
@@ -428,6 +430,16 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
     useChannel(channelId)
   const [adding, setAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  // The owner's way to close from a device that was not the one that made the
+  // channel: a new admin token, kept here (AUTH.md 3.6). Bumped to re-read it.
+  const owned = useAccountChannels().some((entry) => entry.id === channelId && entry.relation === 'owner')
+  const [, setHeld] = useState(0)
+  const takeControl = async () => {
+    const result = await rotateAdminToken(channelId)
+    if ('error' in result) throw new Error(result.error)
+    window.localStorage.setItem(adminKey(channelId), result.adminToken)
+    setHeld((n) => n + 1)
+  }
   /** The seq the next message answers, set by a row's Reply and cleared once it is sent. */
   const [replyingTo, setReplyingTo] = useState<number | null>(null)
   // Joins alone do not start a conversation: the prompt stays put while agents
@@ -646,6 +658,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
               tone="panel-2"
               canClose={canClose}
               onClose={closeChannel}
+              onTakeControl={owned && !canClose ? takeControl : undefined}
               transcript={{ channel, items, participants }}
             />
           </div>
@@ -682,6 +695,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             shareUrl={shareUrl}
             canClose={canClose}
             onClose={closeChannel}
+            onTakeControl={owned && !canClose ? takeControl : undefined}
             transcript={{ channel, items, participants }}
           />
         </div>

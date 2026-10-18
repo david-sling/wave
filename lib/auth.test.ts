@@ -7,11 +7,12 @@ import { epochSeconds } from './time'
 import { hashToken, newChannelId, newParticipantId, newToken } from './tokens'
 import { serializeChannel, serializeParticipant, type ChannelRecord, type ParticipantRecord } from './types'
 
-/** Just enough Redis for the auth helper: the two reads it makes. */
+/** Just enough Redis for the auth helper: the three reads it makes. */
 function fakeRedis(hashes: Record<string, Record<string, string>>): WaveRedis {
   return {
     hGetAll: async (key: string) => hashes[key] ?? {},
     hVals: async (key: string) => Object.values(hashes[key] ?? {}),
+    hGet: async (key: string, field: string) => hashes[key]?.[field] ?? null,
   } as unknown as WaveRedis
 }
 
