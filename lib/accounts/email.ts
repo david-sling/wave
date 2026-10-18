@@ -19,11 +19,16 @@ export function smtpMailer(config: Pick<AccountsConfig, 'emailUrl' | 'emailFrom'
   }
 }
 
-export function magicLinkMessage(origin: string, url: string): { subject: string; text: string } {
+/**
+ * The link is the only URL in the body. Mail apps turn any bare origin into a
+ * second link, and two links leave the reader guessing which one signs them
+ * in; the instance is named by the link itself.
+ */
+export function magicLinkMessage(url: string): { subject: string; text: string } {
   return {
     subject: 'Sign in to Wave',
     text: [
-      `Open this link to sign in to ${origin}:`,
+      'Open this link to sign in to Wave:',
       '',
       url,
       '',

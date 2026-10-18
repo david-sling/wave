@@ -94,7 +94,7 @@ export function baseAuthOptions({ config, origin, mailer }: BaseOptions) {
         storeToken: 'hashed',
         // The token rides in the fragment, which browsers never send.
         sendMagicLink: async ({ email, token }) => {
-          const { subject, text } = magicLinkMessage(origin, `${origin}/signin/link#${token}`)
+          const { subject, text } = magicLinkMessage(`${origin}/signin/link#${token}`)
           await mailer.send(email, subject, text)
         },
       }),
