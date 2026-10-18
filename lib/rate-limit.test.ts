@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { fakeRedis } from '../tests/fake-redis'
 import { ApiError } from './http'
 import { LIMITS } from './limits'
-import { callerAddress, enforceLimit, limitChannelCreation, withConcurrencyLimit } from './rate-limit'
+import { createHash } from 'node:crypto'
+import { getConfig } from './config'
+import {
+  callerAddress,
+  deriveSalt,
+  enforceLimit,
+  fingerprint,
+  limitChannelCreation,
+  SALT_LABEL,
+  withConcurrencyLimit,
+} from './rate-limit'
 
 const limit = { scope: 'test', subject: '203.0.113.7', max: 3, windowSeconds: 60 }
 
@@ -176,5 +186,21 @@ describe('channel creation limit', () => {
       await expect(limitChannelCreation(redis, request)).resolves.toBeUndefined()
     }
     await expect(limitChannelCreation(redis, request)).rejects.toMatchObject({ status: 429 })
+  })
+})
+
+describe('the subject salt', () => {
+  const secret = getConfig().cronSecret
+
+  it('is derived from the cron secret under a label, not the secret itself', () => {
+    expect(deriveSalt(secret).toString('utf8')).not.toBe(secret)
+    expect(deriveSalt(secret)).toEqual(deriveSalt(secret, SALT_LABEL))
+    expect(deriveSalt(secret, 'another label')).not.toEqual(deriveSalt(secret))
+  })
+
+  it('no longer hashes the subject with the cron secret directly', () => {
+    const direct = createHash('sha256').update(`${secret}:203.0.113.7`).digest('hex').slice(0, 32)
+    expect(fingerprint('203.0.113.7')).not.toBe(direct)
+    expect(fingerprint('203.0.113.7')).toBe(fingerprint('203.0.113.7'))
   })
 })

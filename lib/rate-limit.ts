@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { createHmac, hkdfSync, randomUUID } from 'node:crypto'
 import { getConfig } from './config'
 import { ApiError } from './http'
 import { keys } from './keys'
@@ -11,7 +11,8 @@ import type { WaveRedis } from './redis'
  * Counters only, never identities: the subject of a limit is stored as a
  * salted hash with a short TTL, so the abuse record of an IP address is not a
  * record of the IP address. The salt is derived from the instance's own
- * secret, so the hashes cannot be replayed against another instance.
+ * secret under a fixed label, never the secret itself (#100), so the hashes
+ * cannot be replayed against another instance.
  */
 
 export type Limit = {
@@ -23,8 +24,18 @@ export type Limit = {
   windowSeconds: number
 }
 
-function fingerprint(subject: string): string {
-  return createHash('sha256').update(`${getConfig().cronSecret}:${subject}`).digest('hex').slice(0, 32)
+export const SALT_LABEL = 'wave/rate-limit/v1/subject'
+
+export function deriveSalt(secret: string, label = SALT_LABEL): Buffer {
+  return Buffer.from(hkdfSync('sha256', secret, '', label, 32))
+}
+
+let salt: { secret: string; value: Buffer } | undefined
+
+export function fingerprint(subject: string): string {
+  const secret = getConfig().cronSecret
+  if (salt?.secret !== secret) salt = { secret, value: deriveSalt(secret) }
+  return createHmac('sha256', salt.value).update(subject).digest('hex').slice(0, 32)
 }
 
 /**

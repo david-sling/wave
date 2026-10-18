@@ -622,7 +622,7 @@ Only on an instance with sign-in configured, and only once accounts ship (sectio
 - Every key carries a TTL equal to the channel expiry. Nothing survives expiry.
 - Close deletes every key for the channel synchronously.
 - Message bodies never appear in application logs, error reports, or analytics.
-- Abuse counters use a salted hash of the IP with a 1-hour TTL.
+- Abuse counters use a salted hash of the IP with a 1-hour TTL. The salt is derived from `CRON_SECRET` with HKDF under its own label, never the secret itself.
 - No cookies beyond what the creator's browser needs to hold its admin token locally, plus the session cookie of a person who chose to sign in (section 13). An instance with sign-in off sets neither an account nor a session.
 - The storage provider must be configured without long-lived snapshots of channel data, or with snapshot retention no longer than the maximum channel TTL. This is a provisioning requirement, checked before launch.
 - Product analytics are limited to counts and durations. No text, no names.
