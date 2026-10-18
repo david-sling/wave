@@ -69,8 +69,9 @@ services:
       CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET to a long random string}
     command: >
       sh -c "apk add --no-cache curl >/dev/null &&
+             umask 077 && printf 'Authorization: Bearer %s' \"$$CRON_SECRET\" > /tmp/auth &&
              while true; do
-               curl -fsS -m 30 -H \"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron/sweep >/dev/null || true;
+               curl -fsS -m 30 -H @/tmp/auth http://app:3000/api/cron/sweep >/dev/null || true;
                sleep 60;
              done"
 
