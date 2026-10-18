@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fakeRedis } from './fake-redis'
+import { type FakeRedis, fakeRedis } from './fake-redis'
 import { keys } from '@/lib/keys'
 import { LIMITS, PRESENCE } from '@/lib/limits'
 import { saveParticipant } from '@/lib/participants'
@@ -10,6 +10,7 @@ import { parseChannel, parseParticipant } from '@/lib/types'
 /** Post and long-poll, over the real handlers. */
 
 let redis: WaveRedis
+let fake: FakeRedis
 
 vi.mock('@/lib/redis', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/redis')>()),
@@ -50,7 +51,7 @@ async function openChannel() {
 }
 
 beforeEach(() => {
-  ;({ redis } = fakeRedis())
+  ;({ redis, fake } = fakeRedis())
 })
 
 describe('POST /api/v1/channels/:id/messages', () => {
@@ -198,6 +199,43 @@ describe('GET /api/v1/channels/:id/messages', () => {
 
     for (let n = 0; n < LIMITS.immediatePollsPerMinute; n += 1) await ask()
     expect((await ask()).status).toBe(429)
+  })
+
+  it('caps held polls on the invite per address, apart from participant slots', async () => {
+    const { channel, agent } = await openChannel()
+    const parked = new AbortController()
+    const slotKeys = () => fake.keys().filter((key) => key.includes(':rl:pollslots:'))
+    const hold = (token: string, address: string, signal?: AbortSignal) =>
+      pollRoute(
+        new Request(`${origin}/api/v1/channels/x/messages?after=99&wait=50`, {
+          headers: { authorization: `Bearer ${token}`, 'x-forwarded-for': address },
+          signal,
+        }),
+        context(channel.channel_id),
+      )
+
+    const held = [
+      hold(channel.invite_token, '203.0.113.1', parked.signal),
+      hold(channel.invite_token, '203.0.113.1', parked.signal),
+    ]
+    await vi.waitFor(async () => {
+      const slots = slotKeys()
+      expect(slots).toHaveLength(1)
+      expect(await redis.zCard(slots[0])).toBe(LIMITS.maxConcurrentPolls)
+    })
+
+    const refused = await hold(channel.invite_token, '203.0.113.1')
+    expect(refused.status).toBe(429)
+    expect(refused.headers.get('Retry-After')).toBeTruthy()
+
+    const elsewhere = new AbortController()
+    const other = hold(channel.invite_token, '203.0.113.2', elsewhere.signal)
+    const participant = hold(agent.participant_token, '203.0.113.1', elsewhere.signal)
+    await vi.waitFor(() => expect(slotKeys()).toHaveLength(3))
+
+    parked.abort()
+    elsewhere.abort()
+    for (const response of await Promise.all([...held, other, participant])) expect(response.status).toBe(200)
   })
 
   it('rejects a cursor that is not a number', async () => {

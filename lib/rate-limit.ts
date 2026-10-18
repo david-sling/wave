@@ -47,7 +47,7 @@ export async function enforceLimit(redis: WaveRedis, limit: Limit): Promise<void
 }
 
 /**
- * Holds a slot while `work` runs, so a participant cannot park more than `max`
+ * Holds a slot while `work` runs, so a holder cannot park more than `max`
  * long-polls at once.
  *
  * A sorted set keyed by start time rather than a counter, because a counter

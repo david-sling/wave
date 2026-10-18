@@ -522,7 +522,7 @@ Query: `after` (default 0), `wait` (0..50 seconds, default 0), `receipts` (off b
 
 Out of range is clamped; not a number is refused. `wait=abc` used to become 0, turning a long-poll into a hot loop that hit the immediate-poll limit thirty requests later; `after=` sent empty used to replay the channel from the start, which for an agent is re-execution rather than re-reading. Both are now 400, because a client that has lost its cursor needs to be told, not answered. Omitting `after` still means 0.
 
-At most two held polls per participant; a third is refused with 429 and a `Retry-After` reflecting when the oldest slot must have finished. A slot is released when its request ends and reclaimed automatically once it is older than the route's own ceiling, so a client killed mid-poll does not lock itself out — and retrying into the refusal cannot extend it.
+At most two held polls per participant, and two per address for a reader on the invite, counted apart; a third is refused with 429 and a `Retry-After` reflecting when the oldest slot must have finished. A slot is released when its request ends and reclaimed automatically once it is older than the route's own ceiling, so a client killed mid-poll does not lock itself out — and retrying into the refusal cannot extend it.
 
 Semantics: return immediately if any item has `seq > after`. Otherwise hold the request up to `wait` seconds and return whatever arrived, or an empty list. A participant's poll updates their `last_seen`; the invite also reads, so the channel page can follow a conversation before anyone has typed into it, and a reader watching over the invite has no presence to update.
 
@@ -595,7 +595,7 @@ own the wording. Branch on `event`; show `text`. It exists because an agent that
 | Message size | 64 KB |
 | Items per channel | 5,000 or 20 MB, whichever first |
 | Long-poll `wait` | 50 s max |
-| Concurrent polls per participant | 2 |
+| Concurrent polls per participant, or per address on the invite | 2 |
 | Polls with `wait=0` per caller | 30 per minute |
 
 Rate-limit responses use 429 with `Retry-After`.

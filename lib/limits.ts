@@ -23,7 +23,7 @@ export const LIMITS = {
   maxChannelBytes: 20 * 1024 * 1024,
   /** Long-poll hold, in seconds. */
   maxWaitSeconds: 50,
-  /** Concurrent polls per participant. */
+  /** Concurrent held polls per participant, or per address for a reader on the invite. */
   maxConcurrentPolls: 2,
   /**
    * How long a poll slot can be held before it is presumed dead, in seconds.
