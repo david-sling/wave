@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useSyncExternalStore } from 'react'
+import { type ReactNode, useEffect, useSyncExternalStore } from 'react'
+import { signOut } from '@/app/account/actions'
 
 export type Who = 'off' | 'out' | 'in'
 /** `name` is the account's own, empty until it is given one. */
@@ -35,6 +36,36 @@ function askOnce(): Promise<Account> {
       return OFF
     })
   return asked
+}
+
+/**
+ * Asks again. Signing in moves to another page without reloading this one,
+ * so whatever was answered before it is stale; the sign-in pages call this
+ * before they navigate, and everything listening sees the new answer.
+ */
+export function refreshAccount(): Promise<Account> {
+  asked = undefined
+  return askOnce()
+}
+
+/**
+ * Signs out from a form. The page is told first, so nothing on it goes on
+ * showing the account's channels while the action redirects.
+ */
+export function SignOutForm({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <form
+      className={className}
+      action={async () => {
+        const out: Account = { who: 'out', email: null, name: null }
+        asked = Promise.resolve(out)
+        publish(out)
+        await signOut()
+      }}
+    >
+      {children}
+    </form>
+  )
 }
 
 /** After the account's name changes on this page, so everything showing it agrees. */

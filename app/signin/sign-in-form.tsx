@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useActionState, useEffect, useId, useRef, useState } from 'react'
 import { authClient } from '@/lib/accounts/client'
 import { requestLink, type LinkState } from '@/app/account/actions'
+import { refreshAccount } from '@/app/components/account-link'
 
 const initialState: LinkState = {}
 
@@ -19,11 +20,17 @@ export function SignInForm() {
   const asked = useRef(false)
   const [passkeyError, setPasskeyError] = useState<string | null>(null)
 
+  // The page that follows is reached without a reload, so it is told first.
+  const signedIn = async () => {
+    await refreshAccount()
+    router.replace('/account')
+  }
+
   // The button, for browsers that do not offer the passkey on the field.
   const usePasskey = async () => {
     setPasskeyError(null)
     const result = await authClient.signIn.passkey()
-    if (result?.data) router.replace('/account')
+    if (result?.data) await signedIn()
     else
       setPasskeyError('No passkey was used. The prompt may have been dismissed, or this browser holds none for Wave.')
   }
@@ -33,7 +40,7 @@ export function SignInForm() {
     asked.current = true
     let cancelled = false
     void authClient.signIn.passkey({ autoFill: true }).then((result) => {
-      if (!cancelled && result?.data) router.replace('/account')
+      if (!cancelled && result?.data) void refreshAccount().then(() => router.replace('/account'))
     })
     return () => {
       cancelled = true

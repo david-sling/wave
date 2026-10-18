@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { verifyLink } from '@/app/account/actions'
+import { refreshAccount } from '@/app/components/account-link'
 
 /**
  * Reads the token out of the fragment, drops it from the address bar before
@@ -24,9 +25,10 @@ export function VerifyLink() {
     const token = window.location.hash.slice(1)
     window.history.replaceState(null, '', window.location.pathname)
     const outcome = token ? verifyLink(token) : Promise.resolve({ error: 'This link is not complete.' })
-    void outcome.then((result) => {
-      if ('ok' in result) router.replace('/account')
-      else setError(result.error)
+    void outcome.then(async (result) => {
+      if (!('ok' in result)) return setError(result.error)
+      await refreshAccount()
+      router.replace('/account')
     })
   }, [router])
 

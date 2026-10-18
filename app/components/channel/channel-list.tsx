@@ -4,9 +4,8 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { byActivity, live, type VisitedChannel } from '@/lib/visited-channels'
-import { signOut } from '@/app/account/actions'
 import { forgetEverywhere, importChannels } from '@/app/account-channels'
-import { useAccount } from '../account-link'
+import { SignOutForm, useAccount } from '../account-link'
 import { CreateChannelButton } from '../create-channel'
 import { CloseIcon, PersonIcon, PlusIcon, SignOutIcon } from '../icons'
 import { Logo } from '../logo'
@@ -265,7 +264,7 @@ function AccountRow() {
         </span>
       </Link>
       {signedIn ? (
-        <form action={signOut} className="absolute right-2 top-1/2 -translate-y-1/2">
+        <SignOutForm className="absolute right-2 top-1/2 -translate-y-1/2">
           <span className="relative">
             <button
               type="submit"
@@ -278,7 +277,7 @@ function AccountRow() {
               Sign out
             </span>
           </span>
-        </form>
+        </SignOutForm>
       ) : null}
     </div>
   )

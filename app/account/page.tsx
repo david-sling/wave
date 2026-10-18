@@ -5,10 +5,11 @@ import { connection } from 'next/server'
 import Link from 'next/link'
 import { getAccountSession, getAuth } from '@/lib/accounts/auth'
 import { siteName } from '@/lib/site'
+import { SignOutForm } from '@/app/components/account-link'
 import { ChevronLeftIcon } from '@/app/components/icons'
 import { deviceLabel } from '@/lib/accounts/device-label'
 import { relativeTime } from '@/lib/relative-time'
-import { removePasskey, revokeSession, signOut } from './actions'
+import { removePasskey, revokeSession } from './actions'
 import { AddPasskey } from './add-passkey'
 import { DeleteAccount } from './delete-account'
 import { ProfileName } from './profile-name'
@@ -70,11 +71,11 @@ export default async function AccountPage() {
           </Link>
           <h1 className="m-0 truncate font-sans text-[15px] font-semibold">Account</h1>
         </div>
-        <form action={signOut}>
+        <SignOutForm>
           <button type="submit" className="btn btn-secondary btn-sm">
             Sign out
           </button>
-        </form>
+        </SignOutForm>
       </header>
 
       <div className="pane-scroll min-h-0 flex-1 overflow-y-auto">
