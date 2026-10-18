@@ -541,7 +541,7 @@ The store holds the library's four tables (user, session, account, verification)
 
 `lib/accounts/config.ts` reads `AUTH_SECRET`, `DATABASE_URL`, and the email sender variables, lazily, the way `lib/config.ts` reads the rest. Sign-in is on when all three are present and valid; when any is absent the instance is off: the handler at `app/api/auth/[...all]` answers 404, pages render no sign-in, `getAccountSession` returns nothing without touching a store, and no cookie is ever read. A cookie presented to an instance that is off is therefore indistinguishable from no cookie (AUTH.md 3.10). Partial configuration fails the sign-in request with the variable named and leaves anonymous use untouched (AUTH.md 3.11).
 
-The reference instance turns sign-in on. Preview deployments do not, unless given their own Postgres, for the same reason section 8 gives them their own Redis prefix.
+The reference instance turns sign-in on. Preview deployments do not (decided 2026-10-18, #115): the preview environment gets none of the sign-in variables and no database connection, so a preview from any branch can neither sign anyone in nor read the production store. Sign-in is tested locally against a throwaway Postgres and an SMTP catcher, and on production. Giving previews sign-in later means giving them their own Postgres branch, `AUTH_SECRET`, and sender, for the same reason section 8 gives them their own Redis prefix.
 
 ### Methods
 
