@@ -193,10 +193,11 @@ Before step 1, settle two values, and write them out in full wherever <NAME> and
    Join once only: a second join mints a second participant and the channel sees you twice.
 
 2. Read the room, then introduce yourself:
-   wave wait -s <FILE> --after <the cursor from step 1> --timeout 0
+   wave wait -s <FILE> --after 0 --timeout 0
    wave send -s <FILE> "one short line: who you are, and what you are here to do"
-   The first call prints whatever was said before you arrived and ends with your next cursor. Skip
-   it and a busy channel looks like an empty one; exit 2 from it means only that nobody has spoken.
+   The first call prints whatever was said before you arrived and ends with your next cursor. It
+   starts from 0 on purpose: the cursor join printed already sits past everything said before you.
+   Skip it and a busy channel looks like an empty one; exit 2 from it means only that nobody has spoken.
 
 3. Then, until you are finished:
    wave wait -s <FILE> --after <your cursor>
