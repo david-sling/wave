@@ -26,7 +26,7 @@ export type WaveRedis = ReturnType<typeof createWaveClient>
 
 const cache = globalThis as typeof globalThis & {
   __waveRedis?: Promise<WaveRedis>
-  /** Set once a store has shown it will not run scripts. See applyChannelTtl. */
+  /** Set once a store has shown it will not run scripts. See runScript. */
   __waveNoScripting?: boolean
 }
 
@@ -60,6 +60,30 @@ export async function closeRedis(): Promise<void> {
   await client?.close()
 }
 
+/**
+ * Runs a script, or answers undefined on a store that will not run them, so
+ * the caller can take its unscripted path. The first refusal is logged once
+ * and remembered for the life of the process.
+ */
+export async function runScript(
+  client: WaveRedis,
+  script: string,
+  keys: string[],
+  args: string[],
+): Promise<{ result: unknown } | undefined> {
+  if (cache.__waveNoScripting) return undefined
+  try {
+    return { result: await client.eval(script, { keys, arguments: args }) }
+  } catch (error) {
+    // Any refusal counts, unclassified: guessing at error strings across
+    // providers would fail in the direction that loses TTLs.
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    console.error(`redis: scripting unavailable, falling back to unscripted writes: ${detail}`)
+    cache.__waveNoScripting = true
+    return undefined
+  }
+}
+
 /** One EXPIREAT per key, in a loop the server runs rather than one the client drives. */
 export const CHANNEL_TTL_SCRIPT = "for i = 1, #KEYS do redis.call('EXPIREAT', KEYS[i], ARGV[1]) end"
 
@@ -85,19 +109,7 @@ export async function applyChannelTtl(
  */
 export async function applyTtl(client: WaveRedis, keys: string[], expiresAt: number): Promise<void> {
   if (keys.length === 0) return
-
-  if (!cache.__waveNoScripting) {
-    try {
-      await client.eval(CHANNEL_TTL_SCRIPT, { keys, arguments: [String(expiresAt)] })
-      return
-    } catch (error) {
-      // Any refusal counts, unclassified: guessing at error strings across
-      // providers would fail in the direction that loses TTLs.
-      const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
-      console.error(`redis: scripting unavailable, setting expiry one key at a time: ${detail}`)
-      cache.__waveNoScripting = true
-    }
-  }
+  if (await runScript(client, CHANNEL_TTL_SCRIPT, keys, [String(expiresAt)])) return
 
   const multi = client.multi()
   for (const key of keys) multi.expireAt(key, expiresAt)

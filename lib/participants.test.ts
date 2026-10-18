@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fakeRedis } from '../tests/fake-redis'
 import { channelView, createChannel } from './channels'
 import { ApiError } from './http'
 import { keys } from './keys'
+import { postMessage } from './messages'
 import { dedupeName, joinChannel, joinRequestSchema, leaveChannel, touchParticipant } from './participants'
-import type { WaveRedis } from './redis'
+import { closeRedis, type WaveRedis } from './redis'
 import { parseChannel, parseItem, parseParticipant, type ChannelRecord, type ParticipantRecord } from './types'
 
 async function openChannel(redis: WaveRedis, max = 10): Promise<ChannelRecord> {
@@ -199,5 +200,31 @@ describe('errors', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).message).toContain('2 participants')
     expect((error as ApiError).hint).toBeTruthy()
+  })
+})
+
+describe('a store without scripting', () => {
+  it('still enforces the caps, and says once that it fell back', async () => {
+    const { fake, redis } = fakeRedis()
+    fake.eval = async () => {
+      throw new Error('ERR unknown command')
+    }
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const channel = await openChannel(redis, 2)
+      const first = await joinChannel(redis, channel, { name: 'Mac agent', role: 'agent' })
+      await joinChannel(redis, channel, { name: 'Mac agent', role: 'agent' })
+      await expect(joinChannel(redis, channel, { name: 'Late', role: 'agent' })).rejects.toMatchObject({ status: 409 })
+
+      const author = parseParticipant((await redis.hGetAll(keys.parts(channel.id)))[first.participant_id]!)
+      const posted = await postMessage(redis, channel, author, { text: 'still posts', kind: 'message' })
+      expect(posted.seq).toBeGreaterThan(0)
+
+      const fallbacks = logged.mock.calls.filter(([line]) => String(line).includes('scripting unavailable'))
+      expect(fallbacks).toHaveLength(1)
+    } finally {
+      logged.mockRestore()
+      await closeRedis()
+    }
   })
 })

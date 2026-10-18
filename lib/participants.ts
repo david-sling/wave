@@ -6,7 +6,7 @@ import { keys } from './keys'
 import { LIMITS } from './limits'
 import { countJoin } from './metrics'
 import { plainText } from './plain-text'
-import { applyTtl, type WaveRedis } from './redis'
+import { applyTtl, runScript, type WaveRedis } from './redis'
 import { epochSeconds, toIso } from './time'
 import { hashToken, newParticipantId, newToken } from './tokens'
 import {
@@ -55,20 +55,68 @@ function present(participants: ParticipantRecord[]): ParticipantRecord[] {
   return participants.filter((participant) => participant.left_at === undefined)
 }
 
+/**
+ * Counts the participants still present, claims the name, and writes the
+ * participant in one step, so concurrent joins cannot pass the cap together
+ * (#101). Answers 1 when written, 0 when full, -1 when the name was taken.
+ */
+export const JOIN_SCRIPT = `
+local present = 0
+for _, raw in ipairs(redis.call('HVALS', KEYS[1])) do
+  local left = cjson.decode(raw).left_at
+  if left == nil or left == cjson.null then present = present + 1 end
+end
+if present >= tonumber(ARGV[1]) then return 0 end
+if redis.call('SADD', KEYS[2], ARGV[4]) == 0 then return -1 end
+redis.call('HSET', KEYS[1], ARGV[2], ARGV[3])
+return 1`
+
+const channelFull = (cap: number) =>
+  new ApiError(409, 'channel_full', `This channel is full (${cap} participants).`, {
+    hint: 'Ask whoever created the channel to close it and open one with a higher cap.',
+  })
+
+/** Writes the participant if there is room. False when the name was taken in the meantime. */
+async function claimSeat(
+  redis: WaveRedis,
+  channel: ChannelRecord,
+  participant: ParticipantRecord,
+  existing: ParticipantRecord[],
+  cap: number,
+): Promise<boolean> {
+  const name = participant.name.toLowerCase()
+  const ran = await runScript(
+    redis,
+    JOIN_SCRIPT,
+    [keys.parts(channel.id), keys.names(channel.id)],
+    [String(cap), participant.id, serializeParticipant(participant), name],
+  )
+  if (ran) {
+    if (ran.result === 0) throw channelFull(cap)
+    return ran.result === 1
+  }
+
+  // No scripting: the check runs before the write, so a race can pass it.
+  if (present(existing).length >= cap) throw channelFull(cap)
+  await redis
+    .multi()
+    .hSet(keys.parts(channel.id), { [participant.id]: serializeParticipant(participant) })
+    .sAdd(keys.names(channel.id), name)
+    .exec()
+  return true
+}
+
 export async function joinChannel(redis: WaveRedis, channel: ChannelRecord, request: JoinRequest): Promise<JoinResult> {
   const existing = await listParticipants(redis, channel.id)
   const cap = Math.min(channel.max_participants, LIMITS.maxParticipants)
-  if (present(existing).length >= cap) {
-    throw new ApiError(409, 'channel_full', `This channel is full (${cap} participants).`, {
-      hint: 'Ask whoever created the channel to close it and open one with a higher cap.',
-    })
-  }
+  if (present(existing).length >= cap) throw channelFull(cap)
 
   const now = epochSeconds()
   const token = newToken()
+  const taken = new Set(existing.map((p) => p.name.toLowerCase()))
   const participant: ParticipantRecord = {
     id: newParticipantId(),
-    name: dedupeName(request.name, new Set(existing.map((p) => p.name.toLowerCase()))),
+    name: dedupeName(request.name, taken),
     role: request.role,
     token_hash: hashToken(token),
     joined_at: now,
@@ -76,12 +124,10 @@ export async function joinChannel(redis: WaveRedis, channel: ChannelRecord, requ
     state: 'active',
     ...(request.client ? { client: request.client } : {}),
   }
-
-  await redis
-    .multi()
-    .hSet(keys.parts(channel.id), { [participant.id]: serializeParticipant(participant) })
-    .sAdd(keys.names(channel.id), participant.name.toLowerCase())
-    .exec()
+  while (!(await claimSeat(redis, channel, participant, existing, cap))) {
+    taken.add(participant.name.toLowerCase())
+    participant.name = dedupeName(request.name, taken)
+  }
   // The keys this just wrote. The append below stamps the rest.
   await applyTtl(redis, [keys.parts(channel.id), keys.names(channel.id)], channel.expires_at)
 
