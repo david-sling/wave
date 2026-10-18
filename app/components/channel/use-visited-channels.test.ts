@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { adminTokenKey, saveAdminToken } from '@/lib/admin-tokens'
 import { VISITED_KEY } from '@/lib/visited-channels'
 import { forgetChannel, noteChannelMessage, rememberChannel, snapshot, subscribe } from './use-visited-channels'
 
@@ -16,6 +17,13 @@ function fakeWindow({ throwing = false } = {}) {
     setItem: (key: string, value: string) => {
       if (throwing) throw new Error('QuotaExceededError')
       store.set(key, value)
+    },
+    removeItem: (key: string) => {
+      store.delete(key)
+    },
+    key: (index: number) => [...store.keys()][index] ?? null,
+    get length() {
+      return store.size
     },
   }
   return Object.assign(events, { localStorage, store })
@@ -134,5 +142,22 @@ describe('with storage throwing, as in private browsing', () => {
     expect(() => forgetChannel('a')).not.toThrow()
     expect(snapshot()).toEqual([])
     expect(snapshot()).toBe(snapshot())
+  })
+})
+
+describe('admin tokens', () => {
+  it('go when the channel is forgotten, as on close', () => {
+    rememberChannel(room('a'), now)
+    saveAdminToken(win.localStorage as unknown as Storage, 'a', 'adm-a', now + 3_600_000)
+    forgetChannel('a')
+    expect(win.store.has(adminTokenKey('a'))).toBe(false)
+  })
+
+  it('go once their channel has expired, and stay while it lives', () => {
+    saveAdminToken(win.localStorage as unknown as Storage, 'old', 'adm-old', now - 1)
+    saveAdminToken(win.localStorage as unknown as Storage, 'b', 'adm-b', now + 3_600_000)
+    rememberChannel(room('b'), now)
+    expect(win.store.has(adminTokenKey('old'))).toBe(false)
+    expect(win.store.has(adminTokenKey('b'))).toBe(true)
   })
 })

@@ -4,11 +4,9 @@ import { useRouter } from 'next/navigation'
 import { startTransition, useActionState, useEffect, useId, useRef, useState } from 'react'
 import { createChannel, type CreateChannelState } from '../actions'
 import { CloseIcon } from './icons'
+import { saveAdminToken } from '@/lib/admin-tokens'
 
 const initialState: CreateChannelState = {}
-
-/** Where the creator's admin token lives, per ARCHITECTURE section 6. */
-export const adminTokenKey = (channelId: string) => `wave.admin.${channelId}`
 
 const ttlOptions = [
   { value: '1h', label: '1h', summary: '1 hour' },
@@ -31,7 +29,7 @@ function useCreateChannel() {
     // The admin token is the creator's alone: it stays in this browser and is
     // sent only when they close the channel.
     try {
-      window.localStorage.setItem(adminTokenKey(created.channelId), created.adminToken)
+      saveAdminToken(window.localStorage, created.channelId, created.adminToken, created.expiresAt)
     } catch {
       // Private browsing, or storage switched off. The channel still works;
       // only the close button on this device is lost.

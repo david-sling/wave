@@ -11,6 +11,8 @@ export type CreatedChannelState = {
   channelId: string
   invite: string
   adminToken: string
+  /** Epoch ms. */
+  expiresAt: number
   url: string
 }
 
@@ -66,6 +68,7 @@ export async function createChannel(_previous: CreateChannelState, formData: For
         channelId: channel.channel_id,
         invite: channel.invite_token,
         adminToken: channel.admin_token,
+        expiresAt: Date.parse(channel.expires_at),
         url: channel.url,
       },
     }

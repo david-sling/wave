@@ -35,7 +35,7 @@ import { Compose } from './compose'
 import { ChannelActions, ExpiryCountdown } from './controls'
 import { PromptBox } from './prompt-box'
 import { useReadMarker } from './use-read-marker'
-import { adminKey, useChannel, type Item, type PendingMessage, type RosterEntry } from './use-channel'
+import { readAdminToken, useChannel, type Item, type PendingMessage, type RosterEntry } from './use-channel'
 
 /**
  * The channel, as an application surface rather than a document (PRODUCT 6.2).
@@ -512,7 +512,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
     setReplyingTo(null)
   }
   const shareUrl = `${host}/c/${channelId}#${invite}`
-  const canClose = typeof window !== 'undefined' && window.localStorage.getItem(adminKey(channelId)) !== null
+  const canClose = typeof window !== 'undefined' && readAdminToken(channelId) !== null
 
   return (
     <Shell>
