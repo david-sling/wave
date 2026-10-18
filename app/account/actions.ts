@@ -3,10 +3,8 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { APIError } from 'better-auth/api'
-import { getAccountSession, getAuth } from '@/lib/accounts/auth'
-import { loadChannel } from '@/lib/auth'
-import { rotateAdminToken as rotate } from '@/lib/channels'
-import { getRedis } from '@/lib/redis'
+import { getAuth } from '@/lib/accounts/auth'
+import { joinRequestSchema } from '@/lib/participants'
 
 /**
  * Sign-in and account actions (ARCHITECTURE section 14). Each resolves the
@@ -77,31 +75,23 @@ export async function revokeSession(sessionId: string): Promise<void> {
   await auth.api.revokeSession({ body: { token: session.token }, headers: requestHeaders })
 }
 
+/**
+ * The account's name: the one it joins channels under, so it is asked once
+ * rather than in every room. Held to the same rules as a name given at join.
+ */
+export async function setMyName(name: string): Promise<{ name: string } | { error: string }> {
+  const auth = getAuth()
+  if (!auth) return { error: off }
+  const parsed = joinRequestSchema.shape.name.safeParse(name)
+  if (!parsed.success) return { error: 'Use a name of 1 to 40 characters.' }
+  await auth.api.updateUser({ body: { name: parsed.data }, headers: await headers() })
+  return { name: parsed.data }
+}
+
 export async function removePasskey(id: string): Promise<void> {
   const auth = getAuth()
   if (!auth) return
   await auth.api.deletePasskey({ body: { id }, headers: await headers() })
-}
-
-/**
- * The one thing a session grants on a channel (AUTH.md 3.6): a new admin
- * token for a channel this account owns, returned once. The old token stops
- * working at once. A channel that is not this account's is answered exactly
- * as one that does not exist.
- */
-export async function rotateAdminToken(channelId: string): Promise<{ adminToken: string } | { error: string }> {
-  const gone = { error: 'This channel is not here any more.' }
-  const account = await getAccountSession(await headers())
-  if (!account) return { error: 'Sign in first.' }
-  const redis = await getRedis()
-  let channel
-  try {
-    channel = await loadChannel(redis, channelId)
-  } catch {
-    return gone
-  }
-  if (channel.owner_id !== account.user.id) return gone
-  return { adminToken: await rotate(redis, channel.id) }
 }
 
 /** Deletes the account, its sessions, and its passkeys. Its channels lose their owner and keep running. */

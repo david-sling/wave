@@ -1,45 +1,65 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
 export type Who = 'off' | 'out' | 'in'
-type Account = { who: Who; email: string | null }
+/** `name` is the account's own, empty until it is given one. */
+export type Account = { who: Who; email: string | null; name: string | null }
 
+const OFF: Account = { who: 'off', email: null, name: null }
 let asked: Promise<Account> | undefined
+let current: Account = OFF
+const listeners = new Set<() => void>()
+
+function publish(next: Account) {
+  current = next
+  for (const listener of listeners) listener()
+}
 
 /** One request per page load, shared by everything on the page that asks. */
 function askOnce(): Promise<Account> {
   asked ??= fetch('/api/auth/get-session', { credentials: 'same-origin' })
     .then(async (response): Promise<Account> => {
-      if (!response.ok) return { who: 'off', email: null }
-      const body = (await response.json()) as { user?: { email?: string } } | null
-      return body ? { who: 'in', email: body.user?.email ?? null } : { who: 'out', email: null }
+      if (!response.ok) return OFF
+      const body = (await response.json()) as { user?: { email?: string; name?: string } } | null
+      if (!body) return { who: 'out', email: null, name: null }
+      return { who: 'in', email: body.user?.email ?? null, name: body.user?.name?.trim() || null }
+    })
+    .then((answer) => {
+      publish(answer)
+      return answer
     })
     .catch((): Account => {
       asked = undefined
-      return { who: 'off', email: null }
+      return OFF
     })
   return asked
 }
 
+/** After the account's name changes on this page, so everything showing it agrees. */
+export function rememberAccountName(name: string) {
+  asked = Promise.resolve({ ...current, name })
+  publish({ ...current, name })
+}
+
 /**
- * Whether this browser is signed in, and as whom, asked of the instance from
- * the browser, so the pages that ask stay prerendered: an instance without
- * sign-in answers 404 and the answer stays 'off'.
+ * Whether this browser is signed in, as whom, and under what name, asked of
+ * the instance from the browser, so the pages that ask stay prerendered: an
+ * instance without sign-in answers 404 and the answer stays 'off'.
  */
 export function useAccount(): Account {
-  const [account, setAccount] = useState<Account>({ who: 'off', email: null })
-
   useEffect(() => {
-    let live = true
-    void askOnce().then((answer) => live && setAccount(answer))
-    return () => {
-      live = false
-    }
+    void askOnce()
   }, [])
-
-  return account
+  return useSyncExternalStore(
+    (onChange) => {
+      listeners.add(onChange)
+      return () => listeners.delete(onChange)
+    },
+    () => current,
+    () => OFF,
+  )
 }
 
 /** For code outside React that needs the same answer. */

@@ -29,12 +29,15 @@ function useCreateChannel() {
     if (!created) return
 
     // The admin token is the creator's alone: it stays in this browser and is
-    // sent only when they close the channel.
-    try {
-      window.localStorage.setItem(adminTokenKey(created.channelId), created.adminToken)
-    } catch {
-      // Private browsing, or storage switched off. The channel still works;
-      // only the close button on this device is lost.
+    // sent only when they close the channel. A signed-in creator is given none;
+    // their session closes it, from any device.
+    if (created.adminToken) {
+      try {
+        window.localStorage.setItem(adminTokenKey(created.channelId), created.adminToken)
+      } catch {
+        // Private browsing, or storage switched off. The channel still works;
+        // only the close button on this device is lost.
+      }
     }
     // The invite rides in the fragment, so it never reaches the server. replace
     // rather than push: going back should not land on a filled-in form that

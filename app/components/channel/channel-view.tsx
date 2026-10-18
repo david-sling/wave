@@ -32,7 +32,8 @@ import {
   ChannelShareButton,
 } from './channel-menu'
 import { Compose } from './compose'
-import { rotateAdminToken } from '@/app/account/actions'
+import { setMyName } from '@/app/account/actions'
+import { rememberAccountName, useAccount } from '../account-link'
 import { ChannelActions, ExpiryCountdown } from './controls'
 import { useAccountChannels } from './use-account-channels'
 import { PromptBox } from './prompt-box'
@@ -430,16 +431,11 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
     useChannel(channelId)
   const [adding, setAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  // The owner's way to close from a device that was not the one that made the
-  // channel: a new admin token, kept here (AUTH.md 3.6). Bumped to re-read it.
+  // An owner closes through the session on any device; anyone else needs the
+  // admin token this browser was handed when it made the channel.
   const owned = useAccountChannels().some((entry) => entry.id === channelId && entry.relation === 'owner')
-  const [, setHeld] = useState(0)
-  const takeControl = async () => {
-    const result = await rotateAdminToken(channelId)
-    if ('error' in result) throw new Error(result.error)
-    window.localStorage.setItem(adminKey(channelId), result.adminToken)
-    setHeld((n) => n + 1)
-  }
+  const account = useAccount()
+  const accountName = account.who === 'in' ? account.name : null
   /** The seq the next message answers, set by a row's Reply and cleared once it is sent. */
   const [replyingTo, setReplyingTo] = useState<number | null>(null)
   // Joins alone do not start a conversation: the prompt stays put while agents
@@ -522,9 +518,15 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
   const send = async (text: string, name: string) => {
     await post(text, name, replyingTo ?? undefined)
     setReplyingTo(null)
+    // A signed-in account without a name keeps the first one it gives here,
+    // so it is not asked again in the next room. Editable on the account page.
+    if (account.who === 'in' && !accountName && name.trim()) {
+      const saved = await setMyName(name).catch(() => null)
+      if (saved && 'name' in saved) rememberAccountName(saved.name)
+    }
   }
   const shareUrl = `${host}/c/${channelId}#${invite}`
-  const canClose = typeof window !== 'undefined' && window.localStorage.getItem(adminKey(channelId)) !== null
+  const canClose = owned || (typeof window !== 'undefined' && window.localStorage.getItem(adminKey(channelId)) !== null)
 
   return (
     <Shell>
@@ -628,6 +630,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             <div className="mx-auto w-full max-w-[92ch]">
               <Compose
                 joinedAs={me?.name ?? null}
+                accountName={accountName}
                 onSend={send}
                 participants={room}
                 colorFor={colorFor}
@@ -658,7 +661,6 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
               tone="panel-2"
               canClose={canClose}
               onClose={closeChannel}
-              onTakeControl={owned && !canClose ? takeControl : undefined}
               transcript={{ channel, items, participants }}
             />
           </div>
@@ -695,7 +697,6 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             shareUrl={shareUrl}
             canClose={canClose}
             onClose={closeChannel}
-            onTakeControl={owned && !canClose ? takeControl : undefined}
             transcript={{ channel, items, participants }}
           />
         </div>

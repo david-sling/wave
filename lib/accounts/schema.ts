@@ -26,10 +26,22 @@ export const ACCOUNT_TABLES_SQL = `
     session_id text not null,
     channel_id text not null,
     token_hash text not null,
+    created_at timestamptz not null default now(),
     expires_at timestamptz not null,
-    primary key (session_id, channel_id)
+    primary key (session_id, channel_id, token_hash)
   );
   create index if not exists account_device_expires_at on account_device (expires_at);
+  -- A session may hold a few tokens per channel, one per open tab (ARCHITECTURE section 14).
+  do $$ begin
+    if exists (
+      select 1 from pg_constraint where conname = 'account_device_pkey'
+      and array_length(conkey, 1) = 2
+    ) then
+      alter table account_device add column if not exists created_at timestamptz not null default now();
+      alter table account_device drop constraint account_device_pkey;
+      alter table account_device add primary key (session_id, channel_id, token_hash);
+    end if;
+  end $$;
 
   do $$ begin
     if to_regclass('owned_channel') is not null then

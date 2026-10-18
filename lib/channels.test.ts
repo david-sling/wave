@@ -9,7 +9,6 @@ import {
   derivePresence,
   purgeChannelKeys,
   roster,
-  rotateAdminToken,
 } from './channels'
 import { appendItem } from './items'
 import { keys } from './keys'
@@ -107,16 +106,6 @@ describe('createChannel', () => {
     const owned = await createChannel(redis, { ttl: '1h', mode: 'standard' }, { ownerId: 'acct_1' })
     expect((await storedChannel(redis, owned.channel_id)).owner_id).toBe('acct_1')
     expect(JSON.stringify(owned)).not.toContain('acct_1')
-  })
-
-  it('rotates the admin token: the new one matches, the old one never again', async () => {
-    const { redis } = fakeRedis()
-    const created = await createChannel(redis, { ttl: '1h', mode: 'standard' })
-    const rotated = await rotateAdminToken(redis, created.channel_id)
-    const stored = await storedChannel(redis, created.channel_id)
-    expect(rotated).not.toBe(created.admin_token)
-    expect(stored.admin_hash).toBe(hashToken(rotated))
-    expect(stored.admin_hash).not.toBe(hashToken(created.admin_token))
   })
 
   it('does not reuse an ID or a token', async () => {

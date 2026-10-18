@@ -74,6 +74,7 @@ export function suggest(participants: readonly Participant[], query: string): Pa
 
 export function Compose({
   joinedAs,
+  accountName = null,
   onSend,
   participants = [],
   colorFor = identityColor,
@@ -81,6 +82,8 @@ export function Compose({
   onCancelReply,
 }: {
   joinedAs: string | null
+  /** A signed-in account's name. Given one, the name is not asked for: it joins under this. */
+  accountName?: string | null
   onSend: (text: string, name: string) => Promise<void>
   /** The room, for the `@` menu. Empty on a surface that has no roster. */
   participants?: readonly Participant[]
@@ -138,7 +141,7 @@ export function Compose({
 
   async function send() {
     if (!ready) return
-    const name = nameField.current?.value.trim() ?? ''
+    const name = accountName ?? nameField.current?.value.trim() ?? ''
     if (joinedAs === null && name.length === 0) {
       setFailure('Add a name first, so the agents know who is speaking.')
       nameField.current?.focus()
@@ -279,14 +282,14 @@ export function Compose({
             placeholder={
               replyTo
                 ? `Reply to ${replyTo.from?.name ?? `message ${replyTo.seq}`}…`
-                : joinedAs
-                  ? `Say something as ${joinedAs}…`
+                : (joinedAs ?? accountName)
+                  ? `Say something as ${joinedAs ?? accountName}…`
                   : 'Say something to the agents…'
             }
             maxLength={4_000}
           />
           <div className="flex items-center gap-2 px-2 pb-2">
-            {joinedAs === null ? (
+            {joinedAs === null && accountName === null ? (
               // The name is asked once, here, where it starts to matter. It sits
               // in the human's own colour because it is what the agents will see.
               <label className="flex h-8 min-w-0 items-center gap-1 rounded-full bg-peach-soft pl-3 pr-1 text-[13px] text-peach-ink">
@@ -306,9 +309,9 @@ export function Compose({
             ) : (
               <span
                 className="min-w-0 truncate rounded-full bg-peach-soft px-3 py-1 text-[13px] font-medium text-peach-ink"
-                title="The name the agents see"
+                title={joinedAs ? 'The name the agents see' : 'Your account name. Change it on your account page.'}
               >
-                as {joinedAs}
+                as {joinedAs ?? accountName}
               </span>
             )}
             <span className="ml-auto hidden whitespace-nowrap text-xs text-ink-3 sm:inline">

@@ -13,7 +13,8 @@ import { getRedis } from '@/lib/redis'
 export type CreatedChannelState = {
   channelId: string
   invite: string
-  adminToken: string
+  /** Null for a signed-in creator: the session closes the channel, so no token is handed out. */
+  adminToken: string | null
   url: string
 }
 
@@ -96,7 +97,7 @@ export async function createChannel(_previous: CreateChannelState, formData: For
       created: {
         channelId: channel.channel_id,
         invite: channel.invite_token,
-        adminToken: channel.admin_token,
+        adminToken: account ? null : channel.admin_token,
         url: channel.url,
       },
     }

@@ -4,13 +4,15 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { byActivity, live, type VisitedChannel } from '@/lib/visited-channels'
-import { forgetEverywhere } from '@/app/account-channels'
+import { signOut } from '@/app/account/actions'
+import { forgetEverywhere, importChannels } from '@/app/account-channels'
 import { useAccount } from '../account-link'
 import { CreateChannelButton } from '../create-channel'
-import { CloseIcon, PersonIcon, PlusIcon } from '../icons'
+import { CloseIcon, PersonIcon, PlusIcon, SignOutIcon } from '../icons'
 import { Logo } from '../logo'
 import { hideAccountChannel, refreshAccountChannels, useAccountChannels } from './use-account-channels'
 import { useHeadProbe } from './use-head-probe'
+import { dropKeptSeat, keptSeatToken } from './use-channel'
 import { unreadOf, useUnreadVersion } from './use-unread'
 import { forgetChannel, rememberChannel, useVisitedChannels } from './use-visited-channels'
 
@@ -75,10 +77,44 @@ function OtherRow({
   )
 }
 
+/**
+ * On signing in, this browser's own channels join the account, and the
+ * browser lets go of their invites and seat keys: from then on the account
+ * hands them over each time a channel opens (AUTH.md 3.6). Admin tokens stay,
+ * since a channel made without an account never gains an owner and its token
+ * is the only way to close it.
+ */
+function useImportOnSignIn(who: string, stored: VisitedChannel[]) {
+  const importing = useRef(false)
+  useEffect(() => {
+    if (who !== 'in' || stored.length === 0 || importing.current) return
+    importing.current = true
+    const local = stored.map((entry) => ({
+      id: entry.id,
+      invite: entry.invite,
+      participantToken: keptSeatToken(entry.id),
+    }))
+    void importChannels(local)
+      .then((imported) => {
+        for (const id of imported) {
+          forgetChannel(id)
+          dropKeptSeat(id)
+        }
+        return refreshAccountChannels()
+      })
+      .catch(() => {})
+      .finally(() => {
+        importing.current = false
+      })
+  }, [who, stored])
+}
+
 export function ChannelList() {
   const { id: currentId } = useParams<{ id?: string }>()
   const stored = useVisitedChannels()
   const account = useAccountChannels()
+  const { who } = useAccount()
+  useImportOnSignIn(who, stored)
   useUnreadVersion()
   const [now, setNow] = useState(() => Date.now())
   const [forgotten, setForgotten] = useState<{ entry: VisitedChannel; local: boolean; everywhere: boolean } | null>(
@@ -104,9 +140,11 @@ export function ChannelList() {
     return () => clearTimeout(timer)
   }, [forgotten])
 
-  // This browser's channels by activity, then the account's that this browser has not opened.
+  // Signed in, the account's channels are the list and this browser keeps none;
+  // signed out, it is this browser's own, by activity.
+  const signedIn = who === 'in'
   const accountIds = new Set(account.map((entry) => entry.id))
-  const local = byActivity(live(stored, now))
+  const local = signedIn ? [] : byActivity(live(stored, now))
   const localIds = new Set(local.map((entry) => entry.id))
   const elsewhere: VisitedChannel[] = account
     .filter((entry) => !localIds.has(entry.id) && entry.expiresAt > now)
@@ -188,33 +226,34 @@ export function ChannelList() {
   )
 }
 
-const channelListNote = {
-  browser: 'Kept in this browser only, and gone when each room expires.',
-  account: 'Kept with your account on every device you sign in on, and gone when each room expires.',
-}
-
 /**
  * The way to the account, at the foot of the pane: Account when signed in,
  * Sign in when not, and nothing on an instance without sign-in.
  */
 function AccountRow() {
-  const { who, email } = useAccount()
+  const { who, email, name } = useAccount()
   const here = usePathname() === '/account'
   if (who === 'off') return null
   const signedIn = who === 'in'
+  // The whole strip below the rule is the link, so there is nothing to aim at;
+  // sign out sits at its end as a sibling, since a button cannot live in a link.
   return (
-    <div className="shrink-0 border-t border-line px-2 py-2">
+    <div
+      className={`relative flex shrink-0 items-stretch border-t border-line transition-colors ${
+        here ? 'bg-panel' : 'hover:bg-panel'
+      }`}
+    >
       <Link
         href={signedIn ? '/account' : '/signin'}
         aria-current={here ? 'page' : undefined}
-        className={`flex items-center gap-2.5 rounded-[8px] border px-2 py-1.5 no-underline transition-colors ${
-          here ? 'border-line bg-panel text-ink' : 'border-transparent text-ink-2 hover:bg-panel hover:text-ink'
+        className={`flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 no-underline ${signedIn ? 'pr-12' : ''} ${
+          here ? 'text-ink' : 'text-ink-2 hover:text-ink'
         }`}
       >
         <PersonIcon size={16} className="shrink-0 text-ink-3" />
         <span className="grid min-w-0">
-          <span className={`text-[13.5px] leading-snug ${here ? 'font-semibold' : 'font-medium'}`}>
-            {signedIn ? 'Account' : 'Sign in'}
+          <span className={`truncate text-[13.5px] leading-snug ${here ? 'font-semibold' : 'font-medium'}`}>
+            {signedIn ? name || 'Account' : 'Sign in'}
           </span>
           {signedIn && email ? (
             <span className="truncate text-[12px] leading-snug text-ink-3" title={email}>
@@ -223,6 +262,22 @@ function AccountRow() {
           ) : null}
         </span>
       </Link>
+      {signedIn ? (
+        <form action={signOut} className="absolute right-2 top-1/2 -translate-y-1/2">
+          <span className="relative">
+            <button
+              type="submit"
+              aria-label="Sign out"
+              className="tip-trigger grid size-8 place-items-center rounded-[8px] text-ink-3 transition-colors hover:bg-line-2 hover:text-ink"
+            >
+              <SignOutIcon size={16} />
+            </button>
+            <span className="choice-tip" aria-hidden>
+              Sign out
+            </span>
+          </span>
+        </form>
+      ) : null}
     </div>
   )
 }
@@ -233,7 +288,6 @@ function AccountRow() {
  */
 export function ChannelsPane() {
   useHeadProbe()
-  const { who } = useAccount()
   // At /c the list is the page, so on a phone it takes the whole width; beside
   // a channel or the account it is a desktop column, and a phone reaches it
   // through the back link at /c.
@@ -261,9 +315,6 @@ export function ChannelsPane() {
         </div>
         <ChannelList />
       </div>
-      <p className="m-0 shrink-0 border-t border-line px-4 py-3 text-[12px] leading-relaxed text-ink-3">
-        {who === 'in' ? channelListNote.account : channelListNote.browser}
-      </p>
       <AccountRow />
     </nav>
   )

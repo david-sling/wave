@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { live } from '@/lib/visited-channels'
+import { useAccount } from './account-link'
 import { unreadOf, useUnreadVersion } from './channel/use-unread'
 import { useVisitedChannels } from './channel/use-visited-channels'
 
@@ -14,6 +15,7 @@ import { useVisitedChannels } from './channel/use-visited-channels'
  */
 export function ChannelsShortcut() {
   const pathname = usePathname()
+  const { who } = useAccount()
   const stored = useVisitedChannels()
   useUnreadVersion()
   const [now, setNow] = useState(() => Date.now())
@@ -25,7 +27,8 @@ export function ChannelsShortcut() {
 
   const rooms = live(stored, now)
   const withPane = pathname === '/c' || pathname.startsWith('/c/') || pathname === '/account'
-  if (withPane || rooms.length === 0) return null
+  // Signed in, the nav's View channels already leads there.
+  if (withPane || who === 'in' || rooms.length === 0) return null
   const unread = rooms.some((room) => unreadOf(room.id, now) === 'unread')
 
   return (

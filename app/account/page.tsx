@@ -11,6 +11,7 @@ import { relativeTime } from '@/lib/relative-time'
 import { removePasskey, revokeSession, signOut } from './actions'
 import { AddPasskey } from './add-passkey'
 import { DeleteAccount } from './delete-account'
+import { ProfileName } from './profile-name'
 
 export const metadata: Metadata = {
   title: `Account · ${siteName}`,
@@ -81,6 +82,16 @@ export default async function AccountPage() {
           <p className="m-0 px-1 text-[14px] text-ink-2">
             Signed in as <b className="font-semibold text-ink">{current.user.email}</b>
           </p>
+
+          <section className="panel grid gap-2 p-5" aria-labelledby="name">
+            <h2 id="name" className={sideHeading}>
+              Name
+            </h2>
+            <p className="m-0 text-[13.5px] text-ink-2">
+              The name you join channels under, so you are not asked each time.
+            </p>
+            <ProfileName initial={current.user.name ?? ''} />
+          </section>
 
           <section className="panel grid gap-1 p-5" aria-labelledby="passkeys">
             <h2 id="passkeys" className={sideHeading}>

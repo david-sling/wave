@@ -108,9 +108,18 @@ describe.skipIf(!databaseUrl)('sign-in', () => {
     const listed = await listAccountChannels(pool, redis, user.id)
     expect(listed.map((o) => [o.channel.id, o.relation])).toEqual([[a.channel_id, 'owner']])
     expect(await countAccountChannels(pool, user.id)).toBe(1)
+    // A row carried over from owned_channel has no invite: kept, but not listed.
+    const legacy = await createChannel(redis, { ttl: '1h', mode: 'standard' }, { ownerId: user.id })
+    await pool.query(
+      `insert into account_channel (account_id, channel_id, relation, expires_at)
+       values ($1, $2, 'owner', $3)`,
+      [user.id, legacy.channel_id, new Date(legacy.expires_at)],
+    )
+    expect((await listAccountChannels(pool, redis, user.id)).map((o) => o.channel.id)).toEqual([a.channel_id])
     await disownChannels(pool, redis, user.id)
     expect(await countAccountChannels(pool, user.id)).toBe(0)
     expect(await redis.hGetAll(keys.channel(a.channel_id))).not.toHaveProperty('owner_id')
+    expect(await redis.hGetAll(keys.channel(legacy.channel_id))).not.toHaveProperty('owner_id')
   })
 
   it('opens a channel only for the account that holds it, and only while the invite still matches', async () => {
@@ -165,6 +174,36 @@ describe.skipIf(!databaseUrl)('sign-in', () => {
     expect(await findParticipantByToken(redis, channel.id, device.token)).toBeUndefined()
     // The seat's own token is untouched.
     expect((await findParticipantByToken(redis, channel.id, seat.participant_token))?.id).toBe(seat.participant_id)
+  })
+
+  it('lets only the owner close by session, and keeps a few device tokens per session and channel', async () => {
+    const { createChannel } = await import('@/lib/channels')
+    const { findParticipantByToken, loadChannel } = await import('@/lib/auth')
+    const { joinChannel } = await import('@/lib/participants')
+    const { issueDeviceToken } = await import('@/lib/devices')
+    const { DEVICE_TOKENS_PER_SESSION_CHANNEL, ownsChannel, recordDevice, rememberMember, rememberOwner } =
+      await import('@/lib/accounts/channels')
+    const owner = await account('dana@example.test')
+    const member = await account('erin@example.test')
+    const created = await createChannel(redis, { ttl: '1h', mode: 'standard' }, { ownerId: owner.user.id })
+    const channel = await loadChannel(redis, created.channel_id)
+    const expires = channel.expires_at
+    await rememberOwner(pool, secret, owner.user.id, channel.id, expires, created.invite_token)
+    await rememberMember(pool, secret, member.user.id, channel, created.invite_token)
+    expect(await ownsChannel(pool, owner.user.id, channel)).toBe(true)
+    expect(await ownsChannel(pool, member.user.id, channel)).toBe(false)
+
+    const seat = await joinChannel(redis, channel, { name: 'Dana', role: 'human' })
+    const tokens = []
+    for (let i = 0; i < DEVICE_TOKENS_PER_SESSION_CHANNEL + 2; i++) {
+      const device = await issueDeviceToken(redis, channel, seat.participant_id)
+      await recordDevice(pool, redis, owner.session.id, channel, device.tokenHash)
+      tokens.push(device.token)
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+    const working = []
+    for (const token of tokens) working.push(Boolean(await findParticipantByToken(redis, channel.id, token)))
+    expect(working).toEqual([false, false, ...Array(DEVICE_TOKENS_PER_SESSION_CHANNEL).fill(true)])
   })
 
   it('revokes a session immediately', async () => {

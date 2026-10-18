@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { CheckIcon, DownloadIcon, LinkIcon, PersonIcon, TrashIcon } from '../icons'
+import { CheckIcon, DownloadIcon, LinkIcon, TrashIcon } from '../icons'
 import { copyText } from './copy-text'
 import { downloadTranscript } from './export-transcript'
 import type { ChannelMeta, Item, RosterEntry } from './use-channel'
@@ -95,7 +95,6 @@ export function ChannelActions({
   shareUrl,
   canClose,
   onClose,
-  onTakeControl,
   transcript,
   tone = 'panel',
 }: {
@@ -103,8 +102,6 @@ export function ChannelActions({
   shareUrl?: string
   canClose: boolean
   onClose: () => Promise<void>
-  /** Offered to the channel's owner on a device without the admin token. */
-  onTakeControl?: () => Promise<void>
   /** Everything the export needs. Passed down rather than re-read: the page already has it. */
   transcript: { channel: ChannelMeta; items: Item[]; participants: RosterEntry[] }
   tone?: Tone
@@ -154,21 +151,6 @@ export function ChannelActions({
           disabled={empty}
           onClick={() => downloadTranscript(transcript, 'json')}
         />
-        {onTakeControl ? (
-          <ActionRow
-            tone={tone}
-            icon={<PersonIcon size={17} />}
-            label="Take control here"
-            detail="You own this channel. This device gets a new admin token; the old one stops working."
-            onClick={async () => {
-              try {
-                await onTakeControl()
-              } catch (error) {
-                setFailure(error instanceof Error ? error.message : 'Could not take control.')
-              }
-            }}
-          />
-        ) : null}
         {canClose && !confirming ? (
           <ActionRow
             tone={tone}

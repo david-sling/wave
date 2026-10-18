@@ -92,17 +92,6 @@ export async function createChannel(
   }
 }
 
-/**
- * Replaces the admin token. The old one fails on its next request; the new
- * one is returned once and stored nowhere but as its hash. Recovery and
- * rotation are the same operation (AUTH.md 3.6).
- */
-export async function rotateAdminToken(redis: WaveRedis, channelId: string): Promise<string> {
-  const adminToken = newToken()
-  await redis.hSet(keys.channel(channelId), { admin_hash: hashToken(adminToken) })
-  return adminToken
-}
-
 export type ChannelState = 'live' | 'gone'
 
 /** What a channel shows to someone holding only its ID. */

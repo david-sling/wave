@@ -82,11 +82,16 @@ export async function attachSeat(
   return (rowCount ?? 0) > 0
 }
 
-/** Live channels, newest first. Rows whose channel is gone are deleted on the way. */
+/**
+ * Live channels, newest first. Rows whose channel is gone are deleted on the
+ * way. A row with no invite (one carried over from owned_channel) cannot be
+ * opened anywhere, so it is not listed until a browser brings the invite.
+ */
 export async function listAccountChannels(pool: Pool, redis: WaveRedis, accountId: string): Promise<AccountChannel[]> {
   const { rows } = await pool.query<Row>(
     `select channel_id, relation, participant_id, invite_sealed, created_at from account_channel
-     where account_id = $1 and expires_at > now() order by created_at desc`,
+     where account_id = $1 and expires_at > now() and invite_sealed is not null
+     order by created_at desc`,
     [accountId],
   )
   const live: AccountChannel[] = []
@@ -134,6 +139,16 @@ export async function openAccountChannel(
   return { channel, invite, participantId: row.participant_id, relation: row.relation }
 }
 
+/** Whether the account owns the channel: its owner row, and the owner on the live record. */
+export async function ownsChannel(pool: Pool, accountId: string, channel: ChannelRecord): Promise<boolean> {
+  if (channel.owner_id !== accountId) return false
+  const { rowCount } = await pool.query(
+    `select 1 from account_channel where account_id = $1 and channel_id = $2 and relation = 'owner'`,
+    [accountId, channel.id],
+  )
+  return (rowCount ?? 0) > 0
+}
+
 /** Live rows of either kind, for the per-account cap. */
 export async function countAccountChannels(pool: Pool, accountId: string, relation?: Relation): Promise<number> {
   const { rows } = await pool.query<{ n: string }>(
@@ -171,10 +186,13 @@ export async function disownChannels(pool: Pool, redis: WaveRedis, accountId: st
   }
 }
 
+/** How many device tokens one session keeps for one channel: one per open tab, within reason. */
+export const DEVICE_TOKENS_PER_SESSION_CHANNEL = 5
+
 /**
- * Records the device token a session took for a channel. A session holds at
- * most one per channel: opening again replaces it, and the old one is
- * withdrawn first.
+ * Records a device token a session took for a channel. Each open tab takes
+ * its own, since the page keeps it in memory only; past the cap, the oldest
+ * are withdrawn first.
  */
 export async function recordDevice(
   pool: Pool,
@@ -183,17 +201,19 @@ export async function recordDevice(
   channel: ChannelRecord,
   tokenHash: string,
 ): Promise<void> {
-  const { rows } = await pool.query<{ token_hash: string }>(
-    `select token_hash from account_device where session_id = $1 and channel_id = $2`,
-    [sessionId, channel.id],
-  )
-  if (rows[0]) await revokeDeviceToken(redis, channel.id, rows[0].token_hash)
   await pool.query(
     `insert into account_device (session_id, channel_id, token_hash, expires_at)
-     values ($1, $2, $3, to_timestamp($4))
-     on conflict (session_id, channel_id) do update set token_hash = excluded.token_hash`,
+     values ($1, $2, $3, to_timestamp($4)) on conflict do nothing`,
     [sessionId, channel.id, tokenHash, channel.expires_at],
   )
+  const { rows } = await pool.query<{ token_hash: string }>(
+    `delete from account_device where session_id = $1 and channel_id = $2 and token_hash in (
+       select token_hash from account_device where session_id = $1 and channel_id = $2
+       order by created_at desc offset $3
+     ) returning token_hash`,
+    [sessionId, channel.id, DEVICE_TOKENS_PER_SESSION_CHANNEL],
+  )
+  for (const row of rows) await revokeDeviceToken(redis, channel.id, row.token_hash)
 }
 
 /** A session ended: every device token it took stops working at once (AUTH.md 3.6). */
