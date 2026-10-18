@@ -106,6 +106,7 @@ describe('postMessage', () => {
     for (let seq = 0; seq < LIMITS.maxItemsPerChannel; seq += 1) {
       await redis.zAdd(keys.items(channel.id), { score: seq + 100, value: `filler-${seq}` })
     }
+    await redis.set(keys.seq(channel.id), String(LIMITS.maxItemsPerChannel))
 
     const error = await postMessage(redis, channel, participant, { text: 'one too many', kind: 'message' }).catch(
       (e: unknown) => e,

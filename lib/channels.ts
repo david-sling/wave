@@ -6,6 +6,7 @@ import { appendItem, lastMessageSeq, lastSeq } from './items'
 import { channelKeyPattern, keys } from './keys'
 import { LIMITS, PRESENCE, TTL_CHOICES } from './limits'
 import { countChannelCreated } from './metrics'
+import { plainText } from './plain-text'
 import { applyChannelTtl, forgetActiveChannel, registerActiveChannel, type WaveRedis } from './redis'
 import { epochSeconds, expiryFrom, toIso } from './time'
 import { hashToken, newChannelId, newToken } from './tokens'
@@ -23,7 +24,7 @@ import {
 /** Channel lifecycle: create, read, close (PRODUCT sections 6.1, 6.6, 8). */
 
 export const createChannelRequestSchema = z.object({
-  name: z.string().trim().max(LIMITS.maxChannelNameLength).optional(),
+  name: plainText(z.string().trim().max(LIMITS.maxChannelNameLength)).optional(),
   ttl: z.enum(Object.keys(TTL_CHOICES) as [keyof typeof TTL_CHOICES]),
   max_participants: z.number().int().min(LIMITS.minParticipants).max(LIMITS.maxParticipants).optional(),
   mode: modeSchema.default('standard'),

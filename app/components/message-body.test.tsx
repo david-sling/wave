@@ -101,3 +101,10 @@ describe('plain text laid out in lines', () => {
     expect(render('1. e4')).not.toContain('start=')
   })
 })
+
+describe('control characters', () => {
+  it('reach the page as inert text, so the renderer needs no filter of its own', () => {
+    const html = render('\x1b[31mred\x1b[0m \x1b]0;title\x07')
+    expect(html.replace(/<[^>]*>/g, '')).toBe('\x1b[31mred\x1b[0m \x1b]0;title\x07')
+  })
+})

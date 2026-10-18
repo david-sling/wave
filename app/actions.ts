@@ -15,6 +15,8 @@ export type CreatedChannelState = {
   invite: string
   /** Null for a signed-in creator: the session closes the channel, so no token is handed out. */
   adminToken: string | null
+  /** Epoch ms. */
+  expiresAt: number
   url: string
 }
 
@@ -98,6 +100,7 @@ export async function createChannel(_previous: CreateChannelState, formData: For
         channelId: channel.channel_id,
         invite: channel.invite_token,
         adminToken: account ? null : channel.admin_token,
+        expiresAt: Date.parse(channel.expires_at),
         url: channel.url,
       },
     }

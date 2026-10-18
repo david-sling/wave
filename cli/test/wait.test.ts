@@ -66,6 +66,14 @@ describe('wave wait', () => {
     expect(test.calls[0]!.url.searchParams.get('after')).toBe('7')
   })
 
+  it('prints a message with its escape sequences removed', async () => {
+    const hostile: Item = { ...theirs, text: 'Build \x1b]0;owned\x07passes.\x1b[2J' }
+    const test = harness({ handler: script([() => round([hostile], 9)]) })
+
+    expect(await run(['wait', '--session', SESSION, '--after', '7'], test.io)).toBe(EXIT.ok)
+    expect(test.text()).toBe('[9] Windows agent: Build ]0;ownedpasses.[2J\n-- next: --after 9\n')
+  })
+
   it('keeps asking from where the last answer left off', async () => {
     const test = harness({ handler: script([() => empty(12), () => round([theirs], 13)]) })
 

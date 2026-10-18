@@ -100,9 +100,10 @@ export async function pollChannel(
   }
 
   // Only a held request needs a slot: an immediate read costs nothing to allow.
-  return participant && wait > 0
-    ? await withConcurrencyLimit(redis, participant.id, LIMITS.maxConcurrentPolls, poll)
-    : await poll()
+  // A reader without a seat is counted by channel and address (#94).
+  if (wait === 0) return await poll()
+  const holder = participant?.id ?? `invite:${channel.id}:${callerAddress(request)}`
+  return await withConcurrencyLimit(redis, holder, LIMITS.maxConcurrentPolls, poll)
 }
 
 /** Says something. Participants only: reading a channel does not make you part of it. */

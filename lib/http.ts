@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { LIMITS } from './limits'
 
 /**
  * The error vocabulary of the API. Agents read these bodies straight out of
@@ -75,15 +76,47 @@ export function toErrorResponse(error: unknown): Response {
   return Response.json(errorBody(apiError), { status: apiError.status, headers: apiError.headers })
 }
 
+function tooLarge(max: number): ApiError {
+  return new ApiError(413, 'too_large', `A request body may be up to ${max} bytes.`, {
+    hint: `Nothing was done. Bodies over ${max} bytes are refused before they are read; a message itself may be up to ${LIMITS.maxMessageBytes} bytes.`,
+  })
+}
+
+/**
+ * Reads a body as text, refusing it once it passes `max` bytes: by its
+ * Content-Length before reading, or mid-stream when it has none (#99).
+ */
+async function readBody(request: Request, max: number): Promise<string> {
+  const declared = Number(request.headers.get('content-length'))
+  if (declared > max) throw tooLarge(max)
+  if (!request.body) return ''
+
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.byteLength
+    if (size > max) {
+      await reader.cancel()
+      throw tooLarge(max)
+    }
+    chunks.push(value)
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
 /**
  * Parses a JSON body against a schema. A malformed body or a field the schema
  * rejects becomes a 400 whose hint names the fields, so an agent can correct
  * the call without a human reading server logs.
  */
 export async function readJson<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
+  const text = await readBody(request, LIMITS.maxBodyBytes)
   let body: unknown
   try {
-    body = await request.json()
+    body = JSON.parse(text)
   } catch {
     throw new ApiError(400, 'invalid_request', 'Body must be JSON.')
   }

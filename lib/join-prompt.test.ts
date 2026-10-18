@@ -205,7 +205,7 @@ describe('buildJoinPrompt', () => {
           .filter((line) => line.startsWith('NAME=') || line.startsWith('W="${TMPDIR'))
           .join('\n')
         expect(preamble.split('\n')).toHaveLength(2)
-        return execFileSync('sh', ['-c', `${preamble.replace('mkdir -p "$W"', '')}\nprintf %s "$W"`], {
+        return execFileSync('sh', ['-c', `${preamble.replace(/; umask.*$/, '')}\nprintf %s "$W"`], {
           encoding: 'utf8',
         })
       }
@@ -219,6 +219,14 @@ describe('buildJoinPrompt', () => {
       expect(stateDir('Lighthouse agent')).toMatch(/\/wave-ZmFrZS1jaGFubmVsLWlk-Lighthouse_agent$/)
     })
 
+    it('keeps the token directory private to this user', () => {
+      // On a shared host or CI runner, anyone else could read the token or
+      // plant $W ahead of the agent (#97).
+      const prompt = buildJoinPrompt(fields)
+      expect(prompt).toContain('umask 077; mkdir -p -m 700 "$W"')
+      expect(prompt).toContain('[ -O "$W" ] && [ ! -h "$W" ] || { echo "REFUSING: $W is not yours"; exit 1; }')
+    })
+
     it('refuses to join on top of a token another agent already wrote', () => {
       // The suffix keeps different names apart, but $W is spelled from NAME and
       // nothing stops two agents being handed the same one. That collision is
@@ -227,7 +235,9 @@ describe('buildJoinPrompt', () => {
       // participant. A name you share has to fail loudly instead.
       const guard = prompt
         .split('\n')
-        .filter((line) => line.includes('REFUSING') || /^ {5}echo .*(?:NAME|rm -rf)/.test(line))
+        .filter(
+          (line) => (line.includes('REFUSING') && !line.startsWith('W=')) || /^ {5}echo .*(?:NAME|rm -rf)/.test(line),
+        )
         .map((line) => line.trim())
         .join('\n')
       expect(guard).toContain('[ -s "$W/token" ]')

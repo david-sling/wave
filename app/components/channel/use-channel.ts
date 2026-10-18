@@ -6,6 +6,7 @@ import { sessionAuth } from '@/lib/session-auth'
 import { accountState } from '../account-link'
 import { refreshAccountChannels } from './use-account-channels'
 import { publishHead } from './use-unread'
+import { dropAdminToken, readAdminToken as readStoredAdminToken } from '@/lib/admin-tokens'
 import { forgetChannel, noteChannelMessage, rememberChannel } from './use-visited-channels'
 import { readVisited } from '@/lib/visited-channels'
 
@@ -146,7 +147,7 @@ export function reconcile(
 
 const participantKey = (channelId: string) => `wave.participant.${channelId}`
 
-/** The seat token this browser kept for a channel before it signed in, if any. */
+/** The seat token this browser kept for a channel before it moved to the profile, if any. */
 export function keptSeatToken(channelId: string): string | undefined {
   try {
     const stored = window.localStorage.getItem(participantKey(channelId))
@@ -165,21 +166,31 @@ export function dropKeptSeat(channelId: string): void {
   }
 }
 
-export const adminKey = (channelId: string) => `wave.admin.${channelId}`
-
-/** The admin token this browser was handed for a channel it made before it signed in, if any. */
+/** The admin token this browser was handed for a channel it made on its own, if any. */
 export function keptAdminToken(channelId: string): string | undefined {
-  return readStorage(adminKey(channelId)) ?? undefined
+  return readAdminToken(channelId) ?? undefined
 }
 
 /** Lets go of the admin token, once the account owns the channel. */
 export function dropKeptAdmin(channelId: string): void {
-  dropStorage(adminKey(channelId))
+  try {
+    dropAdminToken(window.localStorage, channelId)
+  } catch {
+    // Storage off: there was nothing kept.
+  }
 }
 
 // Next 16.3 can double the fragment (`#token#token`); tokens never contain `#`.
 export function inviteFromHash(hash: string): string | null {
   return hash.split('#').pop() || null
+}
+
+export function readAdminToken(channelId: string): string | null {
+  try {
+    return readStoredAdminToken(window.localStorage, channelId)
+  } catch {
+    return null
+  }
 }
 
 function readStorage(key: string): string | null {
@@ -358,7 +369,7 @@ export function useChannel(channelId: string) {
       void refreshAccountChannels()
       return
     }
-    const admin = readStorage(adminKey(channelId))
+    const admin = readAdminToken(channelId)
     if (!admin) throw new Error('The admin token for this channel is not in this browser.')
 
     const response = await fetch(`/api/v1/channels/${channelId}/close`, {
@@ -409,7 +420,7 @@ export function useChannel(channelId: string) {
           window.history.replaceState(window.history.state, '', window.location.pathname)
         }
         // Owned, the session closes it: a kept admin token is one key fewer to leave behind.
-        if (opened.relation === 'owner') dropStorage(adminKey(channelId))
+        if (opened.relation === 'owner') dropKeptAdmin(channelId)
         invite.current = opened.invite
         if (opened.participant) {
           const seat = { ...opened.participant, token: '' }

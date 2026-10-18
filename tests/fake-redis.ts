@@ -1,3 +1,5 @@
+import { RESERVE_ITEM_SCRIPT } from '@/lib/items'
+import { JOIN_SCRIPT } from '@/lib/participants'
 import { CHANNEL_TTL_SCRIPT, type WaveRedis } from '@/lib/redis'
 
 /**
@@ -152,14 +154,41 @@ export class FakeRedis {
   }
 
   /**
-   * Runs the one script this app has, and refuses any other: a fake that
-   * quietly returned nothing would let a suite pass on work the store never did.
+   * Runs the scripts this app has, and refuses any other: a fake that quietly
+   * returned nothing would let a suite pass on work the store never did. Each
+   * runs without an await before its writes, so it is atomic as Redis is.
    */
-  async eval(script: string, options?: { keys?: string[]; arguments?: string[] }): Promise<null> {
-    if (script !== CHANNEL_TTL_SCRIPT) throw new Error(`fake-redis: no such script`)
-    const at = Number(options?.arguments?.[0])
-    for (const key of options?.keys ?? []) await this.expireAt(key, at)
-    return null
+  async eval(script: string, options?: { keys?: string[]; arguments?: string[] }): Promise<unknown> {
+    const keys = options?.keys ?? []
+    const args = options?.arguments ?? []
+    const number = (key: string) => Number(this.store.get(key)?.value ?? 0)
+    const write = (key: string, value: number) =>
+      this.store.set(key, { value: String(value), expireAt: this.store.get(key)?.expireAt })
+
+    if (script === CHANNEL_TTL_SCRIPT) {
+      for (const key of keys) await this.expireAt(key, Number(args[0]))
+      return null
+    }
+    if (script === RESERVE_ITEM_SCRIPT) {
+      const [seqKey, bytesKey] = keys as [string, string]
+      if (number(seqKey) >= Number(args[0])) return -1
+      if (number(bytesKey) + Number(args[2]) > Number(args[1])) return -2
+      write(bytesKey, number(bytesKey) + Number(args[2]))
+      write(seqKey, number(seqKey) + 1)
+      return number(seqKey)
+    }
+    if (script === JOIN_SCRIPT) {
+      const [partsKey, namesKey] = keys as [string, string]
+      const parts = this.entry(partsKey, () => new Map<string, string>()).value as Map<string, string>
+      const present = [...parts.values()].filter((raw) => JSON.parse(raw).left_at == null).length
+      if (present >= Number(args[0])) return 0
+      const names = this.entry(namesKey, () => new Set<string>()).value as Set<string>
+      if (names.has(args[3]!)) return -1
+      names.add(args[3]!)
+      parts.set(args[1]!, args[2]!)
+      return 1
+    }
+    throw new Error(`fake-redis: no such script`)
   }
 
   /** Queues commands and runs them in order on exec, like MULTI/EXEC. */
