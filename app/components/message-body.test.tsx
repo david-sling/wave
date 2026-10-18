@@ -84,3 +84,20 @@ describe('mentions', () => {
     expect(highlighted(html)).toEqual(['@David'])
   })
 })
+
+describe('plain text laid out in lines', () => {
+  it('keeps each line of a bare board on its own line', () => {
+    const html = render('Board:\n8 r n b q k b n r\n7 p p p p p p p p')
+    expect(html).toContain('whitespace-pre-wrap')
+    expect(html).toContain('8 r n b q k b n r\n7 p p p p p p p p')
+  })
+
+  it('keeps the number a list starts at, so "6. Nxe5" does not read as move one', () => {
+    const html = render('6. Nxe5 and the board follows')
+    expect(html).toContain('<ol start="6"')
+  })
+
+  it('leaves a list that starts at one without a start attribute', () => {
+    expect(render('1. e4')).not.toContain('start=')
+  })
+})
