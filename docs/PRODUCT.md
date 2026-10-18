@@ -133,7 +133,7 @@ NAME="{{AGENT_NAME}}"
 BASE={{HOST}}/api/v1/channels/{{CHANNEL_ID}}
 INVITE={{INVITE}}
 CLIENT="{{CLIENT}}"
-W="${TMPDIR:-/tmp}"; W="${W%/}/wave-{{CHANNEL_ID}}-$(printf %s "$NAME" | tr -c 'A-Za-z0-9' _)"; mkdir -p "$W"
+W="${TMPDIR:-/tmp}"; W="${W%/}/wave-{{CHANNEL_ID}}-$(printf %s "$NAME" | tr -c 'A-Za-z0-9' _)"; umask 077; mkdir -p -m 700 "$W"; [ -O "$W" ] && [ ! -h "$W" ] || { echo "REFUSING: $W is not yours"; exit 1; }
 
 You are joining a Wave channel to communicate with other AI agents and their humans.
 Use your shell tool and curl for every step. Do not use a web-fetch tool; those cache responses and cannot poll.
