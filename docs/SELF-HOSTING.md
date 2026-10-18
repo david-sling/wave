@@ -74,7 +74,34 @@ proxy_send_timeout 90s;
 proxy_buffering off;
 ```
 
-Terminate TLS at the proxy and pass the real client address through (`X-Forwarded-For`), or the per-IP creation limit will see every request as coming from one address and rate-limit your whole instance as if it were a single user.
+**Own `X-Forwarded-For`.** The per-IP limits on channel creation, head probes, immediate polls, and held polls on the invite read the first address in `X-Forwarded-For`, falling back to `X-Real-IP`. Wave cannot tell a header your proxy wrote from one the caller sent, so the proxy must overwrite both rather than append to them, and the app's port must not be reachable except through the proxy. Otherwise a caller picks a new address on every request and the limits never apply. With no proxy passing an address at all, every request counts as one caller and the whole instance is rate-limited as a single user.
+
+In nginx:
+
+```nginx
+proxy_set_header X-Forwarded-For $remote_addr;
+proxy_set_header X-Real-IP $remote_addr;
+```
+
+Not `$proxy_add_x_forwarded_for`, which keeps whatever the caller sent in front.
+
+In Caddy:
+
+```caddyfile
+reverse_proxy app:3000 {
+	header_up X-Forwarded-For {remote_host}
+	header_up X-Real-IP {remote_host}
+}
+```
+
+Then publish the app on loopback only, so the proxy is the one way in. In `docker-compose.yml`:
+
+```yaml
+ports:
+  - '127.0.0.1:${PORT:-3000}:3000'
+```
+
+Terminate TLS at the proxy.
 
 ## Before you let other people use it
 
@@ -83,7 +110,7 @@ These are the same requirements the reference instance is held to ([ARCHITECTURE
 - **Do not expose Redis.** The Compose file deliberately publishes no port for it. Anything that can reach Redis can read every message on the instance.
 - **Check your backups.** Wave's retention promise is that nothing outlives its channel: every key carries a TTL, and closing a channel deletes it immediately. A nightly backup kept for a month quietly breaks that promise, because a channel meant to vanish still exists in a snapshot. Either take no snapshots, or keep them no longer than 7 days — the maximum channel lifetime. The included Redis uses an append-only file, which persists live channels across a restart; expired keys are still expired.
 - **Keep message bodies out of your logs.** The app never logs them. If you add a log drain, an APM, or an error reporter, configure it to exclude request bodies, or you will have rebuilt the transcript somewhere with no TTL on it.
-- **Serve it over HTTPS.** The channel invite travels in the URL fragment. The reference instance sends HSTS, `X-Frame-Options: DENY`, and `X-Content-Type-Options: nosniff`; those come from `vercel.ts` and are not applied by `next start`, so set them at your proxy.
+- **Serve it over HTTPS.** The channel invite travels in the URL fragment. The app sends HSTS, a Content-Security-Policy, `X-Frame-Options: DENY`, and `X-Content-Type-Options: nosniff` itself, from `next.config.ts` and `proxy.ts`; HSTS only takes effect over HTTPS.
 - **Rate limits.** The per-participant and per-IP limits live in Redis and work anywhere. Volumetric protection — a real flood — is your proxy's or WAF's job, as it is the platform's on the reference instance.
 - **Put Redis next to the app.** Compose does this for you; a managed store in another region does not. Every request makes six or more round trips to Redis and one to the caller, so distance to the store costs six times what distance to the user does. Measured across a continent it was 215 ms a command, which turns posting a message into a two-second wait with nothing in the logs to explain it.
 - **Give staging its own keyspace.** If a second deployment points at the same Redis, set `REDIS_PREFIX` differently for it. Otherwise it serves the same channels, counts into the same metrics, and its sweep runs against production.

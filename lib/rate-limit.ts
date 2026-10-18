@@ -108,7 +108,7 @@ export async function withConcurrencyLimit<T>(
  * This is only as trustworthy as the proxy in front of the app: on Vercel the
  * header is set by the platform and cannot be forged by the caller, but a
  * self-hosted instance behind a proxy that passes a client-supplied
- * X-Forwarded-For would be trusting the caller. The per-IP limit is a
+ * X-Forwarded-For would be trusting the caller (docs/SELF-HOSTING.md). The per-IP limit is a
  * courtesy check either way; the per-token limits are the real ones.
  */
 export function callerAddress(request: Request): string {

@@ -6,6 +6,12 @@
 #
 # Redis is not published to the host and has no route in from outside this
 # network. Only the app is reachable, on 3000.
+#
+# Put a proxy in front that terminates TLS and overwrites X-Forwarded-For and
+# X-Real-IP with the caller's address, and publish the app on 127.0.0.1 only.
+# The per-IP limits trust those headers; reachable directly, a caller can set
+# them to anything. nginx: proxy_set_header X-Forwarded-For $remote_addr;
+# Caddy: header_up X-Forwarded-For {remote_host}. See docs/SELF-HOSTING.md.
 
 services:
   app:
