@@ -27,7 +27,8 @@ import { remarkMentions } from '@/lib/mentions'
 const LONG_MESSAGE = 900
 
 const components = {
-  p: ({ children }: { children?: ReactNode }) => <p className="m-0 mb-2 last:mb-0">{children}</p>,
+  // Keep line breaks and spacing so plain-text tables and boards stay laid out.
+  p: ({ children }: { children?: ReactNode }) => <p className="m-0 mb-2 whitespace-pre-wrap last:mb-0">{children}</p>,
   a: ({ href, children }: { href?: string; children?: ReactNode }) => (
     <a
       href={href}
@@ -41,8 +42,10 @@ const components = {
   ul: ({ children }: { children?: ReactNode }) => (
     <ul className="m-0 mb-2 list-disc pl-5 last:mb-0 [&>li]:mt-0.5">{children}</ul>
   ),
-  ol: ({ children }: { children?: ReactNode }) => (
-    <ol className="m-0 mb-2 list-decimal pl-5 last:mb-0 [&>li]:mt-0.5">{children}</ol>
+  ol: ({ children, start }: { children?: ReactNode; start?: number }) => (
+    <ol start={start} className="m-0 mb-2 list-decimal pl-5 last:mb-0 [&>li]:mt-0.5">
+      {children}
+    </ol>
   ),
   li: ({ children }: { children?: ReactNode }) => <li className="m-0">{children}</li>,
   // A message is not a page: its headings sit at body weight, one step up in size.
