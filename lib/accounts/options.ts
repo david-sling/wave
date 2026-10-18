@@ -19,6 +19,29 @@ import { AUTH_BASE_PATH } from './paths.ts'
 
 export const CLI_CLIENT_ID = 'wave-cli'
 
+/**
+ * A session's token is its bearer credential, and the cookie that carries it
+ * is HttpOnly so no script on the page can read it. The library's
+ * /get-session and /list-sessions answer with it in the body, which hands it
+ * straight back to any script that asks. Over HTTP the token is removed; the
+ * in-process calls the pages make keep it, since they never reach a browser.
+ */
+const TOKEN_BEARING_PATHS = new Set(['/get-session', '/list-sessions'])
+
+export function withoutSessionTokens(path: string | undefined, returned: unknown): unknown {
+  if (!path || !TOKEN_BEARING_PATHS.has(path)) return returned
+  const strip = (session: unknown) => {
+    if (!session || typeof session !== 'object' || !('token' in session)) return session
+    const { token: _, ...rest } = session as Record<string, unknown>
+    return rest
+  }
+  if (Array.isArray(returned)) return returned.map(strip)
+  if (returned && typeof returned === 'object' && 'session' in returned) {
+    return { ...returned, session: strip((returned as { session: unknown }).session) }
+  }
+  return returned
+}
+
 /** Session provenance (AUTH.md 5.3), from the endpoint that created the session. */
 export function provenance(path: string | undefined): { method: string; issuer: string | null } {
   if (!path) return { method: 'unknown', issuer: null }
@@ -86,6 +109,13 @@ export function baseAuthOptions({ config, origin, mailer }: BaseOptions) {
         if (ctx.path === '/magic-link/verify' && ctx.request) {
           throw new APIError('NOT_FOUND', { message: 'Not found.' })
         }
+      }),
+      after: createAuthMiddleware(async (ctx) => {
+        if (!ctx.request || !TOKEN_BEARING_PATHS.has(ctx.path)) return
+        const returned = ctx.context.returned
+        if (returned instanceof Response || returned instanceof Error) return
+        // An array is what /list-sessions answers with; the library sends it as JSON all the same.
+        return ctx.json(withoutSessionTokens(ctx.path, returned) as Record<string, unknown> | null)
       }),
     },
     plugins: [
