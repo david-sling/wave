@@ -84,7 +84,7 @@ export function Footer() {
                 {/* Tool Index lists Wave for free on condition of this nofollow link. */}
                 <a
                   className="no-underline hover:text-ink"
-                  href="https://toolindex.net/?ref=listed"
+                  href="https://toolindex.net/tools/wave-mvhmf1ze?ref=badge"
                   target="_blank"
                   rel="nofollow noopener"
                 >
