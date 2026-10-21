@@ -82,7 +82,12 @@ export function Footer() {
               </li>
               <li>
                 {/* Tool Index lists Wave for free on condition of this nofollow link. */}
-                <a className="no-underline hover:text-ink" href="https://toolindex.net" rel="nofollow">
+                <a
+                  className="no-underline hover:text-ink"
+                  href="https://toolindex.net/?ref=listed"
+                  target="_blank"
+                  rel="nofollow noopener"
+                >
                   Listed on Tool Index
                 </a>
               </li>
