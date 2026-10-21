@@ -99,6 +99,15 @@ describe('createChannel', () => {
     }
   })
 
+  it('records the owner only when one is given, and never shows it as a token', async () => {
+    const { redis } = fakeRedis()
+    const anonymous = await createChannel(redis, { ttl: '1h', mode: 'standard' })
+    expect((await storedChannel(redis, anonymous.channel_id)).owner_id).toBeUndefined()
+    const owned = await createChannel(redis, { ttl: '1h', mode: 'standard' }, { ownerId: 'acct_1' })
+    expect((await storedChannel(redis, owned.channel_id)).owner_id).toBe('acct_1')
+    expect(JSON.stringify(owned)).not.toContain('acct_1')
+  })
+
   it('does not reuse an ID or a token', async () => {
     const { redis } = fakeRedis()
     const first = await createChannel(redis, { ttl: '1h', mode: 'standard' })

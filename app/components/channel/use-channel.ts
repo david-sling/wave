@@ -1,16 +1,23 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { closeMyChannel, importChannels, openHere, type OpenedHere } from '@/app/account-channels'
+import { sessionAuth } from '@/lib/session-auth'
+import { accountState } from '../account-link'
+import { refreshAccountChannels } from './use-account-channels'
 import { publishHead } from './use-unread'
-import { readAdminToken as readStoredAdminToken } from '@/lib/admin-tokens'
+import { dropAdminToken, readAdminToken as readStoredAdminToken } from '@/lib/admin-tokens'
 import { forgetChannel, noteChannelMessage, rememberChannel } from './use-visited-channels'
+import { readVisited } from '@/lib/visited-channels'
 
 /**
  * The channel page's connection to its channel (ARCHITECTURE section 6).
  *
- * It polls the same long-poll endpoint the agents use. The invite comes from
- * the URL fragment, so it never reaches the server in a page request, and the
- * admin token is read from this browser's storage and sent only on close.
+ * It polls the same long-poll endpoint the agents use. Signed out, the invite
+ * comes from the URL fragment, so it never reaches the server in a page
+ * request, and the admin token is read from this browser's storage and sent
+ * only on close. Signed in, the page holds no key at all: every request goes
+ * with the session (lib/accounts/channel-access.ts).
  */
 
 export type Role = 'agent' | 'human'
@@ -61,6 +68,7 @@ export type ChannelMeta = {
 
 export type ChannelStatus = 'loading' | 'ready' | 'gone' | 'no-invite' | 'error'
 
+/** Who this page posts as. `token` is empty when signed in: the account holds the seat, not the page. */
 export type Me = { id: string; token: string; name: string }
 
 /**
@@ -138,6 +146,40 @@ export function reconcile(
 }
 
 const participantKey = (channelId: string) => `wave.participant.${channelId}`
+
+/** The seat token this browser kept for a channel before it moved to the profile, if any. */
+export function keptSeatToken(channelId: string): string | undefined {
+  try {
+    const stored = window.localStorage.getItem(participantKey(channelId))
+    return stored ? (JSON.parse(stored) as { token?: string }).token : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Lets go of the seat token, once the account holds the seat. */
+export function dropKeptSeat(channelId: string): void {
+  try {
+    window.localStorage.removeItem(participantKey(channelId))
+  } catch {
+    // Storage off: there was nothing kept.
+  }
+}
+
+/** The admin token this browser was handed for a channel it made on its own, if any. */
+export function keptAdminToken(channelId: string): string | undefined {
+  return readAdminToken(channelId) ?? undefined
+}
+
+/** Lets go of the admin token, once the account owns the channel. */
+export function dropKeptAdmin(channelId: string): void {
+  try {
+    dropAdminToken(window.localStorage, channelId)
+  } catch {
+    // Storage off: there was nothing kept.
+  }
+}
+
 // Next 16.3 can double the fragment (`#token#token`); tokens never contain `#`.
 export function inviteFromHash(hash: string): string | null {
   return hash.split('#').pop() || null
@@ -164,6 +206,14 @@ function writeStorage(key: string, value: string): void {
     window.localStorage.setItem(key, value)
   } catch {
     // Private browsing. The channel still works for this tab.
+  }
+}
+
+function dropStorage(key: string): void {
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // As above.
   }
 }
 
@@ -204,24 +254,43 @@ export function useChannel(channelId: string) {
   /** The post in flight, so two quick messages keep the order they were typed in. */
   const posting = useRef<Promise<unknown>>(Promise.resolve())
 
-  const token = useCallback(() => meRef.current?.token ?? invite.current ?? '', [])
+  /**
+   * Signed in, this page reads and posts with its session and is never handed
+   * a key, so nothing is left in the browser when it signs out (AUTH.md 3.6).
+   * The invite it is given is only for showing and sharing.
+   */
+  const viaAccount = useRef(false)
+
+  /** Where requests go: the page API when signed in (session only), the agent API otherwise (tokens only). */
+  const api = useCallback(
+    (path = '') => `/api/${viaAccount.current ? 'web' : 'v1'}/channels/${channelId}${path}`,
+    [channelId],
+  )
+
+  /** What a request carries: the session when signed in, otherwise the seat's token if `seat` and there is one, or the invite. */
+  const credential = useCallback((seat: boolean): Record<string, string> => {
+    if (viaAccount.current) return sessionAuth
+    const token = (seat ? meRef.current?.token : undefined) ?? invite.current ?? ''
+    return { authorization: `Bearer ${token}` }
+  }, [])
 
   /** Joins as a human on first post, under the name they chose (PRODUCT 6.2). */
   const join = useCallback(
     async (name: string): Promise<Me> => {
       joining.current ??= (async () => {
-        const response = await fetch(`/api/v1/channels/${channelId}/join`, {
+        const response = await fetch(api('/join'), {
           method: 'POST',
-          headers: { 'content-type': 'application/json', authorization: `Bearer ${invite.current}` },
+          headers: { 'content-type': 'application/json', ...credential(false) },
           body: JSON.stringify({ name, role: 'human', client: 'wave-web' }),
         })
         if (!response.ok) throw new Error(await readError(response))
 
         const joined = await response.json()
-        const identity: Me = { id: joined.participant_id, token: joined.participant_token, name: joined.name }
+        // Signed in, the join answers without a token: the seat is the account's.
+        const identity: Me = { id: joined.participant_id, token: joined.participant_token ?? '', name: joined.name }
         meRef.current = identity
         setMe(identity)
-        writeStorage(participantKey(channelId), JSON.stringify(identity))
+        if (!viaAccount.current) writeStorage(participantKey(channelId), JSON.stringify(identity))
         return identity
       })()
 
@@ -233,7 +302,7 @@ export function useChannel(channelId: string) {
         throw failure
       }
     },
-    [channelId],
+    [api, channelId, credential],
   )
 
   /**
@@ -268,9 +337,9 @@ export function useChannel(channelId: string) {
       const attempt = (async () => {
         await ahead.catch(() => {})
         const identity = meRef.current ?? (await join(name))
-        const response = await fetch(`/api/v1/channels/${channelId}/messages`, {
+        const response = await fetch(api('/messages'), {
           method: 'POST',
-          headers: { 'content-type': 'application/json', authorization: `Bearer ${identity.token}` },
+          headers: { 'content-type': 'application/json', ...credential(true) },
           body: JSON.stringify({ text, client_id: id, ...(replyTo === undefined ? {} : { reply_to: replyTo }) }),
         })
         if (!response.ok) throw new Error(await readError(response))
@@ -289,10 +358,17 @@ export function useChannel(channelId: string) {
         throw failure
       }
     },
-    [channelId, join],
+    [api, join, credential],
   )
 
   const closeChannel = useCallback(async (): Promise<void> => {
+    if (viaAccount.current) {
+      const closed = await closeMyChannel(channelId)
+      if ('error' in closed) throw new Error(closed.error)
+      setStatus('gone')
+      void refreshAccountChannels()
+      return
+    }
     const admin = readAdminToken(channelId)
     if (!admin) throw new Error('The admin token for this channel is not in this browser.')
 
@@ -309,34 +385,82 @@ export function useChannel(channelId: string) {
     const controller = new AbortController()
     let stopped = false
 
-    /** Reads what this browser knows: the invite from the fragment, the identity from storage. */
-    function recall(): boolean {
-      invite.current = inviteFromHash(window.location.hash)
-      if (invite.current && window.location.hash !== `#${invite.current}`) {
-        window.history.replaceState(window.history.state, '', `${window.location.pathname}#${invite.current}`)
+    /**
+     * Finds the invite and, if there is one, this person's seat.
+     *
+     * Signed in, a channel on the account's profile opens through the account:
+     * it answers with who the seat is and the invite to show, the invite leaves
+     * the address bar, and every request goes with the session. A shared link
+     * to a channel this browser does not hold yet is added to the profile
+     * first. A channel this browser holds on its own stays on this device, with
+     * its own keys, until it is moved to the profile from the pane.
+     *
+     * Signed out, or on this device only, it is as it always was: the invite
+     * from the fragment, the identity from this browser's storage.
+     */
+    async function recall(): Promise<boolean> {
+      const fromLink = inviteFromHash(window.location.hash)
+      let opened: OpenedHere | null = null
+      if ((await accountState()).who === 'in') {
+        opened = await openHere(channelId).catch(() => null)
+        const onThisDevice = readVisited().some((entry) => entry.id === channelId)
+        if (!opened && fromLink && !onThisDevice) {
+          const [added] = await importChannels([{ id: channelId, invite: fromLink }]).catch(() => [])
+          if (added) {
+            opened = await openHere(channelId).catch(() => null)
+            void refreshAccountChannels()
+          }
+        }
       }
+      if (controller.signal.aborted) return false
+      viaAccount.current = opened !== null
+
+      if (opened) {
+        if (window.location.hash) {
+          window.history.replaceState(window.history.state, '', window.location.pathname)
+        }
+        // Owned, the session closes it: a kept admin token is one key fewer to leave behind.
+        if (opened.relation === 'owner') dropKeptAdmin(channelId)
+        invite.current = opened.invite
+        if (opened.participant) {
+          const seat = { ...opened.participant, token: '' }
+          meRef.current = seat
+          setMe(seat)
+        }
+      } else {
+        invite.current = fromLink
+        if (invite.current && window.location.hash !== `#${invite.current}`) {
+          window.history.replaceState(window.history.state, '', `${window.location.pathname}#${invite.current}`)
+        }
+        const identity = readIdentity()
+        if (identity) {
+          meRef.current = identity
+          setMe(identity)
+        }
+      }
+
       if (!invite.current) {
         setStatus('no-invite')
         return false
       }
       setInviteToken(invite.current)
-
-      const stored = readStorage(participantKey(channelId))
-      if (stored) {
-        try {
-          const identity = JSON.parse(stored) as Me
-          meRef.current = identity
-          setMe(identity)
-        } catch {
-          // Unreadable. They will be asked for a name again on their first post.
-        }
-      }
       return true
     }
 
+    function readIdentity(): Me | null {
+      const stored = readStorage(participantKey(channelId))
+      if (!stored) return null
+      try {
+        return JSON.parse(stored) as Me
+      } catch {
+        // Unreadable. They will be asked for a name again on their first post.
+        return null
+      }
+    }
+
     async function bootstrap(): Promise<boolean> {
-      const response = await fetch(`/api/v1/channels/${channelId}`, {
-        headers: { authorization: `Bearer ${invite.current}` },
+      const response = await fetch(api(), {
+        headers: credential(false),
         signal: controller.signal,
       })
       if (response.status === 410) {
@@ -351,12 +475,14 @@ export function useChannel(channelId: string) {
       }
       const view = await response.json()
       setChannel(view.channel)
-      rememberChannel({
-        id: channelId,
-        invite: invite.current ?? '',
-        name: view.channel.name ?? '',
-        expiresAt: Date.parse(view.channel.expires_at),
-      })
+      // Signed in, the account's list is the record; this browser keeps none.
+      if (!viaAccount.current)
+        rememberChannel({
+          id: channelId,
+          invite: invite.current ?? '',
+          name: view.channel.name ?? '',
+          expiresAt: Date.parse(view.channel.expires_at),
+        })
       setParticipants(view.participants)
       setHistoryUpTo(view.last_seq)
       setLastSeq(view.last_seq)
@@ -369,14 +495,28 @@ export function useChannel(channelId: string) {
       // given it unless they ask for it too, and are not told it exists: a
       // number saying a peer has not read something is a thing a person can
       // use and a thing an agent would act on (docs/IDEAS.md, read receipts).
-      const response = await fetch(
-        `/api/v1/channels/${channelId}/messages?after=${cursor.current}&wait=${wait}&receipts=1`,
-        { headers: { authorization: `Bearer ${token()}` }, signal: controller.signal },
-      )
+      const response = await fetch(api(`/messages?after=${cursor.current}&wait=${wait}&receipts=1`), {
+        headers: credential(true),
+        signal: controller.signal,
+      })
       if (response.status === 410) {
         forgetChannel(channelId)
         setStatus('gone')
         return 'gone'
+      }
+      if (response.status === 401 && viaAccount.current) {
+        // The session ended, here or in another tab. The page held no key, so
+        // there is nothing to fall back on: it stops until signed in again.
+        setError('You signed out. Sign in again to keep reading this channel.')
+        setStatus('error')
+        return 'gone'
+      }
+      if (response.status === 401 && meRef.current) {
+        // The seat's token stopped working: it left. Read with the invite again.
+        meRef.current = null
+        setMe(null)
+        dropStorage(participantKey(channelId))
+        return 'retry'
       }
       if (response.status === 429) {
         // Two polls already open, probably another tab. Back off and try again.
@@ -424,7 +564,7 @@ export function useChannel(channelId: string) {
     }
 
     void (async () => {
-      if (!recall()) return
+      if (!(await recall())) return
       if (!(await bootstrap().catch(() => false))) return
 
       // The channel is not ready when its metadata lands, it is ready when its
@@ -471,7 +611,7 @@ export function useChannel(channelId: string) {
       stopped = true
       controller.abort()
     }
-  }, [channelId, token])
+  }, [channelId, api, credential])
 
   return {
     status,

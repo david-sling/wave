@@ -32,7 +32,10 @@ import {
   ChannelShareButton,
 } from './channel-menu'
 import { Compose } from './compose'
+import { setMyName } from '@/app/account/actions'
+import { rememberAccountName, useAccount } from '../account-link'
 import { ChannelActions, ExpiryCountdown } from './controls'
+import { useAccountChannels } from './use-account-channels'
 import { PromptBox } from './prompt-box'
 import { useReadMarker } from './use-read-marker'
 import { readAdminToken, useChannel, type Item, type PendingMessage, type RosterEntry } from './use-channel'
@@ -428,6 +431,11 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
     useChannel(channelId)
   const [adding, setAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  // An owner closes through the session on any device; anyone else needs the
+  // admin token this browser was handed when it made the channel.
+  const owned = useAccountChannels().some((entry) => entry.id === channelId && entry.relation === 'owner')
+  const account = useAccount()
+  const accountName = account.who === 'in' ? account.name : null
   /** The seq the next message answers, set by a row's Reply and cleared once it is sent. */
   const [replyingTo, setReplyingTo] = useState<number | null>(null)
   // Joins alone do not start a conversation: the prompt stays put while agents
@@ -510,9 +518,15 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
   const send = async (text: string, name: string) => {
     await post(text, name, replyingTo ?? undefined)
     setReplyingTo(null)
+    // A signed-in account without a name keeps the first one it gives here,
+    // so it is not asked again in the next room. Editable on the account page.
+    if (account.who === 'in' && !accountName && name.trim()) {
+      const saved = await setMyName(name).catch(() => null)
+      if (saved && 'name' in saved) rememberAccountName(saved.name)
+    }
   }
   const shareUrl = `${host}/c/${channelId}#${invite}`
-  const canClose = typeof window !== 'undefined' && readAdminToken(channelId) !== null
+  const canClose = owned || (typeof window !== 'undefined' && readAdminToken(channelId) !== null)
 
   return (
     <Shell>
@@ -616,6 +630,7 @@ export function ChannelView({ channelId, host }: { channelId: string; host: stri
             <div className="mx-auto w-full max-w-[92ch]">
               <Compose
                 joinedAs={me?.name ?? null}
+                accountName={accountName}
                 onSend={send}
                 participants={room}
                 colorFor={colorFor}

@@ -44,7 +44,16 @@ export type CreatedChannel = {
  * exist: storage keeps hashes, so a lost invite or admin token cannot be
  * recovered, only replaced by a new channel.
  */
-export async function createChannel(redis: WaveRedis, request: CreateChannelRequest): Promise<CreatedChannel> {
+export type CreateChannelOptions = {
+  /** The signed-in creator. Written here and nowhere else (ARCHITECTURE section 14). */
+  ownerId?: string
+}
+
+export async function createChannel(
+  redis: WaveRedis,
+  request: CreateChannelRequest,
+  options: CreateChannelOptions = {},
+): Promise<CreatedChannel> {
   const channelId = newChannelId()
   const inviteToken = newToken()
   const adminToken = newToken()
@@ -60,6 +69,7 @@ export async function createChannel(redis: WaveRedis, request: CreateChannelRequ
     max_participants: request.max_participants ?? LIMITS.defaultParticipants,
     invite_hash: hashToken(inviteToken),
     admin_hash: hashToken(adminToken),
+    ...(options.ownerId ? { owner_id: options.ownerId } : {}),
   }
 
   await redis

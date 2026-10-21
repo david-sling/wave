@@ -51,7 +51,8 @@ export async function loadChannel(redis: WaveRedis, channelId: string): Promise<
   return channel
 }
 
-async function findParticipantByToken(
+/** The seat a participant token belongs to, if any. Pure channel data: no session is read. */
+export async function findParticipantByToken(
   redis: WaveRedis,
   channelId: string,
   token: string,

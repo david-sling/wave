@@ -103,6 +103,16 @@ export function ChevronLeftIcon(props: IconProps) {
   )
 }
 
+export function SignOutIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5" />
+      <path d="M21 12H9" />
+    </Icon>
+  )
+}
+
 export function ChevronRightIcon(props: IconProps) {
   return (
     <Icon {...props}>
@@ -135,6 +145,18 @@ export function PersonIcon(props: IconProps) {
     <Icon {...props}>
       <circle cx="12" cy="8" r="3.25" />
       <path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" />
+    </Icon>
+  )
+}
+
+/** A person with a plus: adding something to your profile. */
+export function PersonPlusIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="10" cy="8" r="3.25" />
+      <path d="M3.5 19.5a6.5 6.5 0 0 1 11.5-4.15" />
+      <path d="M18.5 14v6" />
+      <path d="M15.5 17h6" />
     </Icon>
   )
 }
