@@ -42,10 +42,11 @@ const T = {
   reply: 0.87,
 } as const
 
-/* Where each pointer is when its clicks land. A pointer sits still between
-   clicks and travels in the stretch just before one, so it is always somewhere
-   a reader can follow rather than drifting. Spots are `data-cursor` names on
-   the page. */
+/* Where the pointer is when each click lands. Between two clicks it travels
+   the whole way with the scroll, so scrolling is what moves it, but it lingers
+   on a spot for a moment after clicking and arrives a moment before the next
+   click, so every click reads as the pointer landing, waiting and pressing.
+   Spots are `data-cursor` names on the page. */
 type Click = { at: number; spot: string }
 const YOUR_CLICKS: Click[] = [
   { at: 0.025, spot: 'name' },
@@ -60,7 +61,9 @@ const YOUR_CLICKS: Click[] = [
   { at: T.send, spot: 'send' },
 ]
 const SAM_COLOR = '#7c4dff'
-const TRAVEL = 0.022
+/** How long the pointer stays put after a click, and how early it arrives before the next one. */
+const LINGER = 0.012
+const SETTLE = 0.014
 const PRESS = 0.01
 
 const STEP_AT = [0, T.step2, T.step3]
@@ -388,7 +391,9 @@ function cursorAt(p: number, clicks: Click[], spots: Record<string, Point>, star
   const last = clicks[(next === -1 ? clicks.length : next) - 1]
   const from = last ? (spots[last.spot] ?? start) : start
   const to = next === -1 ? from : (spots[clicks[next].spot] ?? from)
-  const t = next === -1 ? 1 : easeInOut(clamp01((p - (clicks[next].at - TRAVEL)) / TRAVEL))
+  const leave = last ? last.at + LINGER : 0
+  const arrive = next === -1 ? leave : clicks[next].at - SETTLE
+  const t = next === -1 ? 1 : easeInOut(arrive > leave ? clamp01((p - leave) / (arrive - leave)) : p >= arrive ? 1 : 0)
   const since = last ? (p - last.at) / PRESS : 1
   return {
     x: from.x + (to.x - from.x) * t,
