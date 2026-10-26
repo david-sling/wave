@@ -254,8 +254,39 @@
   /* The how-it-works ground: a tint a step off the page ground, the step
      glow, and the wave field drawn over both. The waves fade out under the floating nav, so
      its links never sit on a line. */
+  /* The footer: the page fading into lilac, with a sky and a peach swell rising
+     from the bottom edge. The swells roll across and back out of step with
+     each other, like water in a tank. They are moved, never repainted, so the
+     motion costs the compositor and nothing else. */
   .footer-ground {
-    background-color: color-mix(in oklab, var(--color-ground) 95%, var(--color-ink));
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background: linear-gradient(
+      to bottom,
+      var(--color-ground),
+      color-mix(in oklab, var(--color-lilac) 28%, var(--color-ground))
+    );
+  }
+  .footer-ground::before,
+  .footer-ground::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    bottom: -140%;
+    width: 65%;
+    height: 220%;
+    pointer-events: none;
+  }
+  .footer-ground::before {
+    left: -12%;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--color-sky) 45%, transparent), transparent);
+    animation: footer-swell 13s ease-in-out infinite alternate;
+  }
+  .footer-ground::after {
+    right: -12%;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--color-peach) 45%, transparent), transparent);
+    animation: footer-swell-back 17s ease-in-out infinite alternate;
   }
 
   .how-ground {
@@ -811,6 +842,24 @@
   from {
     opacity: 0;
     translate: 0 0.25em;
+  }
+}
+
+/* The footer's swells: across, rising as they go, and settling on the far side. */
+@keyframes footer-swell {
+  50% {
+    translate: 22% -14%;
+  }
+  to {
+    translate: 48% 2%;
+  }
+}
+@keyframes footer-swell-back {
+  50% {
+    translate: -22% -10%;
+  }
+  to {
+    translate: -48% 4%;
   }
 }
 
