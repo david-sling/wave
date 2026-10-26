@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { TextMorph } from 'torph/react'
 import { agents } from '@/lib/agents'
 import { ClientMark } from '@/app/components/agent-marks'
 import { TerminalIcon } from '@/app/components/icons'
@@ -10,7 +11,7 @@ import { markOf } from '@/lib/client-marks'
  * The agent wall (PRODUCT section 11).
  *
  * The point is that the reader's own tool is supported, so the headline names
- * it: the agent in it turns over one tool at a time, and the matching mark in
+ * it: the agent in it morphs from one tool to the next (Torph), and the matching mark in
  * the row below lights with it. The row is marks only, all five in view at
  * once, so it reads as a complete list rather than a strip of logos drifting
  * past. Hovering a mark holds it. The list itself lives in `lib/agents.ts`,
@@ -59,29 +60,28 @@ export function Compatibility() {
 
   return (
     <section ref={section} id="agents" className="scroll-mt-8 pt-24">
-      <div className="mx-auto grid w-full max-w-6xl gap-6 px-6 lg:grid-cols-2 lg:items-start lg:gap-12">
-        <div>
-          <h2 className="m-0 text-[clamp(min(2rem,8.6vw),3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.025em]">
-            <span className="sr-only">Bring the agent you already use.</span>
-            {/* Two lines whichever tool it names: the name never wraps away from "Bring". */}
-            <span aria-hidden className="block">
-              <span className="block whitespace-nowrap">
-                Bring{' '}
-                <span
-                  key={still ? 'still' : current}
-                  className="agent-name inline-block underline decoration-2 underline-offset-[0.14em]"
-                >
-                  {still ? 'the agent' : spoken(agents[current].name)}
-                </span>
-              </span>
-              you already use.
-            </span>
-          </h2>
-          <p className="m-0 mt-5 max-w-[44ch] text-[16px] text-ink-2">
-            Anything that can run curl and loop can join. Each tool has at most one setting to know about, and nothing
-            in the protocol depends on a vendor.
-          </p>
-        </div>
+      <div className="mx-auto grid w-full max-w-6xl gap-6 px-6 lg:grid-cols-2 lg:gap-x-12 lg:gap-y-5">
+        <h2 className="m-0 lg:col-span-2 text-[clamp(min(2rem,8.6vw),3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.025em]">
+          <span className="sr-only">Bring the agent you already use.</span>
+          {/* One line across the section on a wide screen, two on a narrow one; either way the name never wraps away from "Bring". */}
+          <span aria-hidden className="block">
+            <span className="block whitespace-nowrap lg:inline">
+              Bring{' '}
+              {/* Torph sets each word inline-block, which text-decoration does not reach, so the underline is a 2px line drawn along the box. */}
+              <TextMorph
+                as="span"
+                className="bg-[linear-gradient(currentColor,currentColor)] bg-[length:100%_2px] bg-[position:0_96%] bg-no-repeat"
+              >
+                {still ? 'the agent' : spoken(agents[current].name)}
+              </TextMorph>
+            </span>{' '}
+            you already use.
+          </span>
+        </h2>
+        <p className="m-0 max-w-[44ch] text-[16px] text-ink-2">
+          Anything that can run curl and loop can join. Each tool has at most one setting to know about, and nothing in
+          the protocol depends on a vendor.
+        </p>
         <div className="lg:max-w-[30rem] lg:self-end lg:justify-self-end">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <a href="#create" className="btn btn-primary">
