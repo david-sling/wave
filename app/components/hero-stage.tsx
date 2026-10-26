@@ -102,10 +102,10 @@ export function HeroStage({ children }: { children: ReactNode }) {
     const bulge = el.querySelector('feDisplacementMap')
     const blur = el.querySelector('feGaussianBlur')
     const map = el.querySelector('feImage')
-    // The bulge is a filter redrawn over every word each frame, too much for a
-    // phone to do while it scrolls; there the words only fade. A computer that
-    // starts dropping frames under it lets it go too (see `tick`).
-    let lens = !still && matchMedia('(pointer: fine)').matches
+    // The bulge is a filter redrawn over every word each frame. A device that
+    // starts dropping frames under it lets it go and keeps the blur alone (see
+    // `tick`).
+    let lens = !still
     let slow = 0 // recent frames that ran long while the bulge was on
     // Sizes, measured when the layout changes rather than on every frame, so a
     // scroll never waits on layout.
@@ -129,6 +129,11 @@ export function HeroStage({ children }: { children: ReactNode }) {
         // Softer as they go, so the bulge's stair-steps never show and the
         // words dissolve rather than just thin out.
         blur?.setAttribute('stdDeviation', (1 + p * BLUR).toFixed(2))
+      } else if (copy && !still) {
+        // Without the bulge (a phone, or a computer that could not keep up),
+        // the blur alone: a plain CSS blur on the words' own layer, which the
+        // GPU applies without repainting them.
+        copy.style.filter = p > 0 && p < 1 ? `blur(${(p * BLUR).toFixed(2)}px)` : ''
       }
       // A faded form under the gaps in the carousel must not take clicks.
       el.style.pointerEvents = p > 0.6 ? 'none' : ''
@@ -139,21 +144,26 @@ export function HeroStage({ children }: { children: ReactNode }) {
       // leave.
       const ringP = reach > 0 ? Math.min(1, Math.max(0, window.scrollY / reach)) : p
       el.style.setProperty('--ring-p', ringP.toFixed(4))
-      if (ring) ring.style.visibility = ringP >= 1 ? 'hidden' : ''
+      if (ring) {
+        ring.style.visibility = ringP >= 1 ? 'hidden' : ''
+        ring.toggleAttribute('data-turning', ringP > 0)
+      }
       return ringP
     }
 
     const tick = (now: number) => {
       frame = 0
-      const dt = Math.min(0.05, (now - last) / 1000)
+      const gap = (now - last) / 1000
+      const dt = Math.min(0.05, gap)
       last = now
       const moved = progress() * TURN - turn
       turn += moved
       if (still) return
-      // Scrolling with the bulge on and frames running long (under 36 a
-      // second): a dozen more slow than smooth, and the words just fade.
+      // Scrolling with the bulge on and frames running long: under 24 a
+      // second, below the 30 a phone may keep to while a finger scrolls or to
+      // save power. A dozen more slow than smooth, and only the blur stays.
       if (lens && moved !== 0 && copy?.style.filter) {
-        slow = dt > 1 / 36 ? slow + 1 : Math.max(0, slow - 1)
+        slow = gap > 1 / 24 ? slow + 1 : Math.max(0, slow - 1)
         if (slow > 12) {
           lens = false
           copy.style.filter = ''
