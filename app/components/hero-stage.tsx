@@ -102,10 +102,10 @@ export function HeroStage({ children }: { children: ReactNode }) {
     const bulge = el.querySelector('feDisplacementMap')
     const blur = el.querySelector('feGaussianBlur')
     const map = el.querySelector('feImage')
-    // The bulge is a filter redrawn over every word each frame, too much for a
-    // phone to do while it scrolls; there the words only fade. A computer that
-    // starts dropping frames under it lets it go too (see `tick`).
-    let lens = !still && matchMedia('(pointer: fine)').matches
+    // The bulge is a filter redrawn over every word each frame. Any device that
+    // starts dropping frames under it lets it go and keeps the blur alone (see
+    // `tick`).
+    let lens = !still
     let slow = 0 // recent frames that ran long while the bulge was on
     // Sizes, measured when the layout changes rather than on every frame, so a
     // scroll never waits on layout.
