@@ -64,7 +64,6 @@ const SAM_COLOR = '#7c4dff'
 /** How long the pointer stays put after a click, and how early it arrives before the next one. */
 const LINGER = 0.012
 const SETTLE = 0.014
-const PRESS = 0.01
 
 const STEP_AT = [0, T.step2, T.step3]
 /** Where each step's work is finished, for the progress strip. The last ends once the reply has landed. */
@@ -321,6 +320,8 @@ function Stage({ p }: { p: number }) {
   const stage = useRef<HTMLDivElement>(null)
   const youPointer = useRef<HTMLDivElement>(null)
   const youRing = useRef<HTMLSpanElement>(null)
+  const youArrow = useRef<HTMLSpanElement>(null)
+  const clicked = useRef<number | null>(null)
   const spots = useRef<Record<string, Spot>>({})
   useLayoutEffect(() => {
     const root = stage.current
@@ -338,12 +339,14 @@ function Stage({ p }: { p: number }) {
       const tile = tilesAt(layout, click.at)[spot.pane]
       return { x: tile.left + spot.x, y: tile.top + spot.y }
     }
-    place(
-      youPointer.current,
-      youRing.current,
-      cursorAt(p, YOUR_CLICKS, resolve, { x: layout.width * 0.62, y: layout.height * 0.96 }),
-      true,
-    )
+    place(youPointer.current, cursorAt(p, YOUR_CLICKS, resolve, { x: layout.width * 0.62, y: layout.height * 0.96 }))
+
+    /* A click plays on the clock, not the scroll: crossing one sets it off at
+       its own pace, however fast or slow the reader is scrolling. Crossing
+       several in one flick plays it once, and scrolling back plays nothing. */
+    const passed = YOUR_CLICKS.filter((click) => click.at <= p).length
+    if (clicked.current !== null && passed > clicked.current) press(youRing.current, youArrow.current)
+    clicked.current = passed
   })
 
   return (
@@ -373,7 +376,7 @@ function Stage({ p }: { p: number }) {
             </Window>
           </div>
         ) : null}
-        <Pointer pointerRef={youPointer} ringRef={youRing} label="You" color="#15161a" />
+        <Pointer pointerRef={youPointer} ringRef={youRing} arrowRef={youArrow} label="You" color="#15161a" />
       </div>
     </div>
   )
@@ -418,36 +421,41 @@ function cursorAt(p: number, clicks: Click[], resolve: (click: Click) => Point |
   const leave = last ? last.at + LINGER : 0
   const arrive = next === -1 ? leave : clicks[next].at - SETTLE
   const t = next === -1 ? 1 : easeInOut(arrive > leave ? clamp01((p - leave) / (arrive - leave)) : p >= arrive ? 1 : 0)
-  const since = last ? (p - last.at) / PRESS : 1
-  return {
-    x: from.x + (to.x - from.x) * t,
-    y: from.y + (to.y - from.y) * t,
-    press: since >= 0 && since < 1 ? since : 0,
-  }
+  return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }
 }
 
-function place(
-  pointer: HTMLDivElement | null,
-  ring: HTMLSpanElement | null,
-  { x, y, press }: Point & { press: number },
-  visible: boolean,
-) {
-  if (!pointer || !ring) return
-  pointer.style.transform = `translate(${x - 5}px, ${y - 2}px) scale(${1 - 0.18 * Math.sin(Math.PI * press)})`
-  pointer.style.opacity = visible ? '1' : '0'
-  ring.style.transform = `translate(-50%, -50%) scale(${0.3 + press * 1.4})`
-  ring.style.opacity = press > 0 ? String(1 - press) : '0'
+function place(pointer: HTMLDivElement | null, { x, y }: Point) {
+  if (!pointer) return
+  pointer.style.transform = `translate(${x - 5}px, ${y - 2}px)`
+  pointer.style.opacity = '1'
+}
+
+/** One click: the arrow dips and a soft disc swells out from its tip and fades. */
+function press(ring: HTMLSpanElement | null, arrow: HTMLSpanElement | null) {
+  ring?.animate(
+    [
+      { opacity: 1, transform: 'translate(-50%, -50%) scale(0.3)' },
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(1.7)' },
+    ],
+    { duration: 520, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+  )
+  arrow?.animate([{ transform: 'scale(1)' }, { transform: 'scale(0.82)' }, { transform: 'scale(1)' }], {
+    duration: 240,
+    easing: 'ease-out',
+  })
 }
 
 /** A pointer with its owner's name beside it, the way a shared canvas shows who is where. */
 function Pointer({
   pointerRef,
   ringRef,
+  arrowRef,
   label,
   color,
 }: {
   pointerRef: React.Ref<HTMLDivElement>
   ringRef: React.Ref<HTMLSpanElement>
+  arrowRef: React.Ref<HTMLSpanElement>
   label: string
   color: string
 }) {
@@ -455,16 +463,17 @@ function Pointer({
     <div
       ref={pointerRef}
       className="pointer-events-none absolute left-0 top-0 z-10 opacity-0 transition-opacity duration-300"
-      style={{ transformOrigin: '5px 2px' }}
     >
       <span
         ref={ringRef}
         className="absolute left-[5px] top-[2px] size-10 rounded-full opacity-0"
-        style={{ background: `color-mix(in oklab, ${color} 28%, transparent)` }}
+        style={{ background: `color-mix(in oklab, ${color} 28%, transparent)`, transform: 'translate(-50%, -50%)' }}
       />
-      <svg width={22} height={22} viewBox="0 0 24 24" className="relative drop-shadow-[0_1px_3px_rgba(0,0,0,0.3)]">
-        <path d="M5 2l14 10.5-6.2.6 3.4 6.9-2.6 1.3-3.4-6.9L5 19z" fill={color} stroke="#fff" strokeWidth={1.4} />
-      </svg>
+      <span ref={arrowRef} className="relative block" style={{ transformOrigin: '5px 2px' }}>
+        <svg width={22} height={22} viewBox="0 0 24 24" className="block drop-shadow-[0_1px_3px_rgba(0,0,0,0.3)]">
+          <path d="M5 2l14 10.5-6.2.6 3.4 6.9-2.6 1.3-3.4-6.9L5 19z" fill={color} stroke="#fff" strokeWidth={1.4} />
+        </svg>
+      </span>
       <span
         className="absolute left-[17px] top-[19px] whitespace-nowrap rounded-full px-2 py-0.5 font-sans text-[11.5px] font-semibold text-white shadow-[0_1px_3px_rgba(0,0,0,0.25)]"
         style={{ background: color }}
