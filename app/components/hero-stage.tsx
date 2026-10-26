@@ -6,10 +6,12 @@ import { useEffect, useRef, type ReactNode } from 'react'
  * Holds the hero still while the page scrolls up over it.
  *
  * The block is sticky, so the carousel and everything after it slide across
- * the headline instead of pushing it away. On the way, the block fades into
- * the ground and the ring tips over on a diagonal axis, so it reads as a disc
- * turning away rather than a picture being covered. Progress is written to a
- * CSS variable straight from the scroll handler; React never re-renders.
+ * the headline instead of pushing it away. On the way, the words fade from the
+ * outside in and the ring tips over, so it reads as a disc turning away rather
+ * than a picture being covered. The ring does not fade: the stage stays stuck
+ * past the end of the hero, until the steps section has climbed over all of
+ * it, and the ring is hidden behind it from there. Progress is written to a CSS variable straight from the scroll
+ * handler; React never re-renders.
  *
  * The ring's spin follows the scroll, so it would stop dead when the scroll
  * does. Instead the ring rides the scroll exactly while it moves, and the
@@ -19,8 +21,8 @@ import { useEffect, useRef, type ReactNode } from 'react'
  * it is still carrying fading out as it does.
  */
 
-/** Degrees the ring spins per unit of progress: `--hero-p * 55deg` in globals.css. */
-const TURN = 55
+/** Degrees the ring spins over its whole run: `--ring-p * 120deg` in globals.css. */
+const TURN = 120
 /**
  * The run-on: the spring's stiffness and damping once let go, how fast a
  * leftover offset fades while riding the scroll, in seconds, and the fastest it
@@ -43,6 +45,8 @@ export function HeroStage({ children }: { children: ReactNode }) {
     let offset = 0 // how far the ring is from where the scroll has it
     let drift = 0 // the offset's speed once let go
     let free = false
+    const ring = el.querySelector<HTMLElement>('[data-ring]')
+    const steps = document.getElementById('how')
 
     const progress = () => {
       // The hero is the first thing on the page, so the distance scrolled is
@@ -52,7 +56,14 @@ export function HeroStage({ children }: { children: ReactNode }) {
       el.style.setProperty('--hero-p', p.toFixed(4))
       // A faded form under the gaps in the carousel must not take clicks.
       el.style.pointerEvents = p > 0.6 ? 'none' : ''
-      return p
+      // The ring turns for longer: all the way until the steps fill the
+      // screen, where it is behind them and must not show below them as they
+      // leave.
+      const reach = steps ? steps.getBoundingClientRect().top + window.scrollY : 0
+      const ringP = reach > 0 ? Math.min(1, Math.max(0, window.scrollY / reach)) : p
+      el.style.setProperty('--ring-p', ringP.toFixed(4))
+      if (ring) ring.style.visibility = ringP >= 1 ? 'hidden' : ''
+      return ringP
     }
 
     const tick = (now: number) => {
@@ -112,7 +123,7 @@ export function HeroStage({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <div ref={ref} className="hero-stage sticky pb-9 pt-14 md:pt-16">
+    <div ref={ref} className="hero-stage sticky mx-auto w-full max-w-6xl px-6 pb-9 pt-14 md:pt-16">
       {children}
     </div>
   )

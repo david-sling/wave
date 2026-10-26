@@ -25,8 +25,12 @@ export default function Home() {
       {/* Clipped across, at the window's edge rather than the hero's column, so the
           hero ring can swell out to the side as it turns without the page scrolling sideways. */}
       <main className="flex-1 overflow-x-clip">
-        <Hero />
-        <HowItWorks />
+        {/* One block for the two, so the hero's ring can stay where it is until
+            the steps have climbed over it, rather than leaving with the hero. */}
+        <div>
+          <Hero />
+          <HowItWorks />
+        </div>
         <Principles />
         <Compatibility />
         <Faq />

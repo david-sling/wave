@@ -314,19 +314,22 @@
     }
   }
 
-  /* The hero as the page scrolls over it: --hero-p runs 0 to 1. The block
-     fades into the ground, the words grow toward the reader as they go, and
-     the ring tips back on the diagonal, so it foreshortens into a leaning
+  /* The hero as the page scrolls over it: --hero-p runs 0 to 1 while the words
+     fade from the outside in, growing toward the reader as they go. --ring-p
+     runs 0 to 1 over the longer way until the steps cover the ring, and the
+     ring tips back on the diagonal, so it foreshortens into a leaning
      ellipse like a disc turning away. The ring also spins in its own plane,
      carrying the agent cards round it; each card turns back by the same
      amount so it stays upright as it drifts. The hero section clips sideways so the
      grown words never widen the page. */
   .hero-stage {
     --hero-p: 0;
-    opacity: calc(1 - var(--hero-p));
+    --ring-p: 0;
   }
   .hero-stage [data-hero-copy] {
+    --reach: calc((1 - var(--hero-p)) * 130%);
     scale: calc(1 + var(--hero-p) * 0.25);
+    mask-image: radial-gradient(#000 calc(var(--reach) - 30%), transparent var(--reach));
   }
   /* The ring turns away on a short perspective, so its near side, bottom
      right, swells while the far side shrinks. That swelling carries the seats
@@ -337,7 +340,7 @@
     /* On arrival the ring starts all but edge-on (86deg; at 90 a plane draws nothing), a line through the middle, and opens
        into the circle. Its perspective starts nearly flat, so the line is clean
        rather than smeared toward the viewer, and tightens as it opens. */
-    --p: var(--hero-p);
+    --p: var(--ring-p);
     /* In proportion to the ring, which is the width of a desktop column or
        170vw on a phone, whichever is smaller, so it turns the same on both. */
     --ring-depth: min(108vw, 650px);
@@ -363,7 +366,7 @@
       )
       perspective(calc(var(--ring-depth) + var(--ring-in) * 6000px))
       rotate3d(var(--tilt-x), var(--tilt-y), 0, calc(var(--p) * 62deg + var(--ring-in) * 86deg))
-      rotate(calc(var(--p) * 55deg + var(--ring-spin) * 1deg + var(--ring-coast, 0deg)));
+      rotate(calc(var(--p) * 120deg + var(--ring-spin) * 1deg + var(--ring-coast, 0deg)));
   }
   /* A seat on the ring (ring-ground.tsx): at its home angle for the screen,
      sliding in from its evenly set start while the ring opens on arrival.
@@ -390,7 +393,7 @@
     }
   }
   .hero-stage [data-seat] {
-    rotate: calc(var(--p) * -55deg - var(--ring-spin) * 1deg - var(--ring-coast, 0deg));
+    rotate: calc(var(--p) * -120deg - var(--ring-spin) * 1deg - var(--ring-coast, 0deg));
   }
   @media (prefers-reduced-motion: reduce) {
     .hero-stage [data-hero-copy] {

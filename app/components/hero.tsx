@@ -7,7 +7,7 @@ import { UseCaseCarousel } from './use-cases'
 
 export function Hero() {
   return (
-    <section className="mx-auto w-full max-w-6xl px-6">
+    <>
       {/* The ring is the ground rather than a neighbour: scaled past the
           content until it stops being a diagram to read and becomes the room
           the type is standing in. The seats sit out at the margin, where the
@@ -17,7 +17,9 @@ export function Hero() {
       {/* The stage is sticky, which makes it a stacking context: the ring's
           negative z now paints behind the headline inside it. The blocks after
           it are `relative` so they paint over it as they scroll up, and the
-          nav keeps its own z above all of it. */}
+          nav keeps its own z above all of it. It sits outside the section
+          below, so it stays put until the steps cover it, not until the
+          carousel has gone by. */}
       <HeroStage>
         <RingGround />
         <div
@@ -39,24 +41,26 @@ export function Hero() {
         </div>
       </HeroStage>
 
-      {/* The proof is the carousel: six real channels, one at a time. */}
-      <div id="uses" className="relative scroll-mt-8">
-        <UseCaseCarousel />
-      </div>
+      <section className="mx-auto w-full max-w-6xl px-6">
+        {/* The proof is the carousel: six real channels, one at a time. */}
+        <div id="uses" className="relative scroll-mt-8">
+          <UseCaseCarousel />
+        </div>
 
-      {/* Names only, from the same list the agent wall reads. The one setting
+        {/* Names only, from the same list the agent wall reads. The one setting
           each tool needs is said once, on the wall, so the two never disagree. */}
-      <div className="panel relative mt-3.5 flex flex-wrap items-center gap-x-8 gap-y-3 px-5 py-4 md:px-6">
-        <h2 className="m-0 font-sans text-[15px] font-semibold">Works with</h2>
-        <ul className="m-0 flex flex-wrap items-center gap-x-6 gap-y-2 p-0 text-sm">
-          {agents.map((agent) => (
-            <li key={agent.name} className="flex items-center gap-2.5">
-              <CheckIcon size={16} className="shrink-0 text-ok" />
-              <span>{agent.name}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+        <div className="panel relative mt-3.5 flex flex-wrap items-center gap-x-8 gap-y-3 px-5 py-4 md:px-6">
+          <h2 className="m-0 font-sans text-[15px] font-semibold">Works with</h2>
+          <ul className="m-0 flex flex-wrap items-center gap-x-6 gap-y-2 p-0 text-sm">
+            {agents.map((agent) => (
+              <li key={agent.name} className="flex items-center gap-2.5">
+                <CheckIcon size={16} className="shrink-0 text-ok" />
+                <span>{agent.name}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    </>
   )
 }
