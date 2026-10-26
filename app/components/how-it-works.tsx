@@ -162,9 +162,10 @@ export function HowItWorks() {
   return (
     <section id="how" ref={section} className="relative mt-24 h-[900vh] w-full">
       <div className="sticky top-0 flex h-svh flex-col overflow-hidden pb-6 pt-24 lg:pb-16">
-        {/* The section's own ground: a faint dot grid, and behind the demo a
-            soft glow in the colour of the step the story is on. Sticky makes
-            this frame a stacking context, so -z-10 stays inside it. */}
+        {/* The section's own ground: a soft glow in the colour of the step the
+            story is on, and over it a field of `+` that scrolling stirs into
+            waves and the pointer ripples with light. Sticky makes this frame a stacking context, so -z-10
+            stays inside it. */}
         <div aria-hidden className="how-ground absolute inset-0 -z-10">
           {['sky', 'lilac', 'peach'].map((tone, i) => (
             <span
@@ -173,6 +174,7 @@ export function HowItWorks() {
               style={{ '--glow': `var(--color-${tone})`, opacity: i === current ? 1 : 0 } as CSSProperties}
             />
           ))}
+          <WaveField />
         </div>
         <div className="mx-auto grid h-full min-h-0 w-full max-w-[120rem] grid-rows-[auto_minmax(0,1fr)] gap-6 px-6 lg:max-w-none lg:gap-5 lg:px-0">
           <div>
@@ -246,6 +248,273 @@ function StepStrip({ p, current, className }: { p: number; current: number; clas
       ))}
     </div>
   )
+}
+
+/* ---------------------------------------------------------------- waves */
+
+/** Each line's fixed shape. `mid` is 0 at the edges of the stack and 1 through its middle, where the lines run tallest. */
+const WAVE_COUNT = 30
+const WAVE_LINES = Array.from({ length: WAVE_COUNT }, (_, i) => {
+  const t = i / (WAVE_COUNT - 1)
+  const mid = Math.sin(Math.PI * t)
+  return {
+    t,
+    wavelength: 340 - 80 * mid,
+    rest: 2.5 + 5 * mid,
+    reach: 42 * mid + 8,
+    offset: t * 2.2,
+    /* Slightly different springs, so the lines settle out of step with each other rather than as one sheet. */
+    stiffness: 38 + (26 * ((i * 7) % 5)) / 4,
+    alpha: 0.2 + 0.4 * mid,
+  }
+})
+
+/** How fast a disturbance dies away, in seconds, and how much a pixel of scroll stirs it. */
+const WAVE_DECAY = 0.35
+const WAVE_KICK = 1 / 500
+/** The character cell: the type size, and the row height the glyphs sit in. */
+const GLYPH = { size: 9, row: 10 }
+/** The settled field: a `+` every this many cells across and rows down, at this alpha. */
+const REST_GRID = { every: 3, rows: 2, alpha: 0.2 }
+/**
+ * The pointer's ripples: rings of light through the `+` field. Each spreads
+ * at this speed, in pixels a second, over this life, in seconds, as a band
+ * this wide, adding up to this much opacity, followed by weaker rings this far
+ * apart, as water does. The band is narrow so a mark is lit only while a ring
+ * crosses it, swelling it by up to this much of its size. A new one starts once
+ * the pointer has moved this far.
+ */
+const LIGHT_RIPPLE = {
+  speed: 300,
+  life: 1.6,
+  band: 8,
+  boost: 0.9,
+  trail: 34,
+  rings: [1, 0.55, 0.3],
+  grow: 0.9,
+  every: 48,
+}
+/** How far a line must swing from rest, in pixels, before it shows in full over the field. */
+const WAVE_SHOWS_AT = 7
+
+/**
+ * The name, drawn in type. Settled, the section's ground is an even field of
+ * `+`. Stirred, analog waves rise out of it as monospace lines, one ink: a
+ * wave running flat is `~`, a slope is `/` or `\`, a steep one is `|`, and
+ * they step from cell to cell the way ASCII art does. They behave like
+ * something physical. Scrolling stirs them in proportion to its speed; each
+ * line is an underdamped spring that swells, overshoots and wobbles back down,
+ * fading into the field as it settles; while stirred the waves run the way the
+ * page is moving. The pointer sends slow rings of light out through the
+ * field: the `+` marks brighten as a ring passes and dim again behind it. The
+ * frame loop only runs while there is motion left to settle, so a settled
+ * field costs nothing.
+ */
+function WaveField() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+    const ink = getComputedStyle(canvas).color
+    const family = getComputedStyle(canvas).fontFamily
+    const state = WAVE_LINES.map((line) => ({ amplitude: line.rest, velocity: 0, phase: line.offset }))
+    const ripples: { x: number; y: number; age: number }[] = []
+    let width = 0
+    let height = 0
+    let cell = 7
+    let cols = 0
+    let rows = 0
+    /* The `+` field is drawn once per size to its own canvas and stamped in each frame. */
+    const field = document.createElement('canvas')
+
+    const setType = (target: CanvasRenderingContext2D) => {
+      target.font = `${GLYPH.size}px ${family}`
+      target.textBaseline = 'top'
+      target.fillStyle = ink
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height)
+      ctx.drawImage(field, 0, 0, width, height)
+      lightRipples()
+      /* One glyph per cell; where two lines meet, the stronger one keeps it. */
+      const glyphs = new Map<number, { glyph: string; alpha: number }>()
+      WAVE_LINES.forEach((line, i) => {
+        const { amplitude, velocity, phase } = state[i]
+        const base = height * (0.08 + line.t * 0.84)
+        const settled = Math.min(1, Math.abs(amplitude - line.rest) / WAVE_SHOWS_AT + Math.abs(velocity) / 60)
+        if (settled < 0.06) return
+        const yAt = (x: number) => base + amplitude * Math.sin((x / line.wavelength) * Math.PI * 2 + phase)
+        for (let c = 0; c < cols; c++) {
+          const x = (c + 0.5) * cell
+          const y = yAt(x)
+          const next = yAt(x + cell)
+          const slope = (next - y) / cell
+          const glyph = Math.abs(slope) < 0.12 ? '~' : Math.abs(slope) > 1.4 ? '|' : slope > 0 ? '\\' : '/'
+          const alpha = line.alpha * settled
+          const from = Math.floor(y / GLYPH.row)
+          const to = Math.floor(next / GLYPH.row)
+          /* A steep run fills the rows between here and the next column, so the line never breaks. */
+          for (let r = Math.min(from, to); r <= Math.max(from, Math.max(from, to) - 1); r++) {
+            if (r < 0 || r >= rows) continue
+            const key = r * cols + c
+            const held = glyphs.get(key)
+            if (!held || held.alpha < alpha) glyphs.set(key, { glyph, alpha })
+          }
+        }
+      })
+      for (const [key, { glyph, alpha }] of glyphs) {
+        const x = (key % cols) * cell
+        const y = Math.floor(key / cols) * GLYPH.row
+        /* A wave mark takes its cell: the `+` under it goes. */
+        ctx.clearRect(x, y, cell, GLYPH.row)
+        ctx.globalAlpha = alpha
+        ctx.fillText(glyph, x, y)
+      }
+      ctx.globalAlpha = 1
+    }
+
+    /* Each ring brightens the `+` marks it is passing over: drawn again on top of the field at the ring's strength. */
+    const lightRipples = () => {
+      const stepX = cell * REST_GRID.every
+      const stepY = GLYPH.row * REST_GRID.rows
+      for (const { x, y, age } of ripples) {
+        const fade = 1 - age / LIGHT_RIPPLE.life
+        const radius = age * LIGHT_RIPPLE.speed
+        const outer = radius + LIGHT_RIPPLE.band * 3
+        const c0 = Math.max(0, Math.floor((x - outer) / stepX))
+        const c1 = Math.min(Math.ceil(cols / REST_GRID.every), Math.ceil((x + outer) / stepX))
+        const r0 = Math.max(0, Math.floor((y - outer) / stepY))
+        const r1 = Math.min(Math.ceil(rows / REST_GRID.rows), Math.ceil((y + outer) / stepY))
+        for (let r = r0; r <= r1; r++) {
+          for (let c = c0; c <= c1; c++) {
+            const px = c * stepX
+            const py = r * stepY
+            const d = Math.hypot(px + cell / 2 - x, py + GLYPH.row / 2 - y)
+            const light =
+              fade *
+              LIGHT_RIPPLE.boost *
+              LIGHT_RIPPLE.rings.reduce((sum, strength, n) => {
+                const off = d - radius + n * LIGHT_RIPPLE.trail
+                return sum + strength * Math.exp(-(off ** 2) / (2 * LIGHT_RIPPLE.band ** 2))
+              }, 0)
+            if (light < 0.03) continue
+            const lit = Math.min(1, light)
+            const size = 1 + LIGHT_RIPPLE.grow * lit
+            ctx.globalAlpha = lit
+            ctx.save()
+            ctx.translate(px + cell / 2, py + GLYPH.size / 2)
+            ctx.scale(size, size)
+            ctx.fillText('+', -cell / 2, -GLYPH.size / 2)
+            ctx.restore()
+          }
+        }
+      }
+      ctx.globalAlpha = 1
+    }
+
+    const resize = () => {
+      const ratio = window.devicePixelRatio || 1
+      width = canvas.clientWidth
+      height = canvas.clientHeight
+      for (const target of [canvas, field]) {
+        target.width = Math.round(width * ratio)
+        target.height = Math.round(height * ratio)
+      }
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+      setType(ctx)
+      cell = ctx.measureText('~').width
+      cols = Math.ceil(width / cell)
+      rows = Math.ceil(height / GLYPH.row)
+      const fieldCtx = field.getContext('2d')
+      if (fieldCtx) {
+        fieldCtx.setTransform(ratio, 0, 0, ratio, 0, 0)
+        setType(fieldCtx)
+        fieldCtx.globalAlpha = REST_GRID.alpha
+        for (let r = 0; r < rows; r += REST_GRID.rows)
+          for (let c = 0; c < cols; c += REST_GRID.every) fieldCtx.fillText('+', c * cell, r * GLYPH.row)
+      }
+      draw()
+    }
+    const observer = new ResizeObserver(resize)
+    observer.observe(canvas)
+
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return () => observer.disconnect()
+
+    let energy = 0
+    let direction = 1
+    let lastY = window.scrollY
+    let frame = 0
+    let last = 0
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+      energy *= Math.exp(-dt / WAVE_DECAY)
+      for (let n = ripples.length - 1; n >= 0; n--) {
+        ripples[n].age += dt
+        if (ripples[n].age > LIGHT_RIPPLE.life) ripples.splice(n, 1)
+      }
+      let moving = energy > 0.001 || ripples.length > 0
+      WAVE_LINES.forEach((line, i) => {
+        const s = state[i]
+        const target = line.rest + line.reach * energy
+        const damping = 2 * Math.sqrt(line.stiffness) * 0.3
+        s.velocity += (line.stiffness * (target - s.amplitude) - damping * s.velocity) * dt
+        s.amplitude += s.velocity * dt
+        s.phase += dt * (0.4 + 6 * energy) * direction
+        if (Math.abs(s.amplitude - line.rest) > 0.05 || Math.abs(s.velocity) > 0.05) moving = true
+      })
+      if (!moving) {
+        state.forEach((s, i) => {
+          s.amplitude = WAVE_LINES[i].rest
+          s.velocity = 0
+        })
+      }
+      draw()
+      frame = moving ? requestAnimationFrame(tick) : 0
+    }
+    const wake = () => {
+      if (!frame) {
+        last = performance.now()
+        frame = requestAnimationFrame(tick)
+      }
+    }
+    const onScroll = () => {
+      const y = window.scrollY
+      const dy = y - lastY
+      lastY = y
+      /* Only stir what can be seen. */
+      const box = canvas.getBoundingClientRect()
+      if (!dy || box.bottom < 0 || box.top > window.innerHeight) return
+      direction = Math.sign(dy)
+      energy = Math.min(1, energy + Math.abs(dy) * WAVE_KICK)
+      wake()
+    }
+    /* The pointer starts a ripple wherever it has travelled far enough since the last one. */
+    let spawned: { x: number; y: number } | null = null
+    const onPointer = (event: PointerEvent) => {
+      const box = canvas.getBoundingClientRect()
+      const x = event.clientX - box.left
+      const y = event.clientY - box.top
+      if (x < 0 || y < 0 || x >= width || y >= height) return
+      if (spawned && Math.hypot(x - spawned.x, y - spawned.y) < LIGHT_RIPPLE.every) return
+      spawned = { x, y }
+      ripples.push({ x, y, age: 0 })
+      wake()
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('pointermove', onPointer, { passive: true })
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('pointermove', onPointer)
+      cancelAnimationFrame(frame)
+    }
+  }, [])
+
+  return <canvas ref={canvasRef} className="how-waves absolute inset-0 size-full font-mono text-ink" />
 }
 
 /* ---------------------------------------------------------------- stage */
