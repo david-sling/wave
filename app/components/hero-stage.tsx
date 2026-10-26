@@ -102,15 +102,11 @@ export function HeroStage({ children }: { children: ReactNode }) {
     const bulge = el.querySelector('feDisplacementMap')
     const blur = el.querySelector('feGaussianBlur')
     const map = el.querySelector('feImage')
-    // The bulge is a filter redrawn over every word each frame. A computer that
+    // The bulge is a filter redrawn over every word each frame. A device that
     // starts dropping frames under it lets it go and keeps the blur alone (see
     // `tick`).
     let lens = !still
     let slow = 0 // recent frames that ran long while the bulge was on
-    // Only a computer is watched: a phone may run its frames at 30 a second
-    // while a finger scrolls, or to save power, slow or not, and would always
-    // look as though it could not keep up.
-    const watchFrames = matchMedia('(pointer: fine)').matches
     // Sizes, measured when the layout changes rather than on every frame, so a
     // scroll never waits on layout.
     let stageHeight = 0
@@ -157,15 +153,17 @@ export function HeroStage({ children }: { children: ReactNode }) {
 
     const tick = (now: number) => {
       frame = 0
-      const dt = Math.min(0.05, (now - last) / 1000)
+      const gap = (now - last) / 1000
+      const dt = Math.min(0.05, gap)
       last = now
       const moved = progress() * TURN - turn
       turn += moved
       if (still) return
-      // Scrolling with the bulge on and frames running long (under 36 a
-      // second): a dozen more slow than smooth, and the words just fade.
-      if (lens && watchFrames && moved !== 0 && copy?.style.filter) {
-        slow = dt > 1 / 36 ? slow + 1 : Math.max(0, slow - 1)
+      // Scrolling with the bulge on and frames running long: under 24 a
+      // second, below the 30 a phone may keep to while a finger scrolls or to
+      // save power. A dozen more slow than smooth, and only the blur stays.
+      if (lens && moved !== 0 && copy?.style.filter) {
+        slow = gap > 1 / 24 ? slow + 1 : Math.max(0, slow - 1)
         if (slow > 12) {
           lens = false
           copy.style.filter = ''
