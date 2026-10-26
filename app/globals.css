@@ -254,7 +254,9 @@
   /* The hero as the page scrolls over it: --hero-p runs 0 to 1. The block
      fades into the ground, the words grow toward the reader as they go, and
      the ring tips back on the diagonal, so it foreshortens into a leaning
-     ellipse like a disc turning away. The hero section clips sideways so the
+     ellipse like a disc turning away. The ring also spins in its own plane,
+     carrying the agent cards round it; each card turns back by the same
+     amount so it stays upright as it drifts. The hero section clips sideways so the
      grown words never widen the page. */
   .hero-stage {
     --hero-p: 0;
@@ -264,7 +266,10 @@
     scale: calc(1 + var(--hero-p) * 0.25);
   }
   .hero-stage [data-ring] {
-    transform: perspective(1800px) rotate3d(1, -1, 0, calc(var(--hero-p) * 62deg));
+    transform: perspective(1800px) rotate3d(1, -1, 0, calc(var(--hero-p) * 62deg)) rotate(calc(var(--hero-p) * 55deg));
+  }
+  .hero-stage [data-seat] {
+    rotate: calc(var(--hero-p) * -55deg);
   }
   @media (prefers-reduced-motion: reduce) {
     .hero-stage [data-hero-copy] {
@@ -272,6 +277,9 @@
     }
     .hero-stage [data-ring] {
       transform: none;
+    }
+    .hero-stage [data-seat] {
+      rotate: none;
     }
   }
 

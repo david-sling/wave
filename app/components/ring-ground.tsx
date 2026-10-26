@@ -99,6 +99,7 @@ export function RingGround({ half = false }: { half?: boolean }) {
         return (
           <div
             key={seat.name}
+            data-seat
             className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-[14px] border border-[rgba(21,22,26,0.06)] bg-panel py-1.5 pl-2 pr-3.5 shadow-soft"
             style={{ left: `${(point.x / 1000) * 100}%`, top: `${(point.y / 1000) * 100}%` }}
           >
