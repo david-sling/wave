@@ -266,6 +266,25 @@ function accordion({ left, top, width, height }: Box, order: Pane[], open: Pane)
   return boxes
 }
 
+/** Which window the story is in at a point in the scroll. */
+function focusAt(q: number): Pane {
+  if (q >= T.term1 && q < T.chat1) return 'term'
+  if (q >= T.thread && q < T.chat2) return 'thread'
+  return 'chat'
+}
+
+/** Where each window sits at a point in the scroll. */
+function tilesAt(layout: Layout, q: number): Record<Pane, Box & { inner?: number }> {
+  const full = { left: 0, top: 0, width: layout.width, height: layout.height }
+  if (!layout.tiled) return accordion(full, ['chat', 'term', 'thread'], focusAt(q))
+  return {
+    ...accordion(layout.tiled.column, ['term', 'thread'], q >= T.thread ? 'thread' : 'term'),
+    /* Once both agents have spoken and you start to steer, the conversation
+       is the whole story: the channel opens over the column. */
+    chat: q >= T.steer[0] ? full : layout.tiled.chat,
+  }
+}
+
 /** Below this the side-by-side type gets too small to read, so the windows stack. */
 const MIN_WIDE_SCALE = 0.75
 
@@ -292,17 +311,9 @@ function Stage({ p }: { p: number }) {
     return () => observer.disconnect()
   }, [])
 
-  const focus = p >= T.term1 && p < T.chat1 ? 'term' : p >= T.thread && p < T.chat2 ? 'thread' : 'chat'
+  const focus = focusAt(p)
   const { layout, scale } = fit
-  const full = { left: 0, top: 0, width: layout.width, height: layout.height }
-  const tiles = layout.tiled
-    ? {
-        ...accordion(layout.tiled.column, ['term', 'thread'], p >= T.thread ? 'thread' : 'term'),
-        /* Once both agents have spoken and you start to steer, the conversation
-           is the whole story: the channel opens over the column. */
-        chat: p >= T.steer[0] ? full : layout.tiled.chat,
-      }
-    : accordion(full, ['chat', 'term', 'thread'], focus)
+  const tiles = tilesAt(layout, p)
 
   /* The pointer is placed by hand after each render rather than through state:
      where it goes depends on where the page put its targets, which is only
@@ -310,18 +321,27 @@ function Stage({ p }: { p: number }) {
   const stage = useRef<HTMLDivElement>(null)
   const youPointer = useRef<HTMLDivElement>(null)
   const youRing = useRef<HTMLSpanElement>(null)
-  const spots = useRef<Record<string, Point>>({})
+  const spots = useRef<Record<string, Spot>>({})
   useLayoutEffect(() => {
     const root = stage.current
     if (!root) return
     for (const target of root.querySelectorAll<HTMLElement>('[data-cursor]')) {
-      const at = spotIn(target, root)
+      const at = spotIn(target)
       if (at) spots.current[target.dataset.cursor!] = at
+    }
+    /* A click lands where its window will be at that moment of the story, not
+       where the window happens to be mid-fold right now, so a window folding
+       or opening never drags the pointer along with it. */
+    const resolve = (click: Click) => {
+      const spot = spots.current[click.spot]
+      if (!spot) return undefined
+      const tile = tilesAt(layout, click.at)[spot.pane]
+      return { x: tile.left + spot.x, y: tile.top + spot.y }
     }
     place(
       youPointer.current,
       youRing.current,
-      cursorAt(p, YOUR_CLICKS, spots.current, { x: layout.width * 0.62, y: layout.height * 0.96 }),
+      cursorAt(p, YOUR_CLICKS, resolve, { x: layout.width * 0.62, y: layout.height * 0.96 }),
       true,
     )
   })
@@ -342,13 +362,13 @@ function Stage({ p }: { p: number }) {
             would ease from the wrong arrangement into the right one on load. */}
         {scale ? (
           <div className="panel absolute inset-0 overflow-hidden" style={{ background: 'var(--color-line)' }}>
-            <Window box={tiles.term} focused={focus === 'term'}>
+            <Window pane="term" box={tiles.term} focused={focus === 'term'}>
               <Terminal p={p} />
             </Window>
-            <Window box={tiles.thread} focused={focus === 'thread'}>
+            <Window pane="thread" box={tiles.thread} focused={focus === 'thread'}>
               <Thread p={p} />
             </Window>
-            <Window box={tiles.chat} focused={focus === 'chat'}>
+            <Window pane="chat" box={tiles.chat} focused={focus === 'chat'}>
               <Channel p={p} />
             </Window>
           </div>
@@ -361,36 +381,40 @@ function Stage({ p }: { p: number }) {
 
 type Point = { x: number; y: number }
 
+/** A target's place inside its own window, in unscaled pixels. */
+type Spot = Point & { pane: Pane }
+
 /**
- * Where a target sits inside the stage, in the stage's own unscaled pixels.
- * Offsets rather than client rects: they ignore transforms, so neither the
- * stage's scale nor a window easing in and out of focus moves the answer.
+ * Where a target sits inside its window. Each window lays its content out at
+ * a fixed size however far it is folded, so this does not move while windows
+ * animate; the window's own position is added at the click it is wanted for.
+ * Offsets rather than client rects, so the stage's scale does not enter into it.
  * `data-cursor-x` and `-y` pick a point other than the centre, so the pointer
  * can rest beside text that is being typed instead of on top of it.
  */
-function spotIn(target: HTMLElement, root: HTMLElement): Point | null {
+function spotIn(target: HTMLElement): Spot | null {
   let x = 0
   let y = 0
   let node: HTMLElement | null = target
-  while (node && node !== root) {
+  while (node && !node.dataset.pane) {
     x += node.offsetLeft
     y += node.offsetTop
     node = node.offsetParent as HTMLElement | null
   }
-  if (node !== root) return null
+  if (!node) return null
   const fx = Number(target.dataset.cursorX ?? 0.5)
   const fy = Number(target.dataset.cursorY ?? 0.5)
-  return { x: x + target.offsetWidth * fx, y: y + target.offsetHeight * fy }
+  return { pane: node.dataset.pane as Pane, x: x + target.offsetWidth * fx, y: y + target.offsetHeight * fy }
 }
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
 
 /** A pointer at a point in the scroll: where it is, and how far through a click (0 when not clicking). */
-function cursorAt(p: number, clicks: Click[], spots: Record<string, Point>, start: Point) {
+function cursorAt(p: number, clicks: Click[], resolve: (click: Click) => Point | undefined, start: Point) {
   const next = clicks.findIndex((click) => click.at > p)
   const last = clicks[(next === -1 ? clicks.length : next) - 1]
-  const from = last ? (spots[last.spot] ?? start) : start
-  const to = next === -1 ? from : (spots[clicks[next].spot] ?? from)
+  const from = last ? (resolve(last) ?? start) : start
+  const to = next === -1 ? from : (resolve(clicks[next]) ?? from)
   const leave = last ? last.at + LINGER : 0
   const arrive = next === -1 ? leave : clicks[next].at - SETTLE
   const t = next === -1 ? 1 : easeInOut(arrive > leave ? clamp01((p - leave) / (arrive - leave)) : p >= arrive ? 1 : 0)
@@ -435,8 +459,8 @@ function Pointer({
     >
       <span
         ref={ringRef}
-        className="absolute left-[5px] top-[2px] size-10 rounded-full border-2 opacity-0"
-        style={{ borderColor: color, background: `color-mix(in oklab, ${color} 15%, transparent)` }}
+        className="absolute left-[5px] top-[2px] size-10 rounded-full opacity-0"
+        style={{ background: `color-mix(in oklab, ${color} 28%, transparent)` }}
       />
       <svg width={22} height={22} viewBox="0 0 24 24" className="relative drop-shadow-[0_1px_3px_rgba(0,0,0,0.3)]">
         <path d="M5 2l14 10.5-6.2.6 3.4 6.9-2.6 1.3-3.4-6.9L5 19z" fill={color} stroke="#fff" strokeWidth={1.4} />
@@ -461,20 +485,25 @@ function Pointer({
  * so folding slides it under its own title bar instead of squeezing it.
  */
 function Window({
+  pane,
   box: { inner, ...box },
   focused,
   children,
 }: {
+  pane: Pane
   box: Box & { inner?: number }
   focused: boolean
   children: React.ReactNode
 }) {
   return (
     <div
+      data-pane={pane}
       className="absolute overflow-hidden bg-panel transition-[filter,top,left,width,height] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
       style={{ ...box, filter: focused ? 'none' : 'saturate(0.5)' }}
     >
-      <div style={{ height: inner ?? '100%' }}>{children}</div>
+      {/* Laid out at the size the window is going to, not the size it is
+          passing through, so its content never reflows mid-animation. */}
+      <div style={{ width: box.width, height: inner ?? box.height }}>{children}</div>
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0 z-20 bg-ground transition-opacity duration-500"
