@@ -36,6 +36,43 @@ const COAST = { stiffness: 3, damping: 3.5, fade: 0.15, fastest: 300 }
  * reads as the ring settling rather than jumping back.
  */
 const LEAN = { follow: 0.18, release: 0.6 }
+/**
+ * How far the words bulge by the end of the fade, as a share of their block's
+ * shorter side: the middle is drawn from this much nearer the centre, so it
+ * swells toward the reader like the face of a lens.
+ */
+const BULGE = 0.55
+/** How much more blurred the words are by the end of the fade, in pixels. */
+const BLUR = 4
+
+/**
+ * The bulge's displacement map: red and green carry how far, across and down,
+ * each point is drawn from toward the middle. Most in the middle of the block,
+ * none at its rim, so the edge of the lens does not tear. One map pixel to each
+ * pixel of the words: a smaller map, stretched, moves them in blocks, and the
+ * glyphs break up into steps.
+ */
+function bulgeMap(width: number, height: number) {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d')
+  if (!context || !width || !height) return ''
+  const image = context.createImageData(width, height)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const nx = ((x + 0.5) / width) * 2 - 1
+      const ny = ((y + 0.5) / height) * 2 - 1
+      const pull = Math.max(0, 1 - nx * nx - ny * ny)
+      const i = (y * width + x) * 4
+      image.data[i] = 127.5 * (1 - nx * pull)
+      image.data[i + 1] = 127.5 * (1 - ny * pull)
+      image.data[i + 3] = 255
+    }
+  }
+  context.putImageData(image, 0, 0)
+  return canvas.toDataURL()
+}
 
 export function HeroStage({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -60,13 +97,25 @@ export function HeroStage({ children }: { children: ReactNode }) {
     let leanLast = 0
     const ring = el.querySelector<HTMLElement>('[data-ring]')
     const steps = document.getElementById('how')
+    const copy = el.querySelector<HTMLElement>('[data-hero-copy]')
+    const bulge = el.querySelector('feDisplacementMap')
+    const blur = el.querySelector('feGaussianBlur')
+    const map = el.querySelector('feImage')
 
     const progress = () => {
       // The hero is the first thing on the page, so the distance scrolled is
-      // the distance the next block has climbed over it. It is fully gone a
-      // little before it is fully covered.
-      const p = Math.min(1, Math.max(0, window.scrollY / (el.offsetHeight * 0.85)))
+      // the distance the next block has climbed over it. The words take a
+      // little longer than that to go, so the softened fade has room to read.
+      const p = Math.min(1, Math.max(0, window.scrollY / (el.offsetHeight * 1.1)))
       el.style.setProperty('--hero-p', p.toFixed(4))
+      // The words bulge as they go. Off at rest, so they stay crisp.
+      if (!still && copy && bulge) {
+        copy.style.filter = p > 0 ? 'url(#hero-bulge)' : ''
+        bulge.setAttribute('scale', (p * BULGE * Math.min(copy.offsetWidth, copy.offsetHeight)).toFixed(2))
+        // Softer as they go, so the bulge's stair-steps never show and the
+        // words dissolve rather than just thin out.
+        blur?.setAttribute('stdDeviation', (1 + p * BLUR).toFixed(2))
+      }
       // A faded form under the gaps in the carousel must not take clicks.
       el.style.pointerEvents = p > 0.6 ? 'none' : ''
       // Nor lean toward a pointer it no longer hears leave.
@@ -114,6 +163,13 @@ export function HeroStage({ children }: { children: ReactNode }) {
     // Stick where it already stands, under the nav, so the hero does not
     // first slide up into the top of the screen before it holds.
     const pin = () => {
+      // The map lies over the words, in their own unscaled pixels.
+      if (map && copy && !still) {
+        const [width, height] = [copy.offsetWidth, copy.offsetHeight]
+        map.setAttribute('width', `${width}`)
+        map.setAttribute('height', `${height}`)
+        map.setAttribute('href', bulgeMap(width, height))
+      }
       el.style.top = `${el.parentElement!.getBoundingClientRect().top + window.scrollY}px`
     }
     const onResize = () => {
@@ -181,6 +237,14 @@ export function HeroStage({ children }: { children: ReactNode }) {
   return (
     <div ref={ref} className="hero-stage sticky mx-auto w-full max-w-6xl px-6 pb-9 pt-14 md:pt-16">
       {children}
+      <svg aria-hidden className="absolute size-0">
+        <filter id="hero-bulge" x="0" y="0" width="1" height="1" colorInterpolationFilters="sRGB">
+          <feImage x="0" y="0" preserveAspectRatio="none" result="map" />
+          <feDisplacementMap in="SourceGraphic" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G" />
+          {/* The displacement samples without smoothing; blur takes the stair-steps off the glyphs. */}
+          <feGaussianBlur stdDeviation="1" />
+        </filter>
+      </svg>
     </div>
   )
 }
