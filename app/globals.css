@@ -338,20 +338,59 @@
        into the circle. Its perspective starts nearly flat, so the line is clean
        rather than smeared toward the viewer, and tightens as it opens. */
     --p: var(--hero-p);
+    /* In proportion to the ring, which is the width of a desktop column or
+       170vw on a phone, whichever is smaller, so it turns the same on both. */
+    --ring-depth: min(108vw, 650px);
+    /* What it tips over: on a phone, side to side, so the top comes toward
+       the viewer and the bottom goes away; wide, on the diagonal. */
+    --tilt-x: -1;
+    --tilt-y: 0;
+    /* The translate's curve, fitted to where the seats land for each layout:
+       the phone's, top and bottom, here, and the wide one's below. */
+    --sx1: 0.8%;
+    --sx2: -25.29%;
+    --sx3: 13.62%;
+    --sy1: 27.08%;
+    --sy2: -7.04%;
+    --sy3: -14.97%;
     opacity: calc(1 - var(--ring-in) * 0.4);
     animation:
       ring-in 2s cubic-bezier(0.16, 1, 0.3, 1) both,
       ring-spin 2.6s cubic-bezier(0.05, 0.7, 0.1, 1) both;
     transform: translate(
-        calc(var(--p) * -19.71% - var(--p) * var(--p) * 9.97% + var(--p) * var(--p) * var(--p) * 19.2%),
-        calc(var(--p) * -5.22% - var(--p) * var(--p) * 9.87% - var(--p) * var(--p) * var(--p) * 2.02%)
+        calc(var(--p) * var(--sx1) + var(--p) * var(--p) * var(--sx2) + var(--p) * var(--p) * var(--p) * var(--sx3)),
+        calc(var(--p) * var(--sy1) + var(--p) * var(--p) * var(--sy2) + var(--p) * var(--p) * var(--p) * var(--sy3))
       )
-      perspective(calc(650px + var(--ring-in) * 6000px))
-      rotate3d(1, -1, 0, calc(var(--p) * 62deg + var(--ring-in) * 86deg))
-      rotate(calc(var(--p) * 55deg + var(--ring-spin) * 1deg));
+      perspective(calc(var(--ring-depth) + var(--ring-in) * 6000px))
+      rotate3d(var(--tilt-x), var(--tilt-y), 0, calc(var(--p) * 62deg + var(--ring-in) * 86deg))
+      rotate(calc(var(--p) * 55deg + var(--ring-spin) * 1deg + var(--ring-coast, 0deg)));
+  }
+  /* A seat on the ring (ring-ground.tsx): at its home angle for the screen,
+     sliding in from its evenly set start while the ring opens on arrival.
+     50% and 43% are the ring's centre and radius on its 1000-unit drawing. */
+  [data-seat] {
+    --home: var(--home-phone);
+    --at: calc(var(--home) + (var(--even) - var(--home)) * var(--ring-in));
+    left: calc(50% + cos(var(--at)) * 43%);
+    top: calc(50% + sin(var(--at)) * 43%);
+  }
+  @media (width >= 64rem) {
+    [data-seat] {
+      --home: var(--home-wide);
+    }
+    .hero-stage [data-ring] {
+      --tilt-x: 1;
+      --tilt-y: -1;
+      --sx1: -19.71%;
+      --sx2: -9.97%;
+      --sx3: 19.2%;
+      --sy1: -5.22%;
+      --sy2: -9.87%;
+      --sy3: -2.02%;
+    }
   }
   .hero-stage [data-seat] {
-    rotate: calc(var(--p) * -55deg - var(--ring-spin) * 1deg);
+    rotate: calc(var(--p) * -55deg - var(--ring-spin) * 1deg - var(--ring-coast, 0deg));
   }
   @media (prefers-reduced-motion: reduce) {
     .hero-stage [data-hero-copy] {
