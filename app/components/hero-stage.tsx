@@ -139,7 +139,10 @@ export function HeroStage({ children }: { children: ReactNode }) {
       // leave.
       const ringP = reach > 0 ? Math.min(1, Math.max(0, window.scrollY / reach)) : p
       el.style.setProperty('--ring-p', ringP.toFixed(4))
-      if (ring) ring.style.visibility = ringP >= 1 ? 'hidden' : ''
+      if (ring) {
+        ring.style.visibility = ringP >= 1 ? 'hidden' : ''
+        ring.toggleAttribute('data-turning', ringP > 0)
+      }
       return ringP
     }
 

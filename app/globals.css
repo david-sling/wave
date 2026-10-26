@@ -333,6 +333,9 @@
     --reach: calc(170% - var(--hero-p) * 170%);
     scale: calc(1 + var(--hero-p) * 0.25);
     mask-image: radial-gradient(#000 calc(var(--reach) - 80%), transparent var(--reach));
+    /* Its own layer, so each frame of the fade redraws the mask and moves the
+       layer rather than setting all the words again. */
+    will-change: scale;
   }
   /* The ring turns away on a short perspective, so its near side, bottom
      right, swells while the far side shrinks. That swelling carries the seats
@@ -398,6 +401,14 @@
   }
   .hero-stage [data-seat] {
     rotate: calc(var(--p) * -120deg - var(--ring-spin) * 1deg - var(--ring-coast, 0deg));
+    /* Each card on its own layer, so turning it back upright every frame does
+       not repaint the ring and the other cards with it. */
+    will-change: rotate;
+  }
+  /* The arcs on theirs, for the same reason: their gliding dashes repaint them
+     and nothing else. */
+  .hero-stage [data-ring] > svg {
+    will-change: transform;
   }
   @media (prefers-reduced-motion: reduce) {
     .hero-stage [data-hero-copy] {
@@ -1064,6 +1075,11 @@
    backwards: a conversation goes both ways, a conveyor belt does not. */
 .strand-pulse-back {
   animation-direction: reverse;
+}
+/* The dashes hold still while the ring turns over (hero-stage.tsx), when the
+   eye is on the turn and a phone has enough to do. */
+[data-ring][data-turning] .strand-pulse {
+  animation-play-state: paused;
 }
 
 @keyframes strand-flow {
