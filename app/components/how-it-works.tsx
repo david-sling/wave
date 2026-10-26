@@ -272,6 +272,15 @@ const WAVE_LINES = Array.from({ length: WAVE_COUNT }, (_, i) => {
 /** How fast a disturbance dies away, in seconds, and how much a pixel of scroll stirs it. */
 const WAVE_DECAY = 0.35
 const WAVE_KICK = 1 / 500
+/**
+ * The slosh. Each line's drift chases the scroll's direction on a loose spring,
+ * this fraction of the line's own stiffness and this damped, so a reversal
+ * overshoots and swings back, the lines turning one after another. The turn
+ * also slaps each line's swell by this much per unit of the drift it was carrying.
+ * The arcs open from the right going down and from the left going up; between
+ * the two, over about this many seconds, both run at once against each other.
+ */
+const SLOSH = { stiffness: 0.3, damping: 0.35, slap: 14, turn: 0.45 }
 /** The character cell: the type size, and the row height the glyphs sit in. */
 const GLYPH = { size: 9, row: 10 }
 /** The settled field: a `+` every this many cells across and rows down, at this alpha. */
@@ -319,7 +328,15 @@ function WaveField() {
     if (!canvas || !ctx) return
     const ink = getComputedStyle(canvas).color
     const family = getComputedStyle(canvas).fontFamily
-    const state = WAVE_LINES.map((line) => ({ amplitude: line.rest, velocity: 0, phase: line.offset }))
+    const state = WAVE_LINES.map((line) => ({
+      amplitude: line.rest,
+      velocity: 0,
+      phase: 0,
+      drift: 0,
+      driftV: 0,
+    }))
+    /* 0 while scrolling down, 1 while scrolling up: how far the pattern has turned to its mirror image. */
+    let mirror = 0
     const ripples: { x: number; y: number; age: number }[] = []
     let width = 0
     let height = 0
@@ -346,7 +363,12 @@ function WaveField() {
         const base = height * (0.08 + line.t * 0.84)
         const settled = Math.min(1, Math.abs(amplitude - line.rest) / WAVE_SHOWS_AT + Math.abs(velocity) / 60)
         if (settled < 0.06) return
-        const yAt = (x: number) => base + amplitude * Math.sin((x / line.wavelength) * Math.PI * 2 + phase)
+        const k = (Math.PI * 2) / line.wavelength
+        const yAt = (x: number) =>
+          base +
+          amplitude *
+            ((1 - mirror) * Math.sin(k * x + line.offset + phase) +
+              mirror * Math.sin(k * (width - x) + line.offset - phase))
         for (let c = 0; c < cols; c++) {
           const x = (c + 0.5) * cell
           const y = yAt(x)
@@ -456,20 +478,29 @@ function WaveField() {
         ripples[n].age += dt
         if (ripples[n].age > LIGHT_RIPPLE.life) ripples.splice(n, 1)
       }
-      let moving = energy > 0.001 || ripples.length > 0
+      const facing = direction < 0 ? 1 : 0
+      mirror += (facing - mirror) * (1 - Math.exp(-dt / SLOSH.turn))
+      let moving = energy > 0.001 || ripples.length > 0 || Math.abs(facing - mirror) > 0.01
       WAVE_LINES.forEach((line, i) => {
         const s = state[i]
         const target = line.rest + line.reach * energy
         const damping = 2 * Math.sqrt(line.stiffness) * 0.3
         s.velocity += (line.stiffness * (target - s.amplitude) - damping * s.velocity) * dt
         s.amplitude += s.velocity * dt
-        s.phase += dt * (0.4 + 6 * energy) * direction
-        if (Math.abs(s.amplitude - line.rest) > 0.05 || Math.abs(s.velocity) > 0.05) moving = true
+        const pull = line.stiffness * SLOSH.stiffness
+        s.driftV +=
+          (pull * ((0.4 + 6 * energy) * direction - s.drift) - 2 * Math.sqrt(pull) * SLOSH.damping * s.driftV) * dt
+        s.drift += s.driftV * dt
+        s.phase += s.drift * dt
+        if (Math.abs(s.amplitude - line.rest) > 0.05 || Math.abs(s.velocity) > 0.05 || Math.abs(s.driftV) > 0.05)
+          moving = true
       })
       if (!moving) {
         state.forEach((s, i) => {
           s.amplitude = WAVE_LINES[i].rest
           s.velocity = 0
+          s.drift = 0
+          s.driftV = 0
         })
       }
       draw()
@@ -488,6 +519,7 @@ function WaveField() {
       /* Only stir what can be seen. */
       const box = canvas.getBoundingClientRect()
       if (!dy || box.bottom < 0 || box.top > window.innerHeight) return
+      if (Math.sign(dy) !== direction) state.forEach((s) => (s.velocity += SLOSH.slap * Math.abs(s.drift)))
       direction = Math.sign(dy)
       energy = Math.min(1, energy + Math.abs(dy) * WAVE_KICK)
       wake()
