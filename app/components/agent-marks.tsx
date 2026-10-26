@@ -53,8 +53,8 @@ export function ClientMark({ client, size = 16, className, brand = true }: Clien
  * Antigravity's mark in its own aurora colours: the outline masks eleven
  * blurred, coloured blobs (`ANTIGRAVITY_COLOR`, sourced from Lobe Icons).
  *
- * The mask and every blob's filter need an id, and the marquee this mark
- * appears in draws several copies on one page — a hard-coded id would make
+ * The mask and every blob's filter need an id, and one page can draw this mark
+ * several times (the hero ring, the agent wall) — a hard-coded id would make
  * every copy after the first reference the first copy's (invisible, hidden)
  * definitions instead of its own. `uid`, from the caller's `useId`, keeps
  * each instance's ids to itself.

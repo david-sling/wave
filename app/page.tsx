@@ -26,8 +26,8 @@ export default function Home() {
         <Hero />
         <HowItWorks />
         <Principles />
-        <Faq />
         <Compatibility />
+        <Faq />
       </main>
       <Footer />
     </>
