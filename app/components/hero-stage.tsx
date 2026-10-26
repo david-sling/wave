@@ -102,17 +102,30 @@ export function HeroStage({ children }: { children: ReactNode }) {
     const bulge = el.querySelector('feDisplacementMap')
     const blur = el.querySelector('feGaussianBlur')
     const map = el.querySelector('feImage')
+    // The bulge is a filter redrawn over every word each frame, too much for a
+    // phone to do while it scrolls; there the words only fade. A computer that
+    // starts dropping frames under it lets it go too (see `tick`).
+    let lens = !still && matchMedia('(pointer: fine)').matches
+    let slow = 0 // recent frames that ran long while the bulge was on
+    // Sizes, measured when the layout changes rather than on every frame, so a
+    // scroll never waits on layout.
+    let stageHeight = 0
+    let copySide = 0
+    let mapSize = ''
+    let reach = 0 // how far down the page the steps start
 
     const progress = () => {
       // The hero is the first thing on the page, so the distance scrolled is
       // the distance the next block has climbed over it. The words take a
       // little longer than that to go, so the softened fade has room to read.
-      const p = Math.min(1, Math.max(0, window.scrollY / (el.offsetHeight * 1.1)))
+      const p = stageHeight ? Math.min(1, Math.max(0, window.scrollY / (stageHeight * 1.1))) : 0
       el.style.setProperty('--hero-p', p.toFixed(4))
       // The words bulge as they go. Off at rest, so they stay crisp.
-      if (!still && copy && bulge) {
-        copy.style.filter = p > 0 ? 'url(#hero-bulge)' : ''
-        bulge.setAttribute('scale', (p * BULGE * Math.min(copy.offsetWidth, copy.offsetHeight)).toFixed(2))
+      if (lens && copy && bulge) {
+        // Only while the words are on screen and going: none at rest, so they
+        // stay crisp, and none once they have gone.
+        copy.style.filter = p > 0 && p < 1 ? 'url(#hero-bulge)' : ''
+        bulge.setAttribute('scale', (p * BULGE * copySide).toFixed(2))
         // Softer as they go, so the bulge's stair-steps never show and the
         // words dissolve rather than just thin out.
         blur?.setAttribute('stdDeviation', (1 + p * BLUR).toFixed(2))
@@ -124,7 +137,6 @@ export function HeroStage({ children }: { children: ReactNode }) {
       // The ring turns for longer: all the way until the steps fill the
       // screen, where it is behind them and must not show below them as they
       // leave.
-      const reach = steps ? steps.getBoundingClientRect().top + window.scrollY : 0
       const ringP = reach > 0 ? Math.min(1, Math.max(0, window.scrollY / reach)) : p
       el.style.setProperty('--ring-p', ringP.toFixed(4))
       if (ring) ring.style.visibility = ringP >= 1 ? 'hidden' : ''
@@ -138,6 +150,15 @@ export function HeroStage({ children }: { children: ReactNode }) {
       const moved = progress() * TURN - turn
       turn += moved
       if (still) return
+      // Scrolling with the bulge on and frames running long (under 36 a
+      // second): a dozen more slow than smooth, and the words just fade.
+      if (lens && moved !== 0 && copy?.style.filter) {
+        slow = dt > 1 / 36 ? slow + 1 : Math.max(0, slow - 1)
+        if (slow > 12) {
+          lens = false
+          copy.style.filter = ''
+        }
+      }
       if (moved !== 0) {
         free = false
         speed = speed * 0.5 + (moved / dt) * 0.5
@@ -164,14 +185,20 @@ export function HeroStage({ children }: { children: ReactNode }) {
     // Stick where it already stands, under the nav, so the hero does not
     // first slide up into the top of the screen before it holds.
     const pin = () => {
-      // The map lies over the words, in their own unscaled pixels.
-      if (map && copy && !still) {
-        const [width, height] = [copy.offsetWidth, copy.offsetHeight]
+      el.style.top = `${el.parentElement!.getBoundingClientRect().top + window.scrollY}px`
+      stageHeight = el.offsetHeight
+      reach = steps ? steps.getBoundingClientRect().top + window.scrollY : 0
+      if (!copy) return
+      const [width, height] = [copy.offsetWidth, copy.offsetHeight]
+      copySide = Math.min(width, height)
+      // The map lies over the words, in their own unscaled pixels. Drawn again
+      // only when they change size, not each time a phone's toolbar slides.
+      if (map && lens && mapSize !== `${width}x${height}`) {
+        mapSize = `${width}x${height}`
         map.setAttribute('width', `${width}`)
         map.setAttribute('height', `${height}`)
         map.setAttribute('href', bulgeMap(width, height))
       }
-      el.style.top = `${el.parentElement!.getBoundingClientRect().top + window.scrollY}px`
     }
     const onResize = () => {
       pin()
@@ -221,6 +248,9 @@ export function HeroStage({ children }: { children: ReactNode }) {
     turn = progress() * TURN
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', onResize)
+    // The fonts arriving, or anything else that moves the steps, re-measures.
+    const watch = new ResizeObserver(onResize)
+    watch.observe(el.parentElement!)
     if (!still) {
       el.addEventListener('pointermove', onPointer)
       el.addEventListener('pointerleave', onLeave)
@@ -232,6 +262,7 @@ export function HeroStage({ children }: { children: ReactNode }) {
       cancelAnimationFrame(leanFrame)
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onResize)
+      watch.disconnect()
     }
   }, [])
 
