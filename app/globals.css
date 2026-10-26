@@ -241,11 +241,14 @@
   }
 
   /* The signal field: agents on the cool side, humans on the warm side. */
+  /* The principles band: ink, edge to edge, flat in feel. A faint lilac glow in one
+     corner keeps it from reading as a dead block of black, and stays too
+     soft to be noticed as a gradient. */
   .field {
     background:
-      radial-gradient(70% 90% at 20% 15%, var(--color-sky) 0%, transparent 62%),
-      radial-gradient(70% 90% at 85% 90%, var(--color-peach) 0%, transparent 62%),
-      linear-gradient(160deg, var(--color-sky-soft), var(--color-lilac-soft) 55%, var(--color-peach-soft));
+      radial-gradient(80% 120% at 0% 0%, color-mix(in oklab, var(--color-lilac) 14%, transparent), transparent 70%),
+      var(--color-ink);
+    color: var(--color-panel);
   }
 
   .chip {
