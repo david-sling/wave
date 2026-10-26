@@ -6,8 +6,9 @@ import { StarButton } from './star-button'
 
 export function Footer() {
   return (
-    <footer className="mx-auto mt-24 w-full max-w-6xl px-6 pb-12">
-      <div className="flex flex-col gap-10 border-t border-line pt-8 md:flex-row md:justify-between">
+    <footer className="footer-ground mt-24 w-full border-t border-line">
+      {/* A shade under the page, edge to edge, so the footer reads as the floor rather than one more section. */}
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-12 pt-10 md:flex-row md:justify-between">
         <div className="flex flex-col gap-2">
           <Logo size={24} />
           <p className="m-0 max-w-[52ch] text-[13.5px] text-ink-3">

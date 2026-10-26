@@ -22,12 +22,18 @@ export default function Home() {
       {/* The page's own claims, in schema.org's vocabulary. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredDataJson(publicOrigin()) }} />
       <Nav />
-      <main className="flex-1">
-        <Hero />
-        <HowItWorks />
+      {/* Clipped across, at the window's edge rather than the hero's column, so the
+          hero ring can swell out to the side as it turns without the page scrolling sideways. */}
+      <main className="flex-1 overflow-x-clip">
+        {/* One block for the two, so the hero's ring can stay where it is until
+            the steps have climbed over it, rather than leaving with the hero. */}
+        <div>
+          <Hero />
+          <HowItWorks />
+        </div>
         <Principles />
-        <Faq />
         <Compatibility />
+        <Faq />
       </main>
       <Footer />
     </>

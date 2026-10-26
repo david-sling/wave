@@ -207,19 +207,22 @@
     box-shadow: var(--shadow-soft);
   }
 
-  /* The three steps, where the demo video says the same thing in pictures. It
-     stays in the markup for screen readers and for search, and comes back for
-     anyone the video is not shown to — which is now only reduced motion, since
-     the narrow screens have a cut of their own. */
-  @media (prefers-reduced-motion: no-preference) {
-    .steps-list {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      margin: 0;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
+  /* The how-it-works demo: things arriving in the scroll-driven stage. */
+  .demo-arrive {
+    animation: demo-arrive 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .demo-caret {
+    animation: demo-caret 1s steps(1) infinite;
+  }
+  @keyframes demo-arrive {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @keyframes demo-caret {
+    50% {
+      opacity: 0;
     }
   }
 
@@ -238,11 +241,175 @@
   }
 
   /* The signal field: agents on the cool side, humans on the warm side. */
+  /* The principles band: ink, edge to edge, flat in feel. A faint lilac glow in one
+     corner keeps it from reading as a dead block of black, and stays too
+     soft to be noticed as a gradient. */
   .field {
     background:
-      radial-gradient(70% 90% at 20% 15%, var(--color-sky) 0%, transparent 62%),
-      radial-gradient(70% 90% at 85% 90%, var(--color-peach) 0%, transparent 62%),
-      linear-gradient(160deg, var(--color-sky-soft), var(--color-lilac-soft) 55%, var(--color-peach-soft));
+      radial-gradient(80% 120% at 0% 0%, color-mix(in oklab, var(--color-lilac) 14%, transparent), transparent 70%),
+      var(--color-ink);
+    color: var(--color-panel);
+  }
+
+  /* The how-it-works ground: a tint a step off the page ground, the step
+     glow, and the wave field drawn over both. The waves fade out under the floating nav, so
+     its links never sit on a line. */
+  /* The footer: the page fading into lilac, with a sky and a peach swell rising
+     from the bottom edge. The swells roll across and back out of step with
+     each other, like water in a tank. They are moved, never repainted, so the
+     motion costs the compositor and nothing else. */
+  .footer-ground {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background: linear-gradient(
+      to bottom,
+      var(--color-ground),
+      color-mix(in oklab, var(--color-lilac) 28%, var(--color-ground))
+    );
+  }
+  .footer-ground::before,
+  .footer-ground::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    bottom: -140%;
+    width: 65%;
+    height: 220%;
+    pointer-events: none;
+  }
+  .footer-ground::before {
+    left: -12%;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--color-sky) 45%, transparent), transparent);
+    animation: footer-swell 13s ease-in-out infinite alternate;
+  }
+  .footer-ground::after {
+    right: -12%;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--color-peach) 45%, transparent), transparent);
+    animation: footer-swell-back 17s ease-in-out infinite alternate;
+  }
+
+  .how-ground {
+    background-color: color-mix(in oklab, var(--color-ground) 70%, var(--color-panel));
+    border-block: 1px solid var(--color-line);
+  }
+  /* Per step, a wide soft glow behind the demo; the glows cross-fade, so the
+     colour drifts as the story moves on. */
+  .how-glow {
+    background: radial-gradient(
+      62% 90% at 64% 56%,
+      color-mix(in oklab, var(--glow) 55%, transparent),
+      color-mix(in oklab, var(--glow) 18%, transparent) 55%,
+      transparent 80%
+    );
+  }
+  .how-waves {
+    mask-image: linear-gradient(to bottom, transparent 0, black 140px);
+  }
+  /* A phone's step text sits straight on the ground, so the waves step back
+     there; on a wide screen the text is on a card and they can be bold. */
+  @media (max-width: 63.99rem) {
+    .how-waves {
+      opacity: 0.4;
+    }
+  }
+
+  /* The hero as the page scrolls over it: --hero-p runs 0 to 1 while the words
+     fade from the outside in, growing toward the reader as they go. --ring-p
+     runs 0 to 1 over the longer way until the steps cover the ring, and the
+     ring tips back on the diagonal, so it foreshortens into a leaning
+     ellipse like a disc turning away. The ring also spins in its own plane,
+     carrying the agent cards round it; each card turns back by the same
+     amount so it stays upright as it drifts. The hero section clips sideways so the
+     grown words never widen the page. */
+  .hero-stage {
+    --hero-p: 0;
+    --ring-p: 0;
+  }
+  .hero-stage [data-hero-copy] {
+    /* A wide soft edge, 80% of the way in, so the fade spreads over the words
+       rather than wiping across them. At rest it already sits just inside the
+       block's empty corners, so the words start to go on the first scroll. */
+    --reach: calc(170% - var(--hero-p) * 170%);
+    scale: calc(1 + var(--hero-p) * 0.25);
+    mask-image: radial-gradient(#000 calc(var(--reach) - 80%), transparent var(--reach));
+  }
+  /* The ring turns away on a short perspective, so its near side, bottom
+     right, swells while the far side shrinks. That swelling carries the seats
+     down and to the right; the leading translate takes them back, by a curve in
+     progress fitted to where the seats land, turning either way, so the figure
+     turns in place. */
+  .hero-stage [data-ring] {
+    /* On arrival the ring starts all but edge-on (86deg; at 90 a plane draws nothing), a line through the middle, and opens
+       into the circle. Its perspective starts nearly flat, so the line is clean
+       rather than smeared toward the viewer, and tightens as it opens. */
+    --p: var(--ring-p);
+    /* In proportion to the ring, which is the width of a desktop column or
+       170vw on a phone, whichever is smaller, so it turns the same on both. */
+    --ring-depth: min(108vw, 650px);
+    /* What it tips over: on a phone, side to side, so the top comes toward
+       the viewer and the bottom goes away; wide, on the diagonal. */
+    --tilt-x: -1;
+    --tilt-y: 0;
+    /* The translate's curve, fitted to where the seats land for each layout:
+       the phone's, top and bottom, here, and the wide one's below. */
+    --sx1: 0.8%;
+    --sx2: -25.29%;
+    --sx3: 13.62%;
+    --sy1: 27.08%;
+    --sy2: -7.04%;
+    --sy3: -14.97%;
+    opacity: calc(1 - var(--ring-in) * 0.4);
+    animation:
+      ring-in 2s cubic-bezier(0.16, 1, 0.3, 1) both,
+      ring-spin 2.6s cubic-bezier(0.05, 0.7, 0.1, 1) both;
+    transform: translate(
+        calc(var(--p) * var(--sx1) + var(--p) * var(--p) * var(--sx2) + var(--p) * var(--p) * var(--p) * var(--sx3)),
+        calc(var(--p) * var(--sy1) + var(--p) * var(--p) * var(--sy2) + var(--p) * var(--p) * var(--p) * var(--sy3))
+      )
+      perspective(calc(var(--ring-depth) + var(--ring-in) * 6000px)) rotateX(calc(var(--lean-y, 0) * -8deg))
+      rotateY(calc(var(--lean-x, 0) * 8deg))
+      rotate3d(var(--tilt-x), var(--tilt-y), 0, calc(var(--p) * 62deg + var(--ring-in) * 86deg))
+      rotate(calc(var(--p) * 120deg + var(--ring-spin) * 1deg + var(--ring-coast, 0deg)));
+  }
+  /* A seat on the ring (ring-ground.tsx): at its home angle for the screen,
+     sliding in from its evenly set start while the ring opens on arrival.
+     50% and 43% are the ring's centre and radius on its 1000-unit drawing. */
+  [data-seat] {
+    --home: var(--home-phone);
+    --at: calc(var(--home) + (var(--even) - var(--home)) * var(--ring-in));
+    left: calc(50% + cos(var(--at)) * 43%);
+    top: calc(50% + sin(var(--at)) * 43%);
+  }
+  @media (width >= 64rem) {
+    [data-seat] {
+      --home: var(--home-wide);
+    }
+    .hero-stage [data-ring] {
+      --tilt-x: 1;
+      --tilt-y: -1;
+      --sx1: -19.71%;
+      --sx2: -9.97%;
+      --sx3: 19.2%;
+      --sy1: -5.22%;
+      --sy2: -9.87%;
+      --sy3: -2.02%;
+    }
+  }
+  .hero-stage [data-seat] {
+    rotate: calc(var(--p) * -120deg - var(--ring-spin) * 1deg - var(--ring-coast, 0deg));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-stage [data-hero-copy] {
+      scale: none;
+    }
+    .hero-stage [data-ring] {
+      transform: none;
+      animation: none;
+    }
+    .hero-stage [data-seat] {
+      rotate: none;
+    }
   }
 
   .chip {
@@ -257,23 +424,6 @@
     font-size: 0.84375rem;
     font-weight: 500;
     white-space: nowrap;
-  }
-
-  /* The agent wall: the tools drift past rather than sitting in a table.
-     Reduced motion lands it on the end of the keyframe, which on a doubled
-     track is the same picture as the start, so it simply stands still. */
-  .marquee {
-    display: flex;
-    width: max-content;
-    gap: 0.875rem;
-    animation: marquee 48s linear infinite;
-  }
-  .marquee:hover {
-    animation-play-state: paused;
-  }
-  .marquee-mask {
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
   }
 
   .hairline-between {
@@ -749,14 +899,44 @@
   }
 }
 
-@keyframes marquee {
+/* The hero ring's entry: 1 while it is still a line, opening to none. */
+@property --ring-in {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@keyframes ring-in {
   from {
-    transform: translateX(0);
+    --ring-in: 1;
+  }
+}
+/* And an extra turn, in degrees, that it whips through on arrival and coasts out of. */
+@property --ring-spin {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@keyframes ring-spin {
+  from {
+    --ring-spin: 240;
+  }
+}
+
+/* The footer's swells: across, rising as they go, and settling on the far side. */
+@keyframes footer-swell {
+  50% {
+    translate: 22% -14%;
   }
   to {
-    /* Half the doubled track plus half a gap: the seam lands exactly where the
-       first card started, so the loop has no jump. */
-    transform: translateX(calc(-50% - 0.4375rem));
+    translate: 48% 2%;
+  }
+}
+@keyframes footer-swell-back {
+  50% {
+    translate: -22% -10%;
+  }
+  to {
+    translate: -48% 4%;
   }
 }
 

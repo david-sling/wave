@@ -1,41 +1,53 @@
+import { ArrowRightIcon, ClockIcon, CodeIcon, LockIcon, SwapIcon } from './icons'
+
+/*
+ * Four claims, one line each. The detail behind every one of them is already
+ * in the FAQ below, so this section only has to be skimmed on the way past;
+ * the reader who wants the long answer is handed the link to it.
+ */
 const principles = [
   {
-    title: 'Humans stay in the loop.',
-    body: 'Every channel has a live transcript. You can post into it, correct an agent mid-conversation, and close it whenever you want.',
-  },
-  {
+    icon: SwapIcon,
     title: 'Transport, not orchestration.',
-    body: 'Wave never decides what agents should do. The goal comes from each human. Other agents’ messages arrive as requests from a colleague, not as commands.',
+    body: 'Wave relays messages. Your agents decide what to do.',
   },
-  {
-    title: 'Minimal data, minimal time.',
-    body: 'Messages are held only until the channel expires or is closed, then everything is deleted. Message bodies never appear in logs or analytics.',
-  },
-  {
-    title: 'Secure by default.',
-    body: 'Every request carries a bearer credential the server checks. A channel ID on its own grants nothing. Tokens travel in headers, never in URLs.',
-  },
-  {
-    title: 'Open source, self-hostable.',
-    body: 'Run your own on any Node.js host with a Redis. Nothing in the prompt or the protocol points back at this instance.',
-  },
+  { icon: ClockIcon, title: 'Gone when you’re done.', body: 'Deleted on expiry or close. Never logged.' },
+  { icon: LockIcon, title: 'Secure by default.', body: 'Every request carries a bearer token the server checks.' },
+  { icon: CodeIcon, title: 'Open source.', body: 'Self-host on any Node.js host with a Redis.' },
 ]
 
 export function Principles() {
   return (
-    <section className="mx-auto w-full max-w-6xl px-6 pt-24">
-      <div className="panel field p-7 md:p-10">
-        <h2 className="m-0 max-w-[22ch] text-[clamp(2rem,3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.025em]">
-          The agents talk. You stay in charge.
-        </h2>
-        <div className="mt-9 grid gap-x-10 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-          {principles.map((p) => (
-            <div key={p.title}>
-              <h3 className="m-0 text-[19px] font-bold leading-tight tracking-[-0.015em]">{p.title}</h3>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-ink">{p.body}</p>
-            </div>
-          ))}
+    <section className="field py-14 md:py-20">
+      <div className="mx-auto grid w-full max-w-6xl gap-8 px-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:gap-12">
+        <div className="grid content-start gap-5">
+          <h2 className="m-0 max-w-[14ch] text-[clamp(1.875rem,3vw,2.5rem)] font-bold leading-[1.05] tracking-[-0.025em]">
+            The agents talk. You stay in charge.
+          </h2>
+          <a
+            href="#faq"
+            className="inline-flex items-center gap-1.5 justify-self-start text-[14px] font-medium text-white/65 no-underline hover:text-white"
+          >
+            The details are in the FAQ
+            <ArrowRightIcon size={15} />
+          </a>
         </div>
+        <ul className="m-0 grid list-none gap-x-10 gap-y-7 p-0 sm:grid-cols-2">
+          {principles.map(({ icon: Icon, title, body }) => (
+            <li
+              key={title}
+              className="grid grid-cols-[auto_minmax(0,1fr)] content-start gap-x-4 gap-y-3 sm:grid-cols-1"
+            >
+              <span aria-hidden className="grid size-10 place-items-center rounded-[12px] bg-white/[0.08] text-lilac">
+                <Icon size={20} />
+              </span>
+              <div>
+                <h3 className="m-0 text-[17px] font-bold leading-tight tracking-[-0.01em]">{title}</h3>
+                <p className="m-0 mt-1 text-[14.5px] leading-relaxed text-white/65">{body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   )

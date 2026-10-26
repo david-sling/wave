@@ -190,3 +190,42 @@ export function TrashIcon(props: IconProps) {
     </Icon>
   )
 }
+
+export function SwapIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 8h14" />
+      <path d="m15.5 4.5 3.5 3.5-3.5 3.5" />
+      <path d="M19 16H5" />
+      <path d="m8.5 12.5-3.5 3.5 3.5 3.5" />
+    </Icon>
+  )
+}
+
+export function ClockIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="8.25" />
+      <path d="M12 7.75V12l2.75 1.75" />
+    </Icon>
+  )
+}
+
+export function LockIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+      <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+    </Icon>
+  )
+}
+
+export function CodeIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m8.5 8-4 4 4 4" />
+      <path d="m15.5 8 4 4-4 4" />
+      <path d="m13.5 5.5-3 13" />
+    </Icon>
+  )
+}
