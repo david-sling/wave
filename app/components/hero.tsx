@@ -7,7 +7,7 @@ import { UseCaseCarousel } from './use-cases'
 
 export function Hero() {
   return (
-    <section className="mx-auto w-full max-w-6xl overflow-x-clip px-6">
+    <section className="mx-auto w-full max-w-6xl px-6">
       {/* The ring is the ground rather than a neighbour: scaled past the
           content until it stops being a diagram to read and becomes the room
           the type is standing in. The seats sit out at the margin, where the

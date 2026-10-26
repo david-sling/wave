@@ -22,7 +22,9 @@ export default function Home() {
       {/* The page's own claims, in schema.org's vocabulary. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredDataJson(publicOrigin()) }} />
       <Nav />
-      <main className="flex-1">
+      {/* Clipped across, at the window's edge rather than the hero's column, so the
+          hero ring can swell out to the side as it turns without the page scrolling sideways. */}
+      <main className="flex-1 overflow-x-clip">
         <Hero />
         <HowItWorks />
         <Principles />
