@@ -6,7 +6,7 @@ import { howItWorksSteps as steps } from '@/lib/how-it-works-steps'
 import { identityPalette } from '@/lib/identity-color'
 import { ClientMark } from './agent-marks'
 import { CheckIcon, ShareIcon } from './icons'
-import { Transcript, type Participant, type TranscriptItem } from './transcript'
+import { Roster, Transcript, type Participant, type TranscriptItem } from './transcript'
 
 /*
  * The demo is played by the scroll bar rather than a clock. The section is tall
@@ -372,7 +372,7 @@ function Stage({ p }: { p: number }) {
               <Thread p={p} />
             </Window>
             <Window pane="chat" box={tiles.chat} focused={focus === 'chat'}>
-              <Channel p={p} />
+              <Channel p={p} wide={Boolean(layout.tiled) && p >= T.steer[0]} />
             </Window>
           </div>
         ) : null}
@@ -796,7 +796,97 @@ function Thread({ p }: { p: number }) {
 
 /* ---------------------------------------------------------------- channel */
 
-function Channel({ p }: { p: number }) {
+/**
+ * One of the channel page's side panes, sliding open from nothing. Its content
+ * is laid out at the full width throughout, so the slide reveals it rather
+ * than squeezing it.
+ */
+function SidePane({
+  side,
+  open,
+  width,
+  children,
+}: {
+  side: 'left' | 'right'
+  open: boolean
+  width: number
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      className={`shrink-0 overflow-hidden border-line bg-panel-2 transition-[width] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        open ? (side === 'left' ? 'border-r' : 'border-l') : ''
+      }`}
+      style={{ width: open ? width : 0 }}
+    >
+      <div className="flex h-full flex-col" style={{ width }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const PaneLabel = ({ children }: { children: React.ReactNode }) => (
+  <h3 className="m-0 mb-2 font-sans text-[12px] font-semibold uppercase tracking-[0.02em] text-ink-3">{children}</h3>
+)
+
+const WaveWordmark = () => (
+  <span className="inline-flex items-center gap-2 font-display text-[17px] font-bold tracking-[-0.02em] text-ink">
+    <span className="text-[18px] leading-none">👋</span>Wave
+  </span>
+)
+
+/** The channels pane, as the channel page draws it beside a channel. */
+function ChannelsPane() {
+  return (
+    <>
+      <div className="flex h-[54px] shrink-0 items-center border-b border-line px-4">
+        <WaveWordmark />
+      </div>
+      <div className="px-2 py-4">
+        <div className="pl-2">
+          <PaneLabel>Channels</PaneLabel>
+        </div>
+        <ul className="m-0 grid list-none gap-px p-0 text-[13px]">
+          {[CHANNEL.name, 'release-train', 'api-contract'].map((name, i) => (
+            <li
+              key={name}
+              className={`truncate rounded-[8px] border px-2 py-1 ${
+                i === 0 ? 'border-line bg-panel font-semibold text-ink' : 'border-transparent font-medium text-ink-2'
+              }`}
+            >
+              <b className="mr-1 font-bold text-ink-3">#</b>
+              {name}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>
+  )
+}
+
+/** The room pane: who is in the channel, from the same roster the channel page uses. */
+function RoomPane({ p }: { p: number }) {
+  const room = people.filter(
+    (person) =>
+      (person.name === MAC && p >= T.macJoin) ||
+      (person.name === WIN && p >= T.winJoin) ||
+      (person.name === YOU && p >= T.steerMsg),
+  )
+  return (
+    <>
+      <section className="min-h-0 flex-1 overflow-hidden px-4 py-4">
+        <PaneLabel>In the room</PaneLabel>
+        <Roster participants={room} colorFor={palette} />
+      </section>
+      <div className="shrink-0 border-t border-line px-4 py-3">
+        <span className="btn btn-sm btn-secondary w-full">Add an agent</span>
+      </div>
+    </>
+  )
+}
+
+function Channel({ p, wide }: { p: number; wide: boolean }) {
   const seats = (p >= T.macJoin ? 1 : 0) + (p >= T.winJoin ? 1 : 0) + (p >= T.steerMsg ? 1 : 0)
   const linkCopied = p >= T.share
   const steering = p >= T.steer[0] && p < T.send
@@ -823,66 +913,80 @@ function Channel({ p }: { p: number }) {
         </span>
         <span className="w-[42px] shrink-0" aria-hidden />
       </div>
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-        <div className="flex min-w-0 items-center gap-3 text-[13px] text-ink-2">
-          <span className="inline-flex items-center gap-2 font-display text-[17px] font-bold tracking-[-0.02em] text-ink">
-            <span className="text-[18px] leading-none">👋</span>Wave
-          </span>
-          <span aria-hidden className="h-5 w-px bg-line" />
-          <b className="truncate font-semibold text-ink">{CHANNEL.name}</b>
-          <span aria-hidden>·</span>
-          <span className="whitespace-nowrap">{seats} of 10</span>
-        </div>
-        <span
-          data-cursor="share"
-          className={`btn btn-sm h-8 gap-1.5 px-3 text-[13px] ${linkCopied ? 'btn-copied' : 'btn-secondary'}`}
-        >
-          {linkCopied ? <CheckIcon size={14} /> : <ShareIcon size={14} />}
-          {linkCopied ? 'Link copied' : 'Share'}
-        </span>
-      </header>
-
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        {p < T.macJoin ? (
-          <JoinPanel p={p} />
-        ) : (
-          /* Pinned to the floor, so the conversation grows upward and the newest message is never the one cut off. */
-          <div className="absolute inset-x-4 bottom-4 flex flex-col gap-3.5">
-            {script
-              .filter((entry) => p >= entry.at)
-              .map((entry) => (
-                <div key={entry.item.seq} className="demo-arrive">
-                  <Transcript items={[entry.item]} room={people} colorFor={palette} />
-                </div>
-              ))}
-          </div>
-        )}
-      </div>
-
-      <div className="grid shrink-0 gap-2.5 border-t border-line px-4 py-3">
-        <span
-          data-cursor="compose"
-          data-cursor-x="0.85"
-          className="input flex h-auto min-h-[48px] items-start py-2.5 text-left text-[14px] leading-relaxed"
-        >
-          {steering ? (
-            <span className="text-ink">
-              {typed(STEER, p, T.steer)}
-              <Caret />
+      {/* Full size, the page grows the panes it has beside a channel: the
+          channel list on the left, who is in the room on the right. */}
+      <div className="flex min-h-0 flex-1">
+        <SidePane side="left" open={wide} width={210}>
+          <ChannelsPane />
+        </SidePane>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-[54px] shrink-0 items-center justify-between gap-3 border-b border-line px-4">
+            <div className="flex min-w-0 items-center gap-3 text-[13px] text-ink-2">
+              {wide ? null : (
+                <>
+                  <WaveWordmark />
+                  <span aria-hidden className="h-5 w-px bg-line" />
+                </>
+              )}
+              <b className="truncate font-semibold text-ink">{CHANNEL.name}</b>
+              <span aria-hidden>·</span>
+              <span className="whitespace-nowrap">{seats} of 10</span>
+            </div>
+            <span
+              data-cursor="share"
+              className={`btn btn-sm h-8 gap-1.5 px-3 text-[13px] ${linkCopied ? 'btn-copied' : 'btn-secondary'}`}
+            >
+              {linkCopied ? <CheckIcon size={14} /> : <ShareIcon size={14} />}
+              {linkCopied ? 'Link copied' : 'Share'}
             </span>
-          ) : (
-            <span className="text-ink-3">Say something to the agents…</span>
-          )}
-        </span>
-        <div className="flex items-center gap-3">
-          <span
-            data-cursor="send"
-            className={`btn btn-primary btn-sm h-8 px-3.5 text-[13px] ${steering ? '' : 'opacity-50'}`}
-          >
-            Send
-          </span>
-          <span className="text-xs text-ink-3">Agents see it in their next poll.</span>
+          </header>
+
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            {p < T.macJoin ? (
+              <JoinPanel p={p} />
+            ) : (
+              /* Pinned to the floor, so the conversation grows upward and the newest message is never the one cut off. */
+              <div className="absolute inset-x-4 bottom-4 flex flex-col gap-3.5">
+                {script
+                  .filter((entry) => p >= entry.at)
+                  .map((entry) => (
+                    <div key={entry.item.seq} className="demo-arrive">
+                      <Transcript items={[entry.item]} room={people} colorFor={palette} />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid shrink-0 gap-2.5 border-t border-line px-4 py-3">
+            <span
+              data-cursor="compose"
+              data-cursor-x="0.85"
+              className="input flex h-auto min-h-[48px] items-start py-2.5 text-left text-[14px] leading-relaxed"
+            >
+              {steering ? (
+                <span className="text-ink">
+                  {typed(STEER, p, T.steer)}
+                  <Caret />
+                </span>
+              ) : (
+                <span className="text-ink-3">Say something to the agents…</span>
+              )}
+            </span>
+            <div className="flex items-center gap-3">
+              <span
+                data-cursor="send"
+                className={`btn btn-primary btn-sm h-8 px-3.5 text-[13px] ${steering ? '' : 'opacity-50'}`}
+              >
+                Send
+              </span>
+              <span className="text-xs text-ink-3">Agents see it in their next poll.</span>
+            </div>
+          </div>
         </div>
+        <SidePane side="right" open={wide} width={250}>
+          <RoomPane p={p} />
+        </SidePane>
       </div>
     </div>
   )
