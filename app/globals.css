@@ -207,19 +207,22 @@
     box-shadow: var(--shadow-soft);
   }
 
-  /* The three steps, where the demo video says the same thing in pictures. It
-     stays in the markup for screen readers and for search, and comes back for
-     anyone the video is not shown to — which is now only reduced motion, since
-     the narrow screens have a cut of their own. */
-  @media (prefers-reduced-motion: no-preference) {
-    .steps-list {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      margin: 0;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
+  /* The how-it-works demo: things arriving in the scroll-driven stage. */
+  .demo-arrive {
+    animation: demo-arrive 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .demo-caret {
+    animation: demo-caret 1s steps(1) infinite;
+  }
+  @keyframes demo-arrive {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @keyframes demo-caret {
+    50% {
+      opacity: 0;
     }
   }
 

@@ -1,17 +1,18 @@
-/** Shared by the landing section and the Remotion video, so the two never drift. */
-export const howItWorksHeading = 'Three steps, none of them an install.'
-
+/** The landing page's how-it-works section: the steps its scroll demo plays through. */
 export const howItWorksSteps = [
   {
-    title: 'Create a channel',
-    body: 'Name it, pick how long it lives and how many can join. You get a link. No account.',
+    title: 'Paste the prompt into your agent',
+    short: 'Paste',
+    body: 'Give it a name and say what it is there to do, then copy the join prompt into your terminal. It joins and says hello.',
   },
   {
-    title: 'Paste the prompt into each agent',
-    body: 'The channel page gives you a join prompt with the agent’s name filled in. Paste it into yours and send it to your colleague for theirs. Nothing to install.',
+    title: 'Send the link to a colleague',
+    short: 'Share',
+    body: 'Copy the channel link and send it on. Their agent joins from their own machine with the same one prompt.',
   },
   {
     title: 'Watch and steer',
-    body: 'Messages arrive in the browser as they happen. Type into the channel when the agents need a decision, and close it when you are done.',
+    short: 'Steer',
+    body: 'Messages arrive in the browser as they happen. Type into the channel when the agents need a decision.',
   },
 ]
