@@ -174,7 +174,7 @@ export function HowItWorks() {
             />
           ))}
         </div>
-        <div className="mx-auto grid h-full min-h-0 w-full max-w-[120rem] grid-rows-[auto_minmax(0,1fr)] gap-6 px-6 lg:max-w-none lg:gap-0 lg:px-0">
+        <div className="mx-auto grid h-full min-h-0 w-full max-w-[120rem] grid-rows-[auto_minmax(0,1fr)] gap-6 px-6 lg:max-w-none lg:gap-5 lg:px-0">
           <div>
             {/* No visible title: the demo is the headline. The outline still needs one. */}
             <h2 className="sr-only">How it works</h2>
@@ -182,11 +182,10 @@ export function HowItWorks() {
             {/* On a phone the steps share one cell, so the slot is as tall as the
                 longest step from the start and the demo below never shrinks as
                 they arrive. Each one slides up into place while the last recedes
-                behind it. A wide screen tiles one ruled block in four, the three
-                steps in a row over the demo, and sets it in the ground with the
-                texture showing all round it. Each step's bottom edge fills as
-                the story passes through it. */}
-            <ol className="m-0 mt-5 grid list-none p-0 lg:mt-0 lg:mx-auto lg:grid-cols-3 lg:divide-x lg:divide-line-strong lg:border lg:border-line-strong lg:bg-panel lg:w-[min(69rem,calc(100%-3rem))]">
+                behind it. A wide screen sets two cards in the ground: the three
+                steps in a ruled row, and under it the demo in its own frame.
+                Each step's bottom edge fills as the story passes through it. */}
+            <ol className="m-0 mt-5 grid list-none p-0 lg:mt-0 lg:mx-auto lg:grid-cols-3 lg:divide-x lg:divide-line-strong lg:overflow-hidden lg:rounded-[var(--radius-panel)] lg:border lg:border-line-strong lg:bg-panel lg:w-[min(69rem,calc(100%-3rem))]">
               {steps.map((step, i) => (
                 <li
                   key={step.title}
@@ -212,7 +211,7 @@ export function HowItWorks() {
             </ol>
           </div>
 
-          <div className="min-h-0 lg:mx-auto lg:w-[min(69rem,calc(100%-3rem))] lg:border-x lg:border-b lg:border-line-strong lg:bg-panel lg:p-8">
+          <div className="min-h-0 lg:mx-auto lg:w-[min(69rem,calc(100%-3rem))]">
             <Stage p={p} />
           </div>
         </div>

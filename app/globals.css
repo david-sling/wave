@@ -267,8 +267,8 @@
     mask-image: radial-gradient(90% 80% at 60% 55%, black 20%, transparent 85%);
     opacity: 0.7;
   }
-  /* On a wide screen the steps and the demo are one block set in the ground,
-     so the grid shows all round it: there it runs evenly to the edge rather
+  /* On a wide screen the steps and the demo are cards set in the ground, so
+     the grid shows all round them: there it runs evenly to the edge rather
      than fading out. */
   @media (min-width: 64rem) {
     .how-ground::before {
