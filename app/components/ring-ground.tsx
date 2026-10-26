@@ -63,6 +63,7 @@ export function RingGround({ half = false }: { half?: boolean }) {
   return (
     <div
       aria-hidden
+      data-ring
       className={`pointer-events-none absolute left-1/2 -z-10 hidden aspect-square w-[112%] max-w-[64rem] -translate-x-1/2 lg:block ${
         half ? 'top-[2%]' : 'top-1/2 -translate-y-1/2'
       }`}
