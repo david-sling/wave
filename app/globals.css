@@ -327,9 +327,12 @@
     --ring-p: 0;
   }
   .hero-stage [data-hero-copy] {
-    --reach: calc((1 - var(--hero-p)) * 130%);
+    /* A wide soft edge, 80% of the way in, so the fade spreads over the words
+       rather than wiping across them. At rest it already sits just inside the
+       block's empty corners, so the words start to go on the first scroll. */
+    --reach: calc(170% - var(--hero-p) * 240%);
     scale: calc(1 + var(--hero-p) * 0.25);
-    mask-image: radial-gradient(#000 calc(var(--reach) - 30%), transparent var(--reach));
+    mask-image: radial-gradient(#000 calc(var(--reach) - 80%), transparent var(--reach));
   }
   /* The ring turns away on a short perspective, so its near side, bottom
      right, swells while the far side shrinks. That swelling carries the seats
