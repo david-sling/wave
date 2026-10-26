@@ -333,9 +333,9 @@
     --reach: calc(170% - var(--hero-p) * 170%);
     scale: calc(1 + var(--hero-p) * 0.25);
     mask-image: radial-gradient(#000 calc(var(--reach) - 80%), transparent var(--reach));
-    /* Its own layer, so each frame of the fade redraws the mask and moves the
-       layer rather than setting all the words again. */
-    will-change: scale;
+    /* Its own layer, so each frame of the fade redraws the mask and moves and
+       blurs the layer rather than setting all the words again. */
+    will-change: scale, filter;
   }
   /* The ring turns away on a short perspective, so its near side, bottom
      right, swells while the far side shrinks. That swelling carries the seats

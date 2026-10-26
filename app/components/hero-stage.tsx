@@ -129,6 +129,11 @@ export function HeroStage({ children }: { children: ReactNode }) {
         // Softer as they go, so the bulge's stair-steps never show and the
         // words dissolve rather than just thin out.
         blur?.setAttribute('stdDeviation', (1 + p * BLUR).toFixed(2))
+      } else if (copy && !still) {
+        // Without the bulge (a phone, or a computer that could not keep up),
+        // the blur alone: a plain CSS blur on the words' own layer, which the
+        // GPU applies without repainting them.
+        copy.style.filter = p > 0 && p < 1 ? `blur(${(p * BLUR).toFixed(2)}px)` : ''
       }
       // A faded form under the gaps in the carousel must not take clicks.
       el.style.pointerEvents = p > 0.6 ? 'none' : ''
