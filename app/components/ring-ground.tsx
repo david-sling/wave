@@ -22,12 +22,16 @@ const BIG = { cx: 500, cy: 500, r: 430 } as const
  * headline is. On the full ring that means the four seats sit near the
  * horizontal extremes; on the dome they stand on the two flanks, leaving the
  * crown of the arc clear for the type to pass under.
+ *
+ * `even` is where each seat starts on the full ring as it opens on arrival: the
+ * four quarters nearest their places, each 20 degrees off, so the ring opens
+ * evenly set and the seats slide to where they sit as it does.
  */
 const ringSeats = [
-  { name: 'Maya’s agent', under: 'Claude Code', role: 'agent' as const, full: 205, dome: 203 },
-  { name: 'Ravi’s agent', under: 'Codex CLI', role: 'agent' as const, full: 335, dome: 337 },
-  { name: 'Lena’s agent', under: 'Cursor', role: 'agent' as const, full: 155, dome: 186 },
-  { name: 'You', under: 'this browser', role: 'human' as const, full: 25, dome: 354 },
+  { name: 'Maya’s agent', under: 'Claude Code', role: 'agent' as const, full: 205, even: 225, dome: 203 },
+  { name: 'Ravi’s agent', under: 'Codex CLI', role: 'agent' as const, full: 335, even: 315, dome: 337 },
+  { name: 'Lena’s agent', under: 'Cursor', role: 'agent' as const, full: 155, even: 135, dome: 186 },
+  { name: 'You', under: 'this browser', role: 'human' as const, full: 25, even: 45, dome: 354 },
 ]
 
 function pointOn(angle: number) {
@@ -94,14 +98,19 @@ export function RingGround({ half = false }: { half?: boolean }) {
       </svg>
 
       {seats.map((seat) => {
-        const point = pointOn(seat.angle)
+        // `--ring-in` is the hero's entry, 1 while the ring is still opening and
+        // 0 everywhere else, so off the hero this is simply the seat's angle.
+        const at = half ? `${seat.angle}deg` : `calc(${seat.angle}deg + ${seat.even - seat.angle}deg * var(--ring-in))`
         const isHuman = seat.role === 'human'
         return (
           <div
             key={seat.name}
             data-seat
             className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-[14px] border border-[rgba(21,22,26,0.06)] bg-panel py-1.5 pl-2 pr-3.5 shadow-soft"
-            style={{ left: `${(point.x / 1000) * 100}%`, top: `${(point.y / 1000) * 100}%` }}
+            style={{
+              left: `calc(${BIG.cx / 10}% + cos(${at}) * ${BIG.r / 10}%)`,
+              top: `calc(${BIG.cy / 10}% + sin(${at}) * ${BIG.r / 10}%)`,
+            }}
           >
             {/* A client's mark stands on its own the full height of the chip:
                 it is a filled glyph and carries its own weight. The person is a

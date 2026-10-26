@@ -334,19 +334,24 @@
      progress fitted to where the seats land, turning either way, so the figure
      turns in place. */
   .hero-stage [data-ring] {
-    /* The entry is the exit played backwards: the ring arrives turned away, as
-       it leaves, and unwinds flat. */
-    --p: calc(var(--hero-p) + var(--ring-in));
-    opacity: calc(1 - var(--ring-in) / 0.6);
-    animation: ring-in 1.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+    /* On arrival the ring starts all but edge-on (86deg; at 90 a plane draws nothing), a line through the middle, and opens
+       into the circle. Its perspective starts nearly flat, so the line is clean
+       rather than smeared toward the viewer, and tightens as it opens. */
+    --p: var(--hero-p);
+    opacity: calc(1 - var(--ring-in) * 0.4);
+    animation:
+      ring-in 2s cubic-bezier(0.16, 1, 0.3, 1) both,
+      ring-spin 2.6s cubic-bezier(0.05, 0.7, 0.1, 1) both;
     transform: translate(
         calc(var(--p) * -19.71% - var(--p) * var(--p) * 9.97% + var(--p) * var(--p) * var(--p) * 19.2%),
         calc(var(--p) * -5.22% - var(--p) * var(--p) * 9.87% - var(--p) * var(--p) * var(--p) * 2.02%)
       )
-      perspective(650px) rotate3d(1, -1, 0, calc(var(--p) * 62deg)) rotate(calc(var(--p) * 55deg));
+      perspective(calc(650px + var(--ring-in) * 6000px))
+      rotate3d(1, -1, 0, calc(var(--p) * 62deg + var(--ring-in) * 86deg))
+      rotate(calc(var(--p) * 55deg + var(--ring-spin) * 1deg));
   }
   .hero-stage [data-seat] {
-    rotate: calc(var(--p) * -55deg);
+    rotate: calc(var(--p) * -55deg - var(--ring-spin) * 1deg);
   }
   @media (prefers-reduced-motion: reduce) {
     .hero-stage [data-hero-copy] {
@@ -848,7 +853,7 @@
   }
 }
 
-/* The hero ring's entry: how far along its exit turn it starts, unwinding to none. */
+/* The hero ring's entry: 1 while it is still a line, opening to none. */
 @property --ring-in {
   syntax: '<number>';
   inherits: true;
@@ -856,7 +861,18 @@
 }
 @keyframes ring-in {
   from {
-    --ring-in: 0.6;
+    --ring-in: 1;
+  }
+}
+/* And an extra turn, in degrees, that it whips through on arrival and coasts out of. */
+@property --ring-spin {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@keyframes ring-spin {
+  from {
+    --ring-spin: 240;
   }
 }
 
