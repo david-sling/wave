@@ -367,7 +367,8 @@
         calc(var(--p) * var(--sx1) + var(--p) * var(--p) * var(--sx2) + var(--p) * var(--p) * var(--p) * var(--sx3)),
         calc(var(--p) * var(--sy1) + var(--p) * var(--p) * var(--sy2) + var(--p) * var(--p) * var(--p) * var(--sy3))
       )
-      perspective(calc(var(--ring-depth) + var(--ring-in) * 6000px))
+      perspective(calc(var(--ring-depth) + var(--ring-in) * 6000px)) rotateX(calc(var(--lean-y, 0) * -8deg))
+      rotateY(calc(var(--lean-x, 0) * 8deg))
       rotate3d(var(--tilt-x), var(--tilt-y), 0, calc(var(--p) * 62deg + var(--ring-in) * 86deg))
       rotate(calc(var(--p) * 120deg + var(--ring-spin) * 1deg + var(--ring-coast, 0deg)));
   }

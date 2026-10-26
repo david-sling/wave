@@ -30,6 +30,12 @@ const TURN = 120
  * scroll) cannot fling it.
  */
 const COAST = { stiffness: 3, damping: 3.5, fade: 0.15, fastest: 300 }
+/**
+ * How quickly the ring's lean catches up, in seconds: with the pointer while it
+ * moves over the hero, and slower back to flat once it leaves, so letting go
+ * reads as the ring settling rather than jumping back.
+ */
+const LEAN = { follow: 0.18, release: 0.6 }
 
 export function HeroStage({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -45,6 +51,13 @@ export function HeroStage({ children }: { children: ReactNode }) {
     let offset = 0 // how far the ring is from where the scroll has it
     let drift = 0 // the offset's speed once let go
     let free = false
+    let aimX = 0 // where the pointer would have the lean, -1 to 1 each way
+    let aimY = 0
+    let leanX = 0 // where the lean is
+    let leanY = 0
+    let leanFrame = 0
+    let held = false // whether the pointer is over the hero
+    let leanLast = 0
     const ring = el.querySelector<HTMLElement>('[data-ring]')
     const steps = document.getElementById('how')
 
@@ -56,6 +69,8 @@ export function HeroStage({ children }: { children: ReactNode }) {
       el.style.setProperty('--hero-p', p.toFixed(4))
       // A faded form under the gaps in the carousel must not take clicks.
       el.style.pointerEvents = p > 0.6 ? 'none' : ''
+      // Nor lean toward a pointer it no longer hears leave.
+      if (p > 0.6 && (aimX || aimY)) lean(0, 0)
       // The ring turns for longer: all the way until the steps fill the
       // screen, where it is behind them and must not show below them as they
       // leave.
@@ -111,12 +126,53 @@ export function HeroStage({ children }: { children: ReactNode }) {
       last = performance.now() - 16
       frame = requestAnimationFrame(tick)
     }
+    // The side of the ring under the pointer leans away from it, as if pressed.
+    // Measured across the words rather than the whole stage, so it leans
+    // fully by their edges instead of barely moving over them.
+    // Eased here, every frame toward wherever the pointer is now, so it
+    // follows as the pointer moves rather than waiting for it to stop.
+    const leanStep = (now: number) => {
+      const step = 1 - Math.exp(-Math.min(0.05, (now - leanLast) / 1000) / (held ? LEAN.follow : LEAN.release))
+      leanLast = now
+      leanX += (aimX - leanX) * step
+      leanY += (aimY - leanY) * step
+      const settled = Math.abs(aimX - leanX) < 0.002 && Math.abs(aimY - leanY) < 0.002
+      if (settled) {
+        leanX = aimX
+        leanY = aimY
+      }
+      el.style.setProperty('--lean-x', leanX.toFixed(3))
+      el.style.setProperty('--lean-y', leanY.toFixed(3))
+      leanFrame = settled ? 0 : requestAnimationFrame(leanStep)
+    }
+    const lean = (x: number, y: number, over = false) => {
+      held = over
+      aimX = x
+      aimY = y
+      if (leanFrame) return
+      leanLast = performance.now() - 16
+      leanFrame = requestAnimationFrame(leanStep)
+    }
+    const onPointer = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') return
+      const box = (el.querySelector('[data-hero-copy]') ?? el).getBoundingClientRect()
+      const along = (at: number, from: number, size: number) => Math.max(-1, Math.min(1, ((at - from) / size) * 2 - 1))
+      lean(along(event.clientX, box.left, box.width), along(event.clientY, box.top, box.height), true)
+    }
+    const onLeave = () => lean(0, 0)
     pin()
     turn = progress() * TURN
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', onResize)
+    if (!still) {
+      el.addEventListener('pointermove', onPointer)
+      el.addEventListener('pointerleave', onLeave)
+    }
     return () => {
+      el.removeEventListener('pointermove', onPointer)
+      el.removeEventListener('pointerleave', onLeave)
       cancelAnimationFrame(frame)
+      cancelAnimationFrame(leanFrame)
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onResize)
     }
