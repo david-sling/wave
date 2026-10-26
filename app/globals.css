@@ -331,17 +331,22 @@
   /* The ring turns away on a short perspective, so its near side, bottom
      right, swells while the far side shrinks. That swelling carries the seats
      down and to the right; the leading translate takes them back, by a curve in
-     progress fitted to where the seats land, so the figure turns in place. */
+     progress fitted to where the seats land, turning either way, so the figure
+     turns in place. */
   .hero-stage [data-ring] {
-    --p: var(--hero-p);
+    /* The entry is the exit played backwards: the ring arrives turned away, as
+       it leaves, and unwinds flat. */
+    --p: calc(var(--hero-p) + var(--ring-in));
+    opacity: calc(1 - var(--ring-in) / 0.6);
+    animation: ring-in 1.8s cubic-bezier(0.16, 1, 0.3, 1) both;
     transform: translate(
-        calc(var(--p) * -23.1% + var(--p) * var(--p) * 6.5%),
-        calc(var(--p) * -4.4% - var(--p) * var(--p) * 13.6%)
+        calc(var(--p) * -19.71% - var(--p) * var(--p) * 9.97% + var(--p) * var(--p) * var(--p) * 19.2%),
+        calc(var(--p) * -5.22% - var(--p) * var(--p) * 9.87% - var(--p) * var(--p) * var(--p) * 2.02%)
       )
       perspective(650px) rotate3d(1, -1, 0, calc(var(--p) * 62deg)) rotate(calc(var(--p) * 55deg));
   }
   .hero-stage [data-seat] {
-    rotate: calc(var(--hero-p) * -55deg);
+    rotate: calc(var(--p) * -55deg);
   }
   @media (prefers-reduced-motion: reduce) {
     .hero-stage [data-hero-copy] {
@@ -349,6 +354,7 @@
     }
     .hero-stage [data-ring] {
       transform: none;
+      animation: none;
     }
     .hero-stage [data-seat] {
       rotate: none;
@@ -839,6 +845,18 @@
     .segmented-rail {
       scroll-behavior: auto;
     }
+  }
+}
+
+/* The hero ring's entry: how far along its exit turn it starts, unwinding to none. */
+@property --ring-in {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@keyframes ring-in {
+  from {
+    --ring-in: 0.6;
   }
 }
 
