@@ -38,10 +38,11 @@ const COAST = { stiffness: 3, damping: 3.5, fade: 0.15, fastest: 300 }
 const LEAN = { follow: 0.18, release: 0.6 }
 /**
  * How far the words bulge by the end of the fade, as a share of their block's
- * shorter side: the middle is drawn from this much nearer the centre, so it
- * swells toward the reader like the face of a lens.
+ * shorter side. Negative, so the middle is drawn from farther out than it
+ * stands and sinks away from the reader, like the inside of a bowl; positive
+ * would swell it toward them.
  */
-const BULGE = 0.55
+const BULGE = -0.55
 /** How much more blurred the words are by the end of the fade, in pixels. */
 const BLUR = 4
 
