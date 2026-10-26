@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { buildJoinPrompt } from '@/lib/join-prompt'
 import { howItWorksSteps as steps } from '@/lib/how-it-works-steps'
 import { identityPalette } from '@/lib/identity-color'
@@ -161,45 +161,43 @@ export function HowItWorks() {
 
   return (
     <section id="how" ref={section} className="relative mt-24 h-[900vh] w-full">
-      <div className="sticky top-0 flex h-svh flex-col overflow-hidden pb-6 pt-24">
-        <div className="mx-auto grid h-full min-h-0 w-full max-w-[96rem] grid-rows-[auto_minmax(0,1fr)] gap-6 px-6 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] lg:grid-rows-1 lg:items-center lg:gap-12 xl:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
+      <div className="sticky top-0 flex h-svh flex-col overflow-hidden pb-6 pt-24 lg:pb-16">
+        {/* The section's own ground: a faint dot grid, and behind the demo a
+            soft glow in the colour of the step the story is on. Sticky makes
+            this frame a stacking context, so -z-10 stays inside it. */}
+        <div aria-hidden className="how-ground absolute inset-0 -z-10">
+          {['sky', 'lilac', 'peach'].map((tone, i) => (
+            <span
+              key={tone}
+              className="how-glow absolute inset-0 transition-opacity duration-1000"
+              style={{ '--glow': `var(--color-${tone})`, opacity: i === current ? 1 : 0 } as CSSProperties}
+            />
+          ))}
+        </div>
+        <div className="mx-auto grid h-full min-h-0 w-full max-w-[120rem] grid-rows-[auto_minmax(0,1fr)] gap-6 px-6 lg:max-w-none lg:gap-0 lg:px-0">
           <div>
             {/* No visible title: the demo is the headline. The outline still needs one. */}
             <h2 className="sr-only">How it works</h2>
-            {/* A phone shows one step at a time, so this is the map of all three
-                and how far through them the reader is. The list below says the
-                same in words, so this is hidden from assistive tech. */}
-            <div
-              aria-hidden
-              className="-mx-6 grid grid-cols-3 divide-x divide-line border-y border-line bg-panel lg:hidden"
-            >
-              {steps.map((step, i) => (
-                <div key={step.short} className="relative px-3 py-2.5 text-center">
-                  <span
-                    className="absolute inset-x-0 bottom-0 h-[3px] origin-left bg-ink"
-                    style={{ transform: `scaleX(${clamp01((p - STEP_AT[i]) / (STEP_END[i] - STEP_AT[i]))})` }}
-                  />
-                  <span
-                    className={`relative text-[13px] font-semibold transition-colors duration-300 ${
-                      i === current ? 'text-ink' : i < current ? 'text-ink-2' : 'text-ink-3'
-                    }`}
-                  >
-                    {step.short}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <StepStrip p={p} current={current} className="-mx-6 lg:hidden" />
             {/* On a phone the steps share one cell, so the slot is as tall as the
                 longest step from the start and the demo below never shrinks as
                 they arrive. Each one slides up into place while the last recedes
-                behind it. On a wide screen they are an ordinary list. */}
-            <ol className="m-0 mt-5 grid list-none p-0 lg:mt-0 lg:border-t lg:border-line">
+                behind it. A wide screen tiles one ruled block in four, the three
+                steps in a row over the demo, and sets it in the ground with the
+                texture showing all round it. Each step's bottom edge fills as
+                the story passes through it. */}
+            <ol className="m-0 mt-5 grid list-none p-0 lg:mt-0 lg:mx-auto lg:grid-cols-3 lg:divide-x lg:divide-line-strong lg:border lg:border-line-strong lg:bg-panel lg:w-[min(69rem,calc(100%-3rem))]">
               {steps.map((step, i) => (
                 <li
                   key={step.title}
                   data-state={i === current ? 'active' : i < current ? 'done' : 'next'}
-                  className="grid origin-top grid-cols-[28px_1fr] gap-3 transition-[opacity,translate,scale,filter] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=next]:translate-y-3 data-[state=next]:opacity-0 max-lg:[grid-area:1/1] max-lg:data-[state=active]:z-[1] max-lg:data-[state=done]:-translate-y-2 max-lg:data-[state=done]:scale-[0.92] max-lg:data-[state=done]:opacity-0 max-lg:data-[state=done]:blur-[2px] max-lg:data-[state=next]:translate-y-6 lg:border-b lg:border-line lg:py-5 lg:data-[state=done]:opacity-45"
+                  className="grid origin-top grid-cols-[28px_1fr] gap-3 transition-[opacity,translate,scale,filter,background-color] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=next]:translate-y-3 data-[state=next]:opacity-0 max-lg:[grid-area:1/1] max-lg:data-[state=active]:z-[1] max-lg:data-[state=done]:-translate-y-2 max-lg:data-[state=done]:scale-[0.92] max-lg:data-[state=done]:opacity-0 max-lg:data-[state=done]:blur-[2px] max-lg:data-[state=next]:translate-y-6 lg:relative lg:px-8 lg:py-6 lg:data-[state=active]:bg-ground/70 lg:data-[state=next]:translate-y-0 lg:data-[state=next]:opacity-100 lg:[&>*]:transition-opacity lg:[&>*]:duration-700 lg:data-[state=done]:[&>*]:opacity-55 lg:data-[state=next]:[&>*]:opacity-35"
                 >
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-0 -bottom-px h-[2px] origin-left bg-ink max-lg:hidden"
+                    style={{ transform: `scaleX(${clamp01((p - STEP_AT[i]) / (STEP_END[i] - STEP_AT[i]))})` }}
+                  />
                   <span aria-hidden className="font-display text-lg font-bold leading-[1.3] text-ink-3">
                     {i + 1}
                   </span>
@@ -214,10 +212,40 @@ export function HowItWorks() {
             </ol>
           </div>
 
-          <Stage p={p} />
+          <div className="min-h-0 lg:mx-auto lg:w-[min(69rem,calc(100%-3rem))] lg:border-x lg:border-b lg:border-line-strong lg:bg-panel lg:p-8">
+            <Stage p={p} />
+          </div>
         </div>
       </div>
     </section>
+  )
+}
+
+/**
+ * A phone's map of all three steps and how far through them the reader is,
+ * since it shows only one step at a time: a band edge to edge, each step's
+ * underline filling as the scroll crosses it. The list says the same in words,
+ * so this is hidden from assistive tech.
+ */
+function StepStrip({ p, current, className }: { p: number; current: number; className: string }) {
+  return (
+    <div aria-hidden className={`grid grid-cols-3 divide-x divide-line border-y border-line bg-panel ${className}`}>
+      {steps.map((step, i) => (
+        <div key={step.short} className="relative px-3 py-2.5 text-center">
+          <span
+            className="absolute inset-x-0 bottom-0 h-[3px] origin-left bg-ink"
+            style={{ transform: `scaleX(${clamp01((p - STEP_AT[i]) / (STEP_END[i] - STEP_AT[i]))})` }}
+          />
+          <span
+            className={`relative text-[13px] font-semibold transition-colors duration-300 ${
+              i === current ? 'text-ink' : i < current ? 'text-ink-2' : 'text-ink-3'
+            }`}
+          >
+            {step.short}
+          </span>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -236,14 +264,19 @@ type Layout = {
    the terminal and the thread share as an accordion. A phone has room for one
    window at a time, so there all three are one accordion: the window the
    story is on has the frame, and the others fold to their title bars. */
-const WIDE: Layout = {
-  width: 1040,
-  height: 580,
-  tiled: {
-    column: { left: 0, top: 0, width: 430, height: 580 },
-    chat: { left: 431, top: 0, width: 609, height: 580 },
-  },
+function wide(width: number, height: number): Layout {
+  return {
+    width,
+    height,
+    tiled: {
+      column: { left: 0, top: 0, width: 430, height },
+      chat: { left: 431, top: 0, width: width - 431, height },
+    },
+  }
 }
+/** The wide frame at its least size. It stretches, up to the caps, to fill the room it is given; the channel takes the extra width. */
+const WIDE = wide(1040, 580)
+const WIDE_MAX = { width: 1500, height: 780 }
 /** A phone: the width is fixed, the height is the least it is drawn at, and it stretches to fill. */
 const TALL: Layout = { width: 440, height: 520 }
 
@@ -286,6 +319,8 @@ function tilesAt(layout: Layout, q: number): Record<Pane, Box & { inner?: number
 
 /** Below this the side-by-side type gets too small to read, so the windows stack. */
 const MIN_WIDE_SCALE = 0.75
+/** How large the demo is drawn at most. High enough that a big screen gets a big demo, not a wide margin. */
+const MAX_SCALE = 1.6
 
 function Stage({ p }: { p: number }) {
   const box = useRef<HTMLDivElement>(null)
@@ -296,9 +331,19 @@ function Stage({ p }: { p: number }) {
     if (!el) return
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect
-      const scaleOf = (layout: Layout) => Math.min(width / layout.width, height / layout.height, 1.15)
+      const scaleOf = (layout: Layout) => Math.min(width / layout.width, height / layout.height, MAX_SCALE)
       if (scaleOf(WIDE) >= MIN_WIDE_SCALE) {
-        setFit({ layout: WIDE, scale: scaleOf(WIDE) })
+        /* The frame keeps the scale its least size fits at and stretches in
+           the other direction to fill the room, so the windows fill the
+           section instead of floating in a band of empty ground. */
+        const scale = scaleOf(WIDE)
+        setFit({
+          layout: wide(
+            Math.min(WIDE_MAX.width, Math.floor(width / scale)),
+            Math.min(WIDE_MAX.height, Math.floor(height / scale)),
+          ),
+          scale,
+        })
         return
       }
       /* One window at a time has no fixed shape, so on a phone the frame is

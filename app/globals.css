@@ -251,6 +251,49 @@
     color: var(--color-panel);
   }
 
+  /* The how-it-works ground. A tint a step off the page ground, a dot grid
+     that thins out toward the edges, and per step a wide soft glow behind the
+     demo; the glows cross-fade, so the colour drifts as the story moves on. */
+  .how-ground {
+    background-color: color-mix(in oklab, var(--color-ground) 70%, var(--color-panel));
+    border-block: 1px solid var(--color-line);
+  }
+  .how-ground::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at center, var(--color-line-strong) 1px, transparent 1.5px);
+    background-size: 22px 22px;
+    mask-image: radial-gradient(90% 80% at 60% 55%, black 20%, transparent 85%);
+    opacity: 0.7;
+  }
+  /* On a wide screen the steps and the demo are one block set in the ground,
+     so the grid shows all round it: there it runs evenly to the edge rather
+     than fading out. */
+  @media (min-width: 64rem) {
+    .how-ground::before {
+      mask-image: none;
+    }
+    /* The glow too: centred and wide, so the colour reaches round the block
+       rather than pooling behind it. */
+    .how-glow {
+      background: radial-gradient(
+        75% 120% at 50% 50%,
+        color-mix(in oklab, var(--glow) 50%, transparent) 40%,
+        color-mix(in oklab, var(--glow) 22%, transparent) 68%,
+        transparent 95%
+      );
+    }
+  }
+  .how-glow {
+    background: radial-gradient(
+      62% 90% at 64% 56%,
+      color-mix(in oklab, var(--glow) 55%, transparent),
+      color-mix(in oklab, var(--glow) 18%, transparent) 55%,
+      transparent 80%
+    );
+  }
+
   /* The hero as the page scrolls over it: --hero-p runs 0 to 1. The block
      fades into the ground, the words grow toward the reader as they go, and
      the ring tips back on the diagonal, so it foreshortens into a leaning

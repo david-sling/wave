@@ -18,7 +18,7 @@ const principles = [
 
 export function Principles() {
   return (
-    <section className="field mt-24 py-14 md:py-20">
+    <section className="field py-14 md:py-20">
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:gap-12">
         <div className="grid content-start gap-5">
           <h2 className="m-0 max-w-[14ch] text-[clamp(1.875rem,3vw,2.5rem)] font-bold leading-[1.05] tracking-[-0.025em]">
