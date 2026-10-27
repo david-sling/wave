@@ -159,11 +159,10 @@ export function HeroStage({ children }: { children: ReactNode }) {
       const moved = progress() * TURN - turn
       turn += moved
       if (still) return
-      // Scrolling with the bulge on and frames running long: under 24 a
-      // second, below the 30 a phone may keep to while a finger scrolls or to
-      // save power. A dozen more slow than smooth, and only the blur stays.
+      // Scrolling with the bulge on and frames running long (under 36 a
+      // second): a dozen more slow than smooth, and only the blur stays.
       if (lens && moved !== 0 && copy?.style.filter) {
-        slow = gap > 1 / 24 ? slow + 1 : Math.max(0, slow - 1)
+        slow = gap > 1 / 36 ? slow + 1 : Math.max(0, slow - 1)
         if (slow > 12) {
           lens = false
           copy.style.filter = ''
